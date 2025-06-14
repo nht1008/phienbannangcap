@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from 'next/image';
 import { PlusCircle, Trash2, Settings } from 'lucide-react';
 
@@ -45,11 +46,15 @@ export function InventoryTab({
     const { name, value } = e.target;
     setNewItem(prev => ({ ...prev, [name]: value }));
   };
+
+  const handleSelectChange = (name: 'color' | 'size' | 'unit', value: string) => {
+    setNewItem(prev => ({ ...prev, [name]: value }));
+  };
   
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.name || !newItem.unit || parseInt(newItem.quantity) < 0 || parseInt(newItem.price) < 0) {
-      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm.");
+      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Đơn vị là bắt buộc, Số lượng và Giá phải >= 0).");
       return;
     }
     const newProductData: Omit<Product, 'id'> = {
@@ -77,7 +82,6 @@ export function InventoryTab({
     if (currentOptionType && newOptionName.trim()) {
       await onAddOption(currentOptionType, newOptionName.trim());
       setNewOptionName(''); 
-      // Dialog remains open for further additions/deletions
     }
   };
 
@@ -101,7 +105,6 @@ export function InventoryTab({
         <div className="flex justify-between items-center">
           <CardTitle>Danh sách sản phẩm</CardTitle>
           <div className="flex gap-2 items-center">
-            <span className="text-sm font-medium text-muted-foreground">Tên sản phẩm</span>
             <Button onClick={() => openOptionsDialog('colors')} variant="outline">
               <Settings className="mr-2 h-4 w-4" /> Màu sắc
             </Button>
@@ -120,13 +123,69 @@ export function InventoryTab({
       <CardContent className="p-6">
         {isAddingProduct && (
           <form onSubmit={handleAddItem} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
-            <div><label className="text-sm text-foreground">Tên sản phẩm</label><Input type="text" name="name" placeholder="Hoa hồng" value={newItem.name} onChange={handleInputChange} required /></div>
-            <div><label className="text-sm text-foreground">Màu sắc</label><Input type="text" name="color" placeholder="Đỏ" value={newItem.color} onChange={handleInputChange} /></div>
-            <div><label className="text-sm text-foreground">Kích thước</label><Input type="text" name="size" placeholder="Lớn" value={newItem.size} onChange={handleInputChange} /></div>
-            <div><label className="text-sm text-foreground">Đơn vị</label><Input type="text" name="unit" placeholder="Bông" value={newItem.unit} onChange={handleInputChange} required /></div>
-            <div><label className="text-sm text-foreground">Số lượng</label><Input type="number" name="quantity" placeholder="50" value={newItem.quantity} onChange={handleInputChange} required min="0"/></div>
-            <div><label className="text-sm text-foreground">Giá bán (VNĐ)</label><Input type="number" name="price" placeholder="10000" value={newItem.price} onChange={handleInputChange} required min="0"/></div>
-            <div className="sm:col-span-2"><label className="text-sm text-foreground">URL Hình ảnh (tùy chọn)</label><Input type="text" name="image" placeholder="https://placehold.co/100x100.png" value={newItem.image} onChange={handleInputChange} /></div>
+            <div>
+                <label className="text-sm text-foreground">Tên sản phẩm</label>
+                <Input type="text" name="name" placeholder="Hoa hồng" value={newItem.name} onChange={handleInputChange} required />
+            </div>
+            <div>
+                <label className="text-sm text-foreground">Màu sắc</label>
+                <Select value={newItem.color} onValueChange={(value) => handleSelectChange('color', value)}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn màu sắc" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">Để trống</SelectItem>
+                        {colorOptions.map(option => (
+                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                        {colorOptions.length === 0 && <SelectItem value="no-color" disabled>Không có tùy chọn</SelectItem>}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <label className="text-sm text-foreground">Kích thước</label>
+                <Select value={newItem.size} onValueChange={(value) => handleSelectChange('size', value)}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn kích thước" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">Để trống</SelectItem>
+                        {sizeOptions.map(option => (
+                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                        {sizeOptions.length === 0 && <SelectItem value="no-size" disabled>Không có tùy chọn</SelectItem>}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <label className="text-sm text-foreground">Đơn vị (*)</label>
+                <Select value={newItem.unit} onValueChange={(value) => handleSelectChange('unit', value)} required>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn đơn vị" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {unitOptions.length === 0 ? (
+                             <SelectItem value="no-unit" disabled>Vui lòng thêm đơn vị</SelectItem>
+                        ) : (
+                            unitOptions.map(option => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))
+                        )}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <label className="text-sm text-foreground">Số lượng (*)</label>
+                <Input type="number" name="quantity" placeholder="50" value={newItem.quantity} onChange={handleInputChange} required min="0"/>
+            </div>
+            <div>
+                <label className="text-sm text-foreground">Giá bán (VNĐ) (*)</label>
+                <Input type="number" name="price" placeholder="10000" value={newItem.price} onChange={handleInputChange} required min="0"/>
+            </div>
+            <div className="sm:col-span-2">
+                <label className="text-sm text-foreground">URL Hình ảnh (tùy chọn)</label>
+                <Input type="text" name="image" placeholder="https://placehold.co/100x100.png" value={newItem.image} onChange={handleInputChange} />
+            </div>
             <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 md:col-start-4">Lưu sản phẩm</Button>
           </form>
         )}
@@ -158,8 +217,8 @@ export function InventoryTab({
                     />
                     {item.name}
                   </TableCell>
-                  <TableCell>{item.color}</TableCell>
-                  <TableCell>{item.size}</TableCell>
+                  <TableCell>{item.color || 'N/A'}</TableCell>
+                  <TableCell>{item.size || 'N/A'}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{item.price.toLocaleString('vi-VN')}</TableCell>
@@ -230,3 +289,5 @@ export function InventoryTab({
   );
 }
 
+
+    

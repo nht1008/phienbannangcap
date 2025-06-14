@@ -48,7 +48,7 @@ interface InventoryTabProps {
 type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice'> & { quantity: string; price: string; costPrice: string };
 
 const initialFormProductState: FormProduct = {
-    name: '', quantity: '0', price: '0', costPrice: '0', image: '', color: '', size: '', unit: ''
+    name: '', quantity: '', price: '', costPrice: '', image: '', color: '', size: '', unit: ''
 };
 
 export function InventoryTab({ 
@@ -101,7 +101,7 @@ export function InventoryTab({
             name: productToEdit.name,
             quantity: productToEdit.quantity.toString(),
             price: productToEdit.price.toString(),
-            costPrice: productToEdit.costPrice?.toString() || '0',
+            costPrice: productToEdit.costPrice?.toString() || '',
             image: productToEdit.image,
             color: productToEdit.color,
             size: productToEdit.size,
@@ -128,7 +128,7 @@ export function InventoryTab({
   
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.unit || parseInt(newItem.quantity) < 0 || parseInt(newItem.costPrice) < 0 || parseInt(newItem.price) < 0) {
+    if (!newItem.name || !newItem.unit || newItem.quantity === '' || newItem.costPrice === '' || newItem.price === '' || parseInt(newItem.quantity) < 0 || parseInt(newItem.costPrice) < 0 || parseInt(newItem.price) < 0) {
       alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
       return;
     }
@@ -160,7 +160,7 @@ export function InventoryTab({
 
   const handleUpdateExistingProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productToEdit || !editedItem.name || !editedItem.unit || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.costPrice) < 0 || parseInt(editedItem.price) < 0) {
+    if (!productToEdit || !editedItem.name || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.costPrice) < 0 || parseInt(editedItem.price) < 0) {
       alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm.");
       return;
     }
@@ -289,15 +289,15 @@ export function InventoryTab({
         </div>
         <div>
             <label className="text-sm text-foreground">Số lượng (*)</label>
-            <Input type="number" name="quantity" placeholder="50" value={formState.quantity} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <Input type="number" name="quantity" value={formState.quantity} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div>
             <label className="text-sm text-foreground">Giá gốc (Nghìn VND) (*)</label>
-            <Input type="number" name="costPrice" placeholder="5" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <Input type="number" name="costPrice" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div>
             <label className="text-sm text-foreground">Giá bán (Nghìn VND) (*)</label>
-            <Input type="number" name="price" placeholder="10" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <Input type="number" name="price" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div className="sm:col-span-2 md:col-span-3">
             <label className="text-sm text-foreground">URL Hình ảnh</label>
@@ -343,8 +343,8 @@ export function InventoryTab({
                 onClick={() => { 
                     const isCurrentlyAdding = !isAddingProduct;
                     setIsAddingProduct(isCurrentlyAdding); 
-                    setIsEditingProduct(false); // Ensure edit mode is off when adding
-                    setProductToEdit(null);   // Clear any product being edited
+                    setIsEditingProduct(false); 
+                    setProductToEdit(null);   
                     if (isCurrentlyAdding) {
                         setNewItem({
                             ...initialFormProductState, 

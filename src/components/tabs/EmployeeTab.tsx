@@ -23,8 +23,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
   const isAdmin = currentUser?.email === 'nthe1008@gmail.com';
 
   const displayEmployees = useMemo(() => {
-    if (isAdmin) return employees; // Admin sees all employees as per page.tsx logic
-    // Non-admin sees admin and themselves
+    if (isAdmin) return employees;
     const adminEmployee = employees.find(emp => emp.email === 'nthe1008@gmail.com');
     const selfEmployee = employees.find(emp => emp.id === currentUser?.uid);
     const result = [];
@@ -41,7 +40,11 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
 
   const employeeDebts = useMemo(() => {
     if (!selectedEmployee) return [];
-    return debts.filter(debt => debt.createdEmployeeId === selectedEmployee.id || debt.lastUpdatedEmployeeId === selectedEmployee.id)
+    // Filter for debts created by or last updated by the selected employee
+    return debts.filter(debt => 
+                        debt.createdEmployeeId === selectedEmployee.id || 
+                        debt.lastUpdatedEmployeeId === selectedEmployee.id
+                      )
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [debts, selectedEmployee]);
 
@@ -49,80 +52,81 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
     if (isAdmin || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
     } else {
-        // Non-admin trying to view details of another non-admin employee (should not happen with current displayEmployees logic)
         setSelectedEmployee(null); 
     }
   };
 
-
   return (
-    <Card>
+    <Card> {/* Main Card for the Tab */}
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto mt-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Họ và tên</TableHead>
-                <TableHead>Chức vụ</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Số điện thoại</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayEmployees.length === 0 ? (
+      <CardContent className="flex flex-col space-y-6">
+        {/* Employee List Table Section */}
+        <div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
-                    Chưa có nhân viên nào trong danh sách.
-                  </TableCell>
+                  <TableHead>Họ và tên</TableHead>
+                  <TableHead>Chức vụ</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Số điện thoại</TableHead>
                 </TableRow>
-              ) : (
-                displayEmployees.map(emp => (
-                  <TableRow 
-                    key={emp.id} 
-                    onClick={() => handleSelectEmployee(emp)}
-                    className={`cursor-pointer hover:bg-muted/50 ${selectedEmployee?.id === emp.id ? 'bg-muted/50' : ''}`}
-                  >
-                    <TableCell>{emp.name}</TableCell>
-                    <TableCell>{emp.position}</TableCell>
-                    <TableCell>{emp.email}</TableCell>
-                    <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
+              </TableHeader>
+              <TableBody>
+                {displayEmployees.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+                      Chưa có nhân viên nào trong danh sách.
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  displayEmployees.map(emp => (
+                    <TableRow 
+                      key={emp.id} 
+                      onClick={() => handleSelectEmployee(emp)}
+                      className={`cursor-pointer hover:bg-muted/50 ${selectedEmployee?.id === emp.id ? 'bg-primary/10' : ''}`}
+                    >
+                      <TableCell>{emp.name}</TableCell>
+                      <TableCell>{emp.position}</TableCell>
+                      <TableCell>{emp.email}</TableCell>
+                      <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
+        {/* Activity Log Section - Wrapped in its own Card */}
         {selectedEmployee && (
-          <div className="mt-8">
-            <Separator />
-            <CardHeader className="px-0 pt-6 pb-4">
+          <Card className="shadow-md">
+            <CardHeader>
               <CardTitle className="text-xl font-semibold">Nhật ký hoạt động của: {selectedEmployee.name}</CardTitle>
+              <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             </CardHeader>
-            
-            <div className="space-y-6">
+            <CardContent className="space-y-6">
               <div>
-                <h4 className="font-medium mb-2 text-lg">Hóa đơn đã tạo ({employeeInvoices.length})</h4>
+                <h3 className="font-semibold mb-2 text-lg text-primary">Hóa đơn đã tạo ({employeeInvoices.length})</h3>
                 {employeeInvoices.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Chưa tạo hóa đơn nào.</p>
                 ) : (
-                <ScrollArea className="h-60 border rounded-md">
+                <ScrollArea className="h-60 border rounded-md p-2">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID HĐ</TableHead>
-                        <TableHead>Khách hàng</TableHead>
-                        <TableHead>Ngày tạo</TableHead>
-                        <TableHead className="text-right">Tổng tiền</TableHead>
+                        <TableHead className="w-1/4">ID HĐ</TableHead>
+                        <TableHead className="w-1/4">Khách hàng</TableHead>
+                        <TableHead className="w-1/4">Ngày tạo</TableHead>
+                        <TableHead className="w-1/4 text-right">Tổng tiền</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {employeeInvoices.map(invoice => (
                         <TableRow key={invoice.id}>
-                          <TableCell>{invoice.id.substring(0, 6)}...</TableCell>
+                          <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
                           <TableCell>{invoice.customerName}</TableCell>
                           <TableCell>{new Date(invoice.date).toLocaleDateString('vi-VN')}</TableCell>
                           <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
@@ -134,12 +138,14 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                 )}
               </div>
 
+              <Separator />
+
               <div>
-                <h4 className="font-medium mb-2 text-lg">Công nợ đã xử lý ({employeeDebts.length})</h4>
+                <h3 className="font-semibold mb-2 text-lg text-primary">Công nợ đã xử lý ({employeeDebts.length})</h3>
                  {employeeDebts.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Chưa xử lý công nợ nào.</p>
                 ) : (
-                <ScrollArea className="h-60 border rounded-md">
+                <ScrollArea className="h-60 border rounded-md p-2">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -147,7 +153,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                         <TableHead>Ngày</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead>Hành động</TableHead>
+                        <TableHead>Vai trò</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -158,9 +164,15 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                           <TableCell className="text-right">{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
                           <TableCell>{debt.status}</TableCell>
                           <TableCell>
-                            {debt.createdEmployeeId === selectedEmployee.id && `Tạo bởi: ${debt.createdEmployeeName || 'Không rõ'}`}
-                            {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId !== selectedEmployee.id && `Cập nhật bởi: ${debt.lastUpdatedEmployeeName || 'Không rõ'}`}
-                            {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId === selectedEmployee.id && ` (Cập nhật bởi: ${debt.lastUpdatedEmployeeName || 'Không rõ'})`}
+                            {debt.createdEmployeeId === selectedEmployee.id && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                            )}
+                            {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId !== selectedEmployee.id && (
+                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
+                            )}
+                            {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId === selectedEmployee.id && (
+                                 <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Tạo & Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -169,8 +181,8 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                 </ScrollArea>
                 )}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
       </CardContent>
     </Card>

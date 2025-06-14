@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
+import { ref, onValue, set, push, update, get, child, remove, query, orderByChild, equalTo } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from 'firebase/auth';
 
@@ -138,24 +138,40 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!currentUser) return;
     const employeesRef = ref(db, 'employees');
     const unsubscribe = onValue(employeesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        let employeesArray: Employee[] = Object.keys(data).map(key => ({
+        const allEmployees: Employee[] = Object.keys(data).map(key => ({
           id: key,
           ...data[key]
         }));
 
-        if (currentUser.uid) {
-            // Admin (nthe1008@gmail.com) sees all employees they manage (userId === admin's uid)
-            // Other users only see their own employee record (userId === their own uid)
-            // This logic assumes that when admin adds an employee, that employee's record has userId = admin's uid.
-            employeesArray = employeesArray.filter(emp => emp.userId === currentUser.uid);
+        const adminRecord = allEmployees.find(emp => emp.email === 'nthe1008@gmail.com');
+        let otherEmployees: Employee[];
+
+        if (currentUser.email === 'nthe1008@gmail.com') {
+          // Admin sees all employees other than themselves
+          otherEmployees = allEmployees.filter(emp => emp.email !== 'nthe1008@gmail.com');
+        } else {
+          // Regular employee sees only their own record (if it's not the admin record itself)
+          const ownRecord = allEmployees.find(emp => emp.userId === currentUser.uid && emp.email !== 'nthe1008@gmail.com');
+          otherEmployees = ownRecord ? [ownRecord] : [];
         }
-        setEmployeesData(employeesArray.sort((a,b) => a.name.localeCompare(b.name)));
+
+        // Sort other employees alphabetically by name
+        otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
+
+        const finalEmployeesList: Employee[] = [];
+        if (adminRecord) {
+          finalEmployeesList.push(adminRecord);
+        }
+        // Ensure not to add admin's record again if it was somehow included in 'otherEmployees'
+        finalEmployeesList.push(...otherEmployees.filter(emp => emp.id !== adminRecord?.id));
+        
+        setEmployeesData(finalEmployeesList);
       } else {
         setEmployeesData([]);
       }
@@ -351,14 +367,14 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
-  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id'>) => {
     if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để thêm nhân viên.", variant: "destructive" });
         return;
     }
     try {
       const newEmployeeRef = push(ref(db, 'employees'));
-      await set(newEmployeeRef, { ...newEmployeeData, userId: currentUser.uid }); // Admin's UID is used as userId for managed employees
+      await set(newEmployeeRef, newEmployeeData ); 
       toast({ title: "Thành công", description: "Nhân viên đã được thêm.", variant: "default" });
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -366,16 +382,13 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, toast]);
 
-  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id'>) => {
      if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để cập nhật nhân viên.", variant: "destructive" });
         return;
     }
     try {
-      // When admin updates an employee, the employee's record in DB has userId = admin's UID.
-      // When a user's own record (created via onNameSet) is updated, their own UID is used.
-      // This is correct because updatedEmployeeData is passed with the correct fields and then `userId` is merged.
-      await update(ref(db, `employees/${employeeId}`), { ...updatedEmployeeData, userId: currentUser.uid });
+      await update(ref(db, `employees/${employeeId}`), updatedEmployeeData);
       toast({ title: "Thành công", description: "Thông tin nhân viên đã được cập nhật.", variant: "default" });
     } catch (error) {
       console.error("Error updating employee:", error);
@@ -865,35 +878,57 @@ export default function FleurManagerPage() {
       <SetNameDialog
         onNameSet={async (name) => {
           try {
-            await updateUserProfileName(name); // Update Auth displayName
+            await updateUserProfileName(name); 
 
             const userEmail = currentUser?.email;
             const isAdmin = userEmail === 'nthe1008@gmail.com';
             const userPosition = isAdmin ? 'Chủ cửa hàng' : 'Nhân viên';
+            const userId = currentUser?.uid;
 
-            const existingEmployeeRecord = employeesData.find(
-              (emp) => emp.userId === currentUser?.uid
-            );
+            if (!userId) {
+                 toast({title: "Lỗi", description: "Không tìm thấy ID người dùng.", variant: "destructive"});
+                 return;
+            }
+            
+            const existingEmployeeSnapshot = await get(query(ref(db, 'employees'), orderByChild('userId'), equalTo(userId)));
+            let existingEmployeeRecord: Employee | null = null;
+            let existingEmployeeId: string | null = null;
 
-            if (existingEmployeeRecord) {
-                await handleUpdateEmployee(existingEmployeeRecord.id, {
+            if (existingEmployeeSnapshot.exists()) {
+                const allUserEmployees = existingEmployeeSnapshot.val();
+                for (const empId in allUserEmployees) {
+                    if (allUserEmployees[empId].userId === userId) {
+                        existingEmployeeRecord = { id: empId, ...allUserEmployees[empId]};
+                        existingEmployeeId = empId;
+                        break;
+                    }
+                }
+            }
+
+            if (existingEmployeeRecord && existingEmployeeId) {
+                const updateData: Omit<Employee, 'id'> = {
                   name: name,
-                  position: userPosition, // Set position based on role
-                  phone: existingEmployeeRecord.phone,
-                  email: userEmail || '', 
-                });
-                 toast({title: "Thành công", description: "Tên của bạn và thông tin nhân viên đã được cập nhật."});
+                  position: userPosition, 
+                  phone: existingEmployeeRecord.phone || 'Chưa cập nhật',
+                  email: userEmail || existingEmployeeRecord.email || '', 
+                  userId: userId,
+                };
+                await handleUpdateEmployee(existingEmployeeId, updateData);
+                toast({title: "Thành công", description: "Tên của bạn và thông tin nhân viên đã được cập nhật."});
             } else {
-              const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
+              const newEmployeeData: Omit<Employee, 'id'> = {
                 name: name,
-                position: userPosition, // Set position based on role
+                position: userPosition, 
                 phone: 'Chưa cập nhật',
                 email: userEmail || '',
+                userId: userId,
               };
               await handleAddEmployee(newEmployeeData);
               toast({title: "Thành công", description: "Tên của bạn đã được lưu và nhân viên mới đã được tạo."});
             }
+            setIsSettingName(false); // Important: Set this after all operations
           } catch (error) {
+            console.error("Error in onNameSet:", error);
             toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo/cập nhật nhân viên.", variant: "destructive"});
           }
         }}
@@ -978,3 +1013,6 @@ export default function FleurManagerPage() {
   );
 }
 
+    
+
+    

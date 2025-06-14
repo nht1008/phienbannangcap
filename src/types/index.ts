@@ -20,7 +20,7 @@ export interface Employee {
   name: string;
   position: string;
   phone: string;
-  userId: string; // UID of the Firebase user who owns/created this employee OR admin's UID if admin created
+  userId: string; 
   email?: string; 
 }
 
@@ -68,3 +68,4 @@ export interface ItemToImport {
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
 
+    

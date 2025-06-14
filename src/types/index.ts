@@ -15,7 +15,14 @@ export interface CartItem extends Product {
   quantityInCart: number; 
 }
 
-// Employee interface removed as the feature is being removed
+export interface Employee {
+  id: string; // Firebase key
+  name: string;
+  position: string; // e.g., "Chủ cửa hàng", "Nhân viên"
+  phone: string;
+  userId: string; // uid of the Firebase Auth user associated with this employee record
+  email?: string; // Email of the employee
+}
 
 export interface Customer {
   id: string;

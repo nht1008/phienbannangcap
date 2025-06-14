@@ -11,10 +11,26 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
+import { ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from '@/lib/utils';
+
 
 interface SalesTabProps {
   inventory: Product[];
-  customers: Customer[]; // Added customers prop
+  customers: Customer[];
   onCreateInvoice: (
     customerName: string, 
     cart: CartItem[], 
@@ -33,7 +49,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
   
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [customerName, setCustomerName] = useState('Khách lẻ');
+  const [customerNameForInvoice, setCustomerNameForInvoice] = useState('Khách lẻ');
+  const [customerSearchText, setCustomerSearchText] = useState(""); 
+  const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
   const [discountStr, setDiscountStr] = useState('');
   const [amountPaidStr, setAmountPaidStr] = useState('');
@@ -106,7 +124,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
         return;
       }
     }
-    setCustomerName("Khách lẻ"); // Reset customer name for new transaction
+    setCustomerNameForInvoice("Khách lẻ"); 
+    setCustomerSearchText("");
     setDiscountStr(''); 
     setAmountPaidStr(''); 
     setCurrentPaymentMethod(paymentOptions[0]);
@@ -114,7 +133,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
   };
 
   const handleConfirmCheckout = async () => {
-    const finalCustomerName = customerName.trim() === '' ? 'Khách lẻ' : customerName.trim();
+    const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const discountNum = parseFloat(discountStr) || 0;
     const amountPaidNum = parseFloat(amountPaidStr) || 0;
 
@@ -143,7 +162,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     if (success) {
       setCart([]);
       setIsPaymentDialogOpen(false);
-      // States are reset in handleOpenPaymentDialog for next transaction
     }
   };
 
@@ -243,15 +261,74 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
           
           <div className="space-y-4 py-4">
             <div className="space-y-1">
-              <Label htmlFor="customerName">Tên khách hàng</Label>
-              <Input 
-                id="customerName" 
-                type="text" 
-                value={customerName} 
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Khách lẻ"
-                className="bg-card" 
-              />
+              <Label htmlFor="customerCombobox">Tên khách hàng</Label>
+              <Popover open={openCustomerCombobox} onOpenChange={setOpenCustomerCombobox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="customerCombobox"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCustomerCombobox}
+                    className="w-full justify-between bg-card text-foreground hover:text-foreground"
+                  >
+                    {customerNameForInvoice || "Chọn hoặc nhập tên..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[calc(var(--radix-popover-trigger-width))] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Tìm khách hàng hoặc nhập tên mới..."
+                      value={customerSearchText}
+                      onValueChange={setCustomerSearchText}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {customerSearchText.trim() ? `Không tìm thấy "${customerSearchText}". Bạn có thể thêm mới.` : "Nhập tên để tìm kiếm."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {customers
+                          .filter(c => c.name.toLowerCase().includes(customerSearchText.toLowerCase()))
+                          .map((customer) => (
+                            <CommandItem
+                              key={customer.id}
+                              value={customer.name} // Used by Command for matching
+                              onSelect={() => { // No need for currentValue, direct access to customer
+                                setCustomerNameForInvoice(customer.name);
+                                setCustomerSearchText(customer.name); 
+                                setOpenCustomerCombobox(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  customerNameForInvoice === customer.name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {customer.name}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                      {customerSearchText.trim() &&
+                       !customers.some(c => c.name.toLowerCase() === customerSearchText.trim().toLowerCase()) &&
+                       customerSearchText.trim().toLowerCase() !== 'khách lẻ' && (
+                        <CommandItem
+                          key="use-typed-value"
+                          value={`use-${customerSearchText.trim()}`}
+                          onSelect={() => {
+                            setCustomerNameForInvoice(customerSearchText.trim());
+                            setOpenCustomerCombobox(false);
+                          }}
+                          className="text-primary hover:!bg-primary/10"
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Sử dụng tên: "{customerSearchText.trim()}"
+                        </CommandItem>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="flex justify-between items-center">

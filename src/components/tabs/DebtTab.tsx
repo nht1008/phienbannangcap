@@ -128,13 +128,6 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
           >
             Hôm nay
           </Button>
-          <Button
-            onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })}
-            variant="outline"
-            className="h-9"
-          >
-            Xóa bộ lọc
-          </Button>
         </div>
 
         <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 rounded-md text-red-800">
@@ -169,8 +162,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",
                         debt.status === 'Chưa thanh toán'
-                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300' // Green for "Thu nợ"
-                          : 'bg-red-200 text-red-800 border-red-400 hover:bg-red-300' // Red for "Hủy thanh toán"
+                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300'
+                          : 'bg-red-200 text-red-800 border-red-400 hover:bg-red-300'
                       )}
                     >
                       {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}

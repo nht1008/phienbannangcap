@@ -211,13 +211,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
             >
               Hôm nay
             </Button>
-            <Button
-              onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })}
-              variant="outline"
-              className="h-9"
-            >
-              Xóa bộ lọc
-            </Button>
           </div>
 
           {invoices.length === 0 ? (

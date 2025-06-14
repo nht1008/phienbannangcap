@@ -143,7 +143,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                 <TableHead>Nhà cung cấp/Khách hàng</TableHead>
                 <TableHead>Ngày tạo</TableHead>
                 <TableHead>Số tiền</TableHead>
-                <TableHead className="text-center">Trạng thái</TableHead>
+                <TableHead className="text-center">Chức năng</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Product } from '@/types'; 
+import type { Product } from '@/types';
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,29 +12,29 @@ import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import { Trash2 } from 'lucide-react';
 
 interface LocalItemToImport {
-  key: string; 
+  key: string;
   name: string;
   color: string;
   size: string;
   unit: string;
   quantity: number;
-  cost: number; 
-  productId?: string | null; 
-  error?: string; 
+  cost: number;
+  productId?: string | null; // undefined: not yet processed, null: processed and not found, string: processed and found
+  error?: string;
 }
 
 interface SubmitItemToImport {
   productId: string;
   quantity: number;
-  cost: number; 
+  cost: number;
 }
 
 
 interface ImportTabProps {
   inventory: Product[];
   onImportProducts: (
-    supplierName: string | undefined, 
-    itemsToSubmit: SubmitItemToImport[], 
+    supplierName: string | undefined,
+    itemsToSubmit: SubmitItemToImport[],
     totalCostVND: number,
     employeeId: string,
     employeeName: string
@@ -47,9 +47,9 @@ interface ImportTabProps {
 }
 
 const createNewImportItem = (
-    productNameOptions: string[], 
-    colorOptions: string[], 
-    sizeOptions: string[], 
+    productNameOptions: string[],
+    colorOptions: string[],
+    sizeOptions: string[],
     unitOptions: string[]
 ): LocalItemToImport => ({
     key: Date.now().toString() + Math.random().toString(36).substring(2, 7),
@@ -59,24 +59,24 @@ const createNewImportItem = (
     unit: unitOptions[0] || '',
     quantity: 1,
     cost: 0,
-    productId: undefined,
+    productId: undefined, // Needs to be calculated
     error: undefined,
 });
 
 
-export function ImportTab({ 
-    inventory, 
+export function ImportTab({
+    inventory,
     onImportProducts,
     productNameOptions,
     colorOptions,
     sizeOptions,
     unitOptions,
-    currentUser 
+    currentUser
 }: ImportTabProps) {
   const [itemsToImport, setItemsToImport] = useState<LocalItemToImport[]>(() => [
     createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)
   ]);
-  
+
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
 
@@ -86,60 +86,91 @@ export function ImportTab({
   };
 
   useEffect(() => {
-    if (itemsToImport.length === 1 && itemsToImport[0].name === '' && productNameOptions.length > 0) {
-        setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
+    // Initialize or reset the first item if options become available and it's still in a default "empty" state
+    if (
+      itemsToImport.length === 1 &&
+      itemsToImport[0].name === '' && // Check against default empty name
+      (productNameOptions.length > 0 || colorOptions.length > 0 || sizeOptions.length > 0 || unitOptions.length > 0)
+    ) {
+        const firstItemIsEmptyAndDefault =
+            itemsToImport[0].name === '' &&
+            itemsToImport[0].color === '' &&
+            itemsToImport[0].size === '' &&
+            itemsToImport[0].unit === '';
+
+        if (firstItemIsEmptyAndDefault) {
+             setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
+        }
     }
   }, [productNameOptions, colorOptions, sizeOptions, unitOptions, itemsToImport]);
 
 
   const findMatchingProduct = useCallback((item: Omit<LocalItemToImport, 'key' | 'quantity' | 'cost' | 'productId' | 'error'>) => {
     if (!item.name || !item.color || !item.size || !item.unit) return null;
-    return inventory.find(p => 
-      p.name === item.name && 
-      p.color === item.color && 
-      p.size === item.size && 
+    return inventory.find(p =>
+      p.name === item.name &&
+      p.color === item.color &&
+      p.size === item.size &&
       p.unit === item.unit
     );
   }, [inventory]);
 
   useEffect(() => {
-    setItemsToImport(prevItems => 
-      prevItems.map(item => {
-        if (item.productId === undefined || item.error === undefined || 
-            item.name !== findMatchingProduct(item)?.name || // Re-check if attributes changed
-            item.color !== findMatchingProduct(item)?.color ||
-            item.size !== findMatchingProduct(item)?.size ||
-            item.unit !== findMatchingProduct(item)?.unit
-            ) { 
-          const matchedProduct = findMatchingProduct(item);
-          if (matchedProduct) {
-            return { ...item, productId: matchedProduct.id, error: undefined };
-          } else if (item.name && item.color && item.size && item.unit) { 
-            return { ...item, productId: null, error: 'Sản phẩm không tồn tại trong kho.' };
-          }
+    const nextItemsToImport = itemsToImport.map(item => {
+      // Determine new productId and error based on current item attributes and inventory
+      const matchedProduct = findMatchingProduct(item);
+      const newProductId = matchedProduct ? matchedProduct.id : null;
+      const newError = (item.name && item.color && item.size && item.unit && !matchedProduct)
+        ? 'Sản phẩm không tồn tại trong kho.'
+        : undefined;
+
+      // If the derived productId or error is different from the current one,
+      // it means this item needs to be updated. Return a new object.
+      if (item.productId !== newProductId || item.error !== newError) {
+        return { ...item, productId: newProductId, error: newError };
+      }
+
+      // Otherwise, no change for this item, so return the original object
+      // to maintain reference equality if possible.
+      return item;
+    });
+
+    // Check if any item object reference has changed, or if array length changed.
+    // This implies that at least one item's data (productId or error) actually changed.
+    let hasStateChanged = false;
+    if (nextItemsToImport.length !== itemsToImport.length) {
+      hasStateChanged = true;
+    } else {
+      for (let i = 0; i < nextItemsToImport.length; i++) {
+        if (nextItemsToImport[i] !== itemsToImport[i]) { // Reference check
+          hasStateChanged = true;
+          break;
         }
-        return item; 
-      })
-    );
+      }
+    }
+
+    if (hasStateChanged) {
+      setItemsToImport(nextItemsToImport);
+    }
   }, [itemsToImport, inventory, findMatchingProduct]);
 
 
   const handleItemChange = (index: number, field: keyof Omit<LocalItemToImport, 'key' | 'productId' | 'error'>, value: string | number) => {
-    setItemsToImport(prevItems => 
+    setItemsToImport(prevItems =>
         prevItems.map((item, i) => {
             if (i === index) {
-                const updatedItem = { ...item, [field]: value };
+                const updatedItemBase = { ...item, [field]: value };
                  if (field === 'quantity') {
-                    updatedItem[field] = Number(value) < 0 ? 0 : Number(value) ;
+                    updatedItemBase[field] = Number(value) < 0 ? 0 : Number(value) ;
                 } else if (field === 'cost') {
-                    updatedItem[field] = Number(value) < 0 ? 0 : parseFloat(value.toString()) ;
+                    updatedItemBase[field] = Number(value) < 0 ? 0 : parseFloat(value.toString()) ;
                 }
 
+                // When identifying attributes change, mark productId as undefined to force recalculation by useEffect
                 if (['name', 'color', 'size', 'unit'].includes(field)) {
-                    updatedItem.productId = undefined; 
-                    updatedItem.error = undefined;
+                    return { ...updatedItemBase, productId: undefined, error: undefined };
                 }
-                return updatedItem;
+                return updatedItemBase;
             }
             return item;
         })
@@ -147,8 +178,8 @@ export function ImportTab({
   };
 
   const addItemField = () => {
-    if (inventory.length === 0) {
-      showLocalNotification("Không có sản phẩm nào trong kho để chọn cho việc nhập hàng.", "error");
+    if (inventory.length === 0 && productNameOptions.length === 0) { // Adjusted condition
+      showLocalNotification("Vui lòng thêm sản phẩm và các tùy chọn sản phẩm trong tab Kho hàng trước.", "error");
       return;
     }
     setItemsToImport(prev => [...prev, createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
@@ -164,9 +195,9 @@ export function ImportTab({
   );
 
   const canConfirmImport = useMemo(() => {
-    if (inventory.length === 0 || itemsToImport.length === 0) return false;
+    if (itemsToImport.length === 0) return false;
     return itemsToImport.every(item => item.productId && !item.error && item.quantity > 0 && item.cost >= 0);
-  }, [itemsToImport, inventory.length]);
+  }, [itemsToImport]);
 
 
   const handleImport = async (e: React.FormEvent) => {
@@ -194,20 +225,20 @@ export function ImportTab({
     }
 
     const itemsToSubmit: SubmitItemToImport[] = itemsToImport
-      .filter(item => item.productId) 
+      .filter(item => item.productId)
       .map(item => ({
         productId: item.productId!,
         quantity: item.quantity,
-        cost: item.cost, 
+        cost: item.cost,
       }));
 
     const success = await onImportProducts(
-        undefined, 
-        itemsToSubmit, 
+        undefined,
+        itemsToSubmit,
         totalCostVND,
         currentUser.uid,
         currentUser.displayName || currentUser.email || "Không rõ"
-    ); 
+    );
 
     if (success) {
       setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
@@ -225,7 +256,7 @@ export function ImportTab({
         </CardHeader>
         <CardContent>
             <form onSubmit={handleImport} className="space-y-6">
-                
+
                 {itemsToImport.map((item, index) => (
                     <Card key={item.key} className="p-4 bg-muted/50 relative">
                         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-0">
@@ -280,20 +311,23 @@ export function ImportTab({
                         )}
                     </Card>
                 ))}
-                
+
                 <Button
                     type="button"
                     onClick={addItemField}
                     variant="outline"
                     className="w-full mt-4"
-                    disabled={!allOptionsExist || inventory.length === 0}
+                    disabled={!allOptionsExist && inventory.length === 0}
                 >
                    + Thêm dòng sản phẩm nhập
                 </Button>
                 {!allOptionsExist && inventory.length > 0 && (
                      <p className="text-xs text-center text-muted-foreground">Vui lòng định nghĩa đầy đủ các tùy chọn (Tên SP, Màu, Kích thước, Đơn vị) trong tab Kho hàng trước.</p>
                 )}
-                {inventory.length === 0 && (
+                {inventory.length === 0 && !allOptionsExist && ( // show if no inventory AND not all options exist
+                    <p className="text-xs text-center text-muted-foreground">Vui lòng thêm sản phẩm vào kho hàng và định nghĩa các tùy chọn sản phẩm trước khi nhập hàng.</p>
+                )}
+                 {inventory.length === 0 && allOptionsExist && ( // show if no inventory BUT all options exist
                     <p className="text-xs text-center text-muted-foreground">Vui lòng thêm sản phẩm vào kho hàng trước khi nhập hàng.</p>
                 )}
 
@@ -301,10 +335,10 @@ export function ImportTab({
                 <div className="mt-6 text-right font-bold text-xl text-foreground">
                     Tổng tiền: {totalCostVND.toLocaleString('vi-VN')} VNĐ
                 </div>
-                
-                <Button 
-                    type="submit" 
-                    className="w-full bg-blue-500 text-white hover:bg-blue-600" 
+
+                <Button
+                    type="submit"
+                    className="w-full bg-blue-500 text-white hover:bg-blue-600"
                     disabled={!canConfirmImport}
                 >
                     Xác nhận nhập hàng
@@ -315,4 +349,3 @@ export function ImportTab({
     </>
   );
 }
-

@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Percent, Tag } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -762,7 +762,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
             <div className="flex justify-between items-center">
               <Label>Tổng tiền hàng (sau GG SP):</Label>
-              <span className="font-semibold">{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
+              <span className="font-semibold text-2xl">{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
 
             <div>
@@ -791,7 +791,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
             <div className="flex justify-between items-center text-red-500">
               <Label className="text-red-500">Thành tiền (sau tất cả GG):</Label>
-              <span className="font-semibold">{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
+              <span className="font-semibold text-2xl">{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Separator/>
 
@@ -810,12 +810,12 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
             <div className="flex justify-between items-center">
               <Label>Tiền thừa:</Label>
-              <span className="font-semibold">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterAllDiscounts ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
+              <span className="font-semibold text-2xl">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterAllDiscounts ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
             </div>
             {finalTotalAfterAllDiscounts > actualAmountPaidVND && customerNameForInvoice.toLowerCase() !== 'khách lẻ' && currentPaymentMethod !== 'Chuyển khoản' && (
                  <div className="flex justify-between items-center text-red-600">
                     <Label className="text-red-600">Còn nợ:</Label>
-                    <span className="font-semibold">{(finalTotalAfterAllDiscounts - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
+                    <span className="font-semibold text-2xl">{(finalTotalAfterAllDiscounts - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
                 </div>
             )}
           </div>
@@ -838,3 +838,4 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     </>
   );
 }
+

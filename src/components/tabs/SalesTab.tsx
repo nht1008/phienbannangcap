@@ -3,6 +3,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Product, CartItem, Customer } from '@/types';
+import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,13 +39,16 @@ interface SalesTabProps {
     paymentMethod: string,
     discount: number, // actual VND
     amountPaid: number, // actual VND
-    isGuestCustomer: boolean
+    isGuestCustomer: boolean,
+    employeeId: string,
+    employeeName: string
   ) => Promise<boolean>;
+  currentUser: User | null;
 }
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
 
-export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProps) {
+export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
@@ -137,6 +141,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
   };
 
   const handleConfirmCheckout = async () => {
+    if (!currentUser) {
+      showLocalNotification("Không tìm thấy thông tin người dùng hiện tại. Vui lòng thử đăng nhập lại.", "error");
+      return;
+    }
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
     
@@ -170,7 +178,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
         currentPaymentMethod,
         actualDiscountVND, 
         actualAmountPaidVND,
-        isGuest
+        isGuest,
+        currentUser.uid,
+        currentUser.displayName || currentUser.email || "Không rõ"
     );
     if (success) {
       setCart([]);
@@ -415,3 +425,4 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     </>
   );
 }
+

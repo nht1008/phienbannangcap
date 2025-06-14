@@ -4,6 +4,7 @@
 import React, { useMemo } from 'react';
 import type { Debt } from '@/types';
 import type { DateFilter } from '@/app/page';
+import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,22 +14,37 @@ import { cn } from '@/lib/utils';
 
 interface DebtTabProps {
   debts: Debt[];
-  onUpdateDebtStatus: (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán') => Promise<void>;
+  onUpdateDebtStatus: (
+    debtId: string, 
+    newStatus: 'Chưa thanh toán' | 'Đã thanh toán',
+    employeeId: string,
+    employeeName: string
+  ) => Promise<void>;
   filter: DateFilter;
   onFilterChange: (newFilter: DateFilter) => void;
   availableYears: string[];
+  currentUser: User | null;
 }
 
-export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilterChange, availableYears }: DebtTabProps) {
+export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilterChange, availableYears, currentUser }: DebtTabProps) {
   const { day: currentDay, month: currentMonth, year: currentYear } = filterProp;
 
   const toggleStatus = (debtId: string, currentStatus: 'Chưa thanh toán' | 'Đã thanh toán') => {
+    if (!currentUser) {
+      alert("Không thể cập nhật: Người dùng chưa đăng nhập.");
+      return;
+    }
     const newStatus = currentStatus === 'Đã thanh toán' ? 'Chưa thanh toán' : 'Đã thanh toán';
-    onUpdateDebtStatus(debtId, newStatus);
+    onUpdateDebtStatus(
+      debtId, 
+      newStatus, 
+      currentUser.uid, 
+      currentUser.displayName || currentUser.email || "Không rõ"
+    );
   };
 
   const totalUnpaid = useMemo(() =>
-    debts.reduce((sum, d) => sum + d.amount, 0), // Debts prop is already filtered for "Chưa thanh toán"
+    debts.reduce((sum, d) => sum + d.amount, 0), 
     [debts]
   );
 
@@ -131,6 +147,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                 <TableHead>Ngày tạo</TableHead>
                 <TableHead>Số tiền</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead>Người tạo</TableHead>
+                <TableHead>Người cập nhật cuối</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -154,6 +172,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       {debt.status}
                     </Button>
                   </TableCell>
+                  <TableCell>{debt.createdEmployeeName || 'Không rõ'}</TableCell>
+                  <TableCell>{debt.lastUpdatedEmployeeName || 'Chưa có'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -164,3 +184,4 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
+

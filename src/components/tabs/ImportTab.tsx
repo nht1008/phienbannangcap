@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Product } from '@/types'; // Removed ItemToImport from here, will define locally
+import type { Product } from '@/types'; 
+import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,34 +11,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import { Trash2 } from 'lucide-react';
 
-// Local interface for items in the import list within this component
 interface LocalItemToImport {
-  key: string; // Unique key for React list rendering
+  key: string; 
   name: string;
   color: string;
   size: string;
   unit: string;
   quantity: number;
-  cost: number; // Nghin VND
-  productId?: string | null; // Store resolved product ID, null if no match, undefined if not checked
-  error?: string; // Error message if product combination not found
+  cost: number; 
+  productId?: string | null; 
+  error?: string; 
 }
 
-// Type for items to be submitted to the parent handler
 interface SubmitItemToImport {
   productId: string;
   quantity: number;
-  cost: number; // Nghin VND
+  cost: number; 
 }
 
 
 interface ImportTabProps {
   inventory: Product[];
-  onImportProducts: (supplierName: string | undefined, itemsToSubmit: SubmitItemToImport[], totalCostVND: number) => Promise<boolean>;
+  onImportProducts: (
+    supplierName: string | undefined, 
+    itemsToSubmit: SubmitItemToImport[], 
+    totalCostVND: number,
+    employeeId: string,
+    employeeName: string
+  ) => Promise<boolean>;
   productNameOptions: string[];
   colorOptions: string[];
   sizeOptions: string[];
   unitOptions: string[];
+  currentUser: User | null;
 }
 
 const createNewImportItem = (
@@ -64,7 +70,8 @@ export function ImportTab({
     productNameOptions,
     colorOptions,
     sizeOptions,
-    unitOptions 
+    unitOptions,
+    currentUser 
 }: ImportTabProps) {
   const [itemsToImport, setItemsToImport] = useState<LocalItemToImport[]>(() => [
     createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)
@@ -78,12 +85,11 @@ export function ImportTab({
     setLocalNotificationType(type);
   };
 
-  // Effect to re-initialize if options become available after initial render
   useEffect(() => {
     if (itemsToImport.length === 1 && itemsToImport[0].name === '' && productNameOptions.length > 0) {
         setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
     }
-  }, [productNameOptions, colorOptions, sizeOptions, unitOptions]);
+  }, [productNameOptions, colorOptions, sizeOptions, unitOptions, itemsToImport]);
 
 
   const findMatchingProduct = useCallback((item: Omit<LocalItemToImport, 'key' | 'quantity' | 'cost' | 'productId' | 'error'>) => {
@@ -99,18 +105,23 @@ export function ImportTab({
   useEffect(() => {
     setItemsToImport(prevItems => 
       prevItems.map(item => {
-        if (item.productId === undefined || item.error === undefined) { // only re-check if not explicitly set or on attribute change
+        if (item.productId === undefined || item.error === undefined || 
+            item.name !== findMatchingProduct(item)?.name || // Re-check if attributes changed
+            item.color !== findMatchingProduct(item)?.color ||
+            item.size !== findMatchingProduct(item)?.size ||
+            item.unit !== findMatchingProduct(item)?.unit
+            ) { 
           const matchedProduct = findMatchingProduct(item);
           if (matchedProduct) {
             return { ...item, productId: matchedProduct.id, error: undefined };
-          } else if (item.name && item.color && item.size && item.unit) { // Only show error if all attributes are selected
+          } else if (item.name && item.color && item.size && item.unit) { 
             return { ...item, productId: null, error: 'Sản phẩm không tồn tại trong kho.' };
           }
         }
-        return item; // No change or error already set
+        return item; 
       })
     );
-  }, [itemsToImport.map(i => `${i.name}-${i.color}-${i.size}-${i.unit}`).join(','), inventory, findMatchingProduct]);
+  }, [itemsToImport, inventory, findMatchingProduct]);
 
 
   const handleItemChange = (index: number, field: keyof Omit<LocalItemToImport, 'key' | 'productId' | 'error'>, value: string | number) => {
@@ -124,9 +135,8 @@ export function ImportTab({
                     updatedItem[field] = Number(value) < 0 ? 0 : parseFloat(value.toString()) ;
                 }
 
-                // If attributes change, reset productId and error to trigger re-validation
                 if (['name', 'color', 'size', 'unit'].includes(field)) {
-                    updatedItem.productId = undefined; // Mark for re-check
+                    updatedItem.productId = undefined; 
                     updatedItem.error = undefined;
                 }
                 return updatedItem;
@@ -161,6 +171,10 @@ export function ImportTab({
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      showLocalNotification("Không tìm thấy thông tin người dùng. Vui lòng thử đăng nhập lại.", "error");
+      return;
+    }
 
     if (!canConfirmImport) {
         const firstErrorItem = itemsToImport.find(item => item.error || !item.productId || item.quantity <= 0 || item.cost < 0);
@@ -180,14 +194,20 @@ export function ImportTab({
     }
 
     const itemsToSubmit: SubmitItemToImport[] = itemsToImport
-      .filter(item => item.productId) // Should be redundant due to canConfirmImport check
+      .filter(item => item.productId) 
       .map(item => ({
         productId: item.productId!,
         quantity: item.quantity,
-        cost: item.cost, // cost is in Nghin VND
+        cost: item.cost, 
       }));
 
-    const success = await onImportProducts(undefined, itemsToSubmit, totalCostVND); 
+    const success = await onImportProducts(
+        undefined, 
+        itemsToSubmit, 
+        totalCostVND,
+        currentUser.uid,
+        currentUser.displayName || currentUser.email || "Không rõ"
+    ); 
 
     if (success) {
       setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);

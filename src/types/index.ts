@@ -37,6 +37,8 @@ export interface Invoice {
   discount?: number; // Discount amount
   amountPaid?: number; // Amount paid by customer
   debtAmount?: number; // Amount of debt created from this invoice
+  employeeId: string; // UID of the employee who created the invoice
+  employeeName?: string; // Name of the employee
 }
 
 export interface Debt {
@@ -46,6 +48,10 @@ export interface Debt {
   date: string; // ISO date string
   status: 'Chưa thanh toán' | 'Đã thanh toán';
   invoiceId?: string; // Link to the invoice that generated this debt (for customer debts)
+  createdEmployeeId?: string; // UID of the employee who created the debt
+  createdEmployeeName?: string; // Name of the employee who created
+  lastUpdatedEmployeeId?: string; // UID of the employee who last updated the status
+  lastUpdatedEmployeeName?: string; // Name of the employee who last updated
 }
 
 export interface ItemToImport {
@@ -66,3 +72,4 @@ export interface Employee {
   position: 'Chủ cửa hàng' | 'Nhân viên';
   phone?: string;
 }
+

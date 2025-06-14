@@ -396,7 +396,9 @@ export default function FleurManagerPage() {
     paymentMethod: string,
     discount: number,
     amountPaid: number,
-    isGuestCustomer: boolean
+    isGuestCustomer: boolean,
+    employeeId: string,
+    employeeName: string
   ) => {
     try {
       const finalTotal = subtotal - discount;
@@ -433,6 +435,8 @@ export default function FleurManagerPage() {
         paymentMethod,
         discount,
         amountPaid,
+        employeeId,
+        employeeName: employeeName || 'Không rõ',
         ...(calculatedDebtAmount > 0 && { debtAmount: calculatedDebtAmount }),
       };
       await set(newInvoiceRef, newInvoiceData);
@@ -440,11 +444,13 @@ export default function FleurManagerPage() {
       if (calculatedDebtAmount > 0) {
         const newDebtRef = push(ref(db, 'debts'));
         const newDebt: Omit<Debt, 'id'> = {
-          supplier: customerName,
+          supplier: customerName, // Here supplier is customer for sales debt
           amount: calculatedDebtAmount,
           date: new Date().toISOString(),
           status: 'Chưa thanh toán',
           invoiceId: invoiceId,
+          createdEmployeeId: employeeId,
+          createdEmployeeName: employeeName || 'Không rõ',
         };
         await set(newDebtRef, newDebt);
       }
@@ -580,6 +586,8 @@ export default function FleurManagerPage() {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newTotal;
           updates[`invoices/${invoiceId}/discount`] = newDiscount;
+          // Note: employeeId for the invoice remains the original one. This action isn't changing who *created* it.
+          // If we need to track who *returned* items, a separate activity log or modification log on the invoice would be needed.
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi.", variant: "default" });
         }
@@ -599,7 +607,9 @@ export default function FleurManagerPage() {
   const handleImportProducts = useCallback(async (
     supplierName: string | undefined,
     itemsToProcess: SubmitItemToImport[],
-    totalImportCostVND: number
+    totalImportCostVND: number,
+    employeeId: string,
+    employeeName: string
   ) => {
     try {
       const newDebtRef = push(ref(db, 'debts'));
@@ -607,7 +617,9 @@ export default function FleurManagerPage() {
         supplier: supplierName || "Nhà cung cấp không xác định",
         amount: totalImportCostVND,
         date: new Date().toISOString(),
-        status: 'Chưa thanh toán'
+        status: 'Chưa thanh toán',
+        createdEmployeeId: employeeId,
+        createdEmployeeName: employeeName || 'Không rõ',
       };
       await set(newDebtRef, newDebt);
 
@@ -635,7 +647,13 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
-  const handleUpdateDebtStatus = useCallback(async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', isUndoOperation: boolean = false) => {
+  const handleUpdateDebtStatus = useCallback(async (
+    debtId: string, 
+    newStatus: 'Chưa thanh toán' | 'Đã thanh toán', 
+    employeeId: string,
+    employeeName: string,
+    isUndoOperation: boolean = false
+  ) => {
     try {
       const debtRef = ref(db, `debts/${debtId}`);
       const snapshot = await get(debtRef);
@@ -643,9 +661,26 @@ export default function FleurManagerPage() {
         toast({ title: "Lỗi", description: "Không tìm thấy công nợ.", variant: "destructive" });
         return;
       }
-      const originalStatus = snapshot.val().status;
+      const originalDebt = snapshot.val() as Debt;
+      const originalStatus = originalDebt.status;
+      // const originalLastUpdatedEmployeeId = originalDebt.lastUpdatedEmployeeId;
+      // const originalLastUpdatedEmployeeName = originalDebt.lastUpdatedEmployeeName;
 
-      await update(debtRef, { status: newStatus });
+
+      const updateData: Partial<Debt> = { status: newStatus };
+      if (!isUndoOperation) {
+        updateData.lastUpdatedEmployeeId = employeeId;
+        updateData.lastUpdatedEmployeeName = employeeName || 'Không rõ';
+      } else {
+        // If undoing, we might want to revert to previous employee if tracked, or clear it.
+        // For now, the "undo" action itself will be attributed to the current user.
+        // To truly revert who did it, we'd need to store a history or more fields on the Debt object.
+        // Keeping it simple: the user performing the UNDO is the last updater.
+        updateData.lastUpdatedEmployeeId = employeeId;
+        updateData.lastUpdatedEmployeeName = employeeName || 'Không rõ';
+      }
+
+      await update(debtRef, updateData);
 
       if (!isUndoOperation) {
         toast({
@@ -655,7 +690,7 @@ export default function FleurManagerPage() {
           action: (
             <ToastAction
               altText="Hoàn tác"
-              onClick={() => handleUpdateDebtStatus(debtId, originalStatus, true)}
+              onClick={() => handleUpdateDebtStatus(debtId, originalStatus, employeeId, employeeName, true)}
             >
               Hoàn tác
             </ToastAction>
@@ -673,7 +708,7 @@ export default function FleurManagerPage() {
       console.error("Error updating debt status:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast]); // Added handleUpdateDebtStatus to dependency array if it references itself via Hoan tac.
 
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => {
     if (!name.trim()) {
@@ -719,7 +754,12 @@ export default function FleurManagerPage() {
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
-    'Bán hàng': <SalesTab inventory={inventory} customers={customersData} onCreateInvoice={handleCreateInvoice} />,
+    'Bán hàng': <SalesTab 
+                    inventory={inventory} 
+                    customers={customersData} 
+                    onCreateInvoice={handleCreateInvoice} 
+                    currentUser={currentUser} 
+                  />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
                     onAddProduct={handleAddProduct}
@@ -739,6 +779,7 @@ export default function FleurManagerPage() {
                     colorOptions={colorOptions}
                     sizeOptions={sizeOptions}
                     unitOptions={unitOptions}
+                    currentUser={currentUser}
                   />,
     'Hóa đơn': <InvoiceTab
                   invoices={filteredInvoicesForInvoiceTab}
@@ -753,6 +794,7 @@ export default function FleurManagerPage() {
                   filter={debtFilter}
                   onFilterChange={handleDebtFilterChange}
                   availableYears={availableDebtYears}
+                  currentUser={currentUser}
                 />,
     'Doanh thu': <RevenueTab
                   invoices={filteredInvoicesForRevenue}
@@ -766,7 +808,12 @@ export default function FleurManagerPage() {
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
                     />,
-    'Nhân viên': <EmployeeTab employees={employeesData} currentUser={currentUser} />,
+    'Nhân viên': <EmployeeTab 
+                    employees={employeesData} 
+                    currentUser={currentUser} 
+                    invoices={invoicesData}
+                    debts={debtsData}
+                  />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData,
       currentUser,
@@ -816,20 +863,22 @@ export default function FleurManagerPage() {
     const employeePosition = isAdmin ? 'Chủ cửa hàng' : 'Nhân viên';
 
     try {
-        await updateUserProfileName(employeeName);
+        await updateUserProfileName(employeeName); // Update Auth display name
 
-        const employeeDataForDb = { // Explicitly type for clarity if needed
+        const employeeDataForDb: Partial<Employee> = { // Use Partial for flexibility
             name: employeeName,
             email: currentUser.email!,
             position: employeePosition,
-            // phone: '', // Initialize phone if desired
         };
+        // Only set phone if it's part of the initial setup and available, otherwise manage separately
+        // if (inputPhone) employeeDataForDb.phone = inputPhone;
+
 
         const employeeRef = ref(db, `employees/${currentUser.uid}`);
-        await set(employeeRef, employeeDataForDb);
+        await set(employeeRef, employeeDataForDb); // Creates or overwrites employee node
 
         toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." });
-        setIsSettingName(false);
+        setIsSettingName(false); // Close dialog
     } catch (error) {
         console.error("Error in onNameSet:", error);
         toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" });
@@ -935,3 +984,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

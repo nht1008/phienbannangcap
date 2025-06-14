@@ -25,6 +25,7 @@ import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { CustomerTab } from '@/components/tabs/CustomerTab'; // Added CustomerTab
 import { cn } from '@/lib/utils';
+import { ToastAction } from "@/components/ui/toast";
 
 import {
   SidebarProvider,
@@ -65,7 +66,17 @@ interface NavItem {
   icon: ReactNode;
 }
 
-const initialDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
+const getCurrentMonthYearFilter = (): DateFilter => {
+  const now = new Date();
+  return {
+    day: 'all', // Day is not used in RevenueTab UI for filtering but kept for type consistency
+    month: (now.getMonth() + 1).toString(),
+    year: now.getFullYear().toString(),
+  };
+};
+
+const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
+
 
 export default function FleurManagerPage() {
   const { currentUser, loading: authLoading, signOut } = useAuth();
@@ -84,9 +95,9 @@ export default function FleurManagerPage() {
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
 
-  const [revenueFilter, setRevenueFilter] = useState<DateFilter>(initialDateFilter);
-  const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialDateFilter);
-  const [debtFilter, setDebtFilter] = useState<DateFilter>(initialDateFilter);
+  const [revenueFilter, setRevenueFilter] = useState<DateFilter>(getCurrentMonthYearFilter());
+  const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialAllDateFilter);
+  const [debtFilter, setDebtFilter] = useState<DateFilter>(initialAllDateFilter);
 
 
   // Kiểm tra trạng thái đăng nhập
@@ -638,10 +649,40 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleUpdateDebtStatus = async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán') => {
+  const handleUpdateDebtStatus = async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', isUndoOperation: boolean = false) => {
     try {
-      await update(ref(db, `debts/${debtId}`), { status: newStatus });
-      toast({ title: "Thành công", description: "Trạng thái công nợ đã được cập nhật.", variant: "default" });
+      const debtRef = ref(db, `debts/${debtId}`);
+      const snapshot = await get(debtRef);
+      if (!snapshot.exists()) {
+        toast({ title: "Lỗi", description: "Không tìm thấy công nợ.", variant: "destructive" });
+        return;
+      }
+      const originalStatus = snapshot.val().status;
+
+      await update(debtRef, { status: newStatus });
+
+      if (!isUndoOperation) {
+        toast({
+          title: "Thành công",
+          description: "Trạng thái công nợ đã được cập nhật.",
+          variant: "default",
+          action: (
+            <ToastAction 
+              altText="Hoàn tác" 
+              onClick={() => handleUpdateDebtStatus(debtId, originalStatus, true)}
+            >
+              Hoàn tác
+            </ToastAction>
+          ),
+        });
+      } else {
+         toast({
+          title: "Hoàn tác thành công",
+          description: `Trạng thái công nợ đã được đổi lại thành "${originalStatus}".`,
+          variant: "default",
+        });
+      }
+
     } catch (error) {
       console.error("Error updating debt status:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" });

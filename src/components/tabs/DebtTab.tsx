@@ -162,7 +162,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",
                         debt.status === 'Chưa thanh toán'
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90' // Changed from success to primary
+                          ? 'bg-success text-success-foreground hover:bg-success/90' 
                           : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                       )}
                     >
@@ -181,4 +181,3 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
-

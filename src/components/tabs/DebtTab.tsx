@@ -40,7 +40,6 @@ export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
                 <TableHead>Nhà cung cấp</TableHead>
                 <TableHead>Ngày tạo</TableHead>
                 <TableHead>Số tiền</TableHead>
@@ -50,7 +49,6 @@ export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
             <TableBody>
               {debts.map(debt => (
                 <TableRow key={debt.id}>
-                  <TableCell>{debt.id.substring(0,6)}...</TableCell>
                   <TableCell>{debt.supplier || 'N/A'}</TableCell>
                   <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
                   <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
@@ -79,4 +77,3 @@ export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
     </Card>
   );
 }
-

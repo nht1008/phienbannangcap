@@ -81,14 +81,14 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         const daysInSelectedMonth = getDaysInMonth(monthNum, yearNum);
 
         for (let day = 1; day <= daysInSelectedMonth; day++) {
-            const dayStr = day.toString().padStart(2, '0'); // Use only day for name "01", "02", etc.
+            const dayStr = day.toString(); // Use only day for name "1", "2", etc. for sorting
             aggregatedData[dayStr] = { doanhthu: 0, giagoc: 0 };
         }
 
         invoices.forEach(invoice => { 
             const dateObj = new Date(invoice.date);
             if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
-                const dayStr = dateObj.getDate().toString().padStart(2, '0');
+                const dayStr = dateObj.getDate().toString();
                 
                 if (aggregatedData[dayStr] && (!invoice.debtAmount || invoice.debtAmount === 0)) { 
                      aggregatedData[dayStr].doanhthu += invoice.total;
@@ -99,12 +99,12 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         
         finalChartData = Object.entries(aggregatedData)
             .map(([name, data]) => ({ 
-                name, // name is just "DD"
+                name: name.padStart(2, '0'), // Pad day with zero for display "01", "02"
                 doanhthu: data.doanhthu, 
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             }))
-            .sort((a, b) => parseInt(a.name) - parseInt(b.name)); // Sort by day number
+            .sort((a, b) => parseInt(a.name) - parseInt(b.name)); 
 
     } else if (filterMonth !== 'all' /* && filterYear === 'all' - This case is no longer distinct */) { 
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
@@ -112,7 +112,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         
         invoices.forEach(invoice => { 
             const dateObj = new Date(invoice.date);
-             if ((dateObj.getMonth() + 1) === parseInt(filterMonth)) { // Check if invoice is in the selected month
+             if ((dateObj.getMonth() + 1) === parseInt(filterMonth)) { 
                 const dayOfMonth = dateObj.getDate().toString().padStart(2, '0'); 
                 const yearSuffix = filterYear === 'all' ? `/${dateObj.getFullYear().toString().slice(-2)}` : '';
                 const nameKey = `${dayOfMonth}${yearSuffix}`;
@@ -134,7 +134,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             })) 
-            .sort((a, b) => { // Sort by day, then by year if applicable
+            .sort((a, b) => { 
                 const [dayA, yearA] = a.name.split('/').map(Number);
                 const [dayB, yearB] = b.name.split('/').map(Number);
                 if (dayA !== dayB) return dayA - dayB;
@@ -162,14 +162,14 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         });
         finalChartData = Object.entries(aggregatedData)
             .map(([name, data]) => ({ 
-                name: `T${name}`, // "T01", "T02", ...
+                name: `T${name}`, 
                 doanhthu: data.doanhthu, 
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             }))
             .sort((a,b) => parseInt(a.name.substring(1)) - parseInt(b.name.substring(1)));
             
-    } else { // All Months & All Years (filterMonth === 'all' && filterYear === 'all')
+    } else { 
         newChartTitle = "Phân tích theo năm";
         newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Chỉ tính hóa đơn không có nợ)";
         invoices.forEach(invoice => {
@@ -204,7 +204,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   );
 
   const totalProfitForPeriod = useMemo(() => totalRevenue - totalCostPriceForPeriod, [totalRevenue, totalCostPriceForPeriod]);
-  const totalInvoicesCount = invoices.length; // This still counts all invoices for the period
+  const totalInvoicesCount = invoices.length; 
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -354,21 +354,30 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 <TableBody>
                   {invoices.map(invoice => {
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
-                    const displayTotal = hasDebt ? 0 : invoice.total;
-                    
                     const actualInvoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
-                    const displayInvoiceCost = hasDebt ? 0 : actualInvoiceCost;
                     
-                    const displayInvoiceProfit = displayTotal - displayInvoiceCost;
+                    let displayTotalForTable: number;
+                    let displayInvoiceCostForTable: number;
+                    let displayInvoiceProfitForTable: number;
+
+                    if (hasDebt) {
+                        displayTotalForTable = invoice.amountPaid || 0;
+                        displayInvoiceCostForTable = actualInvoiceCost; 
+                        displayInvoiceProfitForTable = displayTotalForTable - displayInvoiceCostForTable;
+                    } else {
+                        displayTotalForTable = invoice.total;
+                        displayInvoiceCostForTable = actualInvoiceCost;
+                        displayInvoiceProfitForTable = displayTotalForTable - displayInvoiceCostForTable;
+                    }
 
                     return (
                       <TableRow key={invoice.id} className={ hasDebt ? 'bg-red-500/5 hover:bg-red-500/10' : ''}>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell className="text-right">{displayTotal.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right">{displayInvoiceCost.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right">{displayInvoiceProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{displayTotalForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{displayInvoiceCostForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{displayInvoiceProfitForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right text-red-600">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
                           <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>

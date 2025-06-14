@@ -251,7 +251,6 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
                 type="number" 
                 value={discountStr} 
                 onChange={(e) => setDiscountStr(e.target.value)} 
-                placeholder="0"
                 min="0"
                 className="bg-card" 
               />
@@ -285,7 +284,6 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
                 type="number" 
                 value={amountPaidStr} 
                 onChange={(e) => setAmountPaidStr(e.target.value)} 
-                placeholder="0"
                 min="0"
                 className="bg-card" 
               />
@@ -315,3 +313,4 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
     </>
   );
 }
+

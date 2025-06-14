@@ -23,7 +23,7 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
-import { CustomerTab } from '@/components/tabs/CustomerTab';
+import { CustomerTab } from '@/components/tabs/CustomerTab'; // Added this import
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
@@ -106,18 +106,19 @@ export default function FleurManagerPage() {
 
   useEffect(() => {
     if (authLoading) {
-        return;
+      return;
     }
     if (currentUser) {
-        if (!currentUser.displayName) {
-            setIsSettingName(true);
-        } else {
-            setIsSettingName(false);
-        }
+      const currentUserEmployeeRecordExists = employeesData.some(emp => emp.userId === currentUser.uid);
+      if (!currentUser.displayName || !currentUserEmployeeRecordExists) {
+        setIsSettingName(true);
+      } else {
+        setIsSettingName(false);
+      }
     } else {
-        setIsSettingName(false); // No user, not setting name
+      setIsSettingName(false); 
     }
-  }, [currentUser, authLoading]);
+  }, [currentUser, authLoading, employeesData]);
 
 
   useEffect(() => {
@@ -153,22 +154,18 @@ export default function FleurManagerPage() {
         let otherEmployees: Employee[];
 
         if (currentUser.email === 'nthe1008@gmail.com') {
-          // Admin sees all employees other than themselves
           otherEmployees = allEmployees.filter(emp => emp.email !== 'nthe1008@gmail.com');
         } else {
-          // Regular employee sees only their own record (if it's not the admin record itself)
           const ownRecord = allEmployees.find(emp => emp.userId === currentUser.uid && emp.email !== 'nthe1008@gmail.com');
           otherEmployees = ownRecord ? [ownRecord] : [];
         }
 
-        // Sort other employees alphabetically by name
         otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
 
         const finalEmployeesList: Employee[] = [];
         if (adminRecord) {
           finalEmployeesList.push(adminRecord);
         }
-        // Ensure not to add admin's record again if it was somehow included in 'otherEmployees'
         finalEmployeesList.push(...otherEmployees.filter(emp => emp.id !== adminRecord?.id));
         
         setEmployeesData(finalEmployeesList);
@@ -812,7 +809,7 @@ export default function FleurManagerPage() {
                 />,
     'Nhân viên': <EmployeeTab
                     employees={employeesData}
-                    currentUser={currentUser as User | null} // Pass currentUser
+                    currentUser={currentUser as User | null} 
                     onAddEmployee={handleAddEmployee}
                     onUpdateEmployee={handleUpdateEmployee}
                     onDeleteEmployee={handleDeleteEmployee}
@@ -825,7 +822,7 @@ export default function FleurManagerPage() {
                     />,
   }), [
       inventory, employeesData, customersData, invoicesData, debtsData,
-      currentUser, // Add currentUser to dependency array
+      currentUser, 
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
       filteredInvoicesForInvoiceTab, invoiceFilter,
@@ -926,7 +923,7 @@ export default function FleurManagerPage() {
               await handleAddEmployee(newEmployeeData);
               toast({title: "Thành công", description: "Tên của bạn đã được lưu và nhân viên mới đã được tạo."});
             }
-            setIsSettingName(false); // Important: Set this after all operations
+            setIsSettingName(false); 
           } catch (error) {
             console.error("Error in onNameSet:", error);
             toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo/cập nhật nhân viên.", variant: "destructive"});
@@ -976,7 +973,7 @@ export default function FleurManagerPage() {
                     tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
                     asChild={false}
-                    onClick={(e) => e.preventDefault()} // Make it non-interactive
+                    onClick={(e) => e.preventDefault()} 
                 >
                     <UserCircle className="h-5 w-5" />
                     <span>{currentUser.displayName || currentUser.email}</span>
@@ -1012,6 +1009,10 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
+    
+
+    
 
     
 

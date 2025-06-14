@@ -235,7 +235,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     setSelectedProductNameForVariants(productName);
     setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
-  }, [inventory]);
+  }, [inventory, showLocalNotification]);
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
@@ -247,7 +247,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
       setAvailableVariants(prev => ({ ...prev, sizes }));
 
-      const newSize = sizes.length === 1 ? sizes[0] : '';
+      const newSize = sizes.length === 1 ? sizes[0] : (sizes.includes(variantSelection.size) ? variantSelection.size : '');
       setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' }));
     } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
@@ -266,7 +266,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
       setAvailableVariants(prev => ({ ...prev, units }));
 
-      const newUnit = units.length === 1 ? units[0] : '';
+      const newUnit = units.length === 1 ? units[0] : (units.includes(variantSelection.unit) ? variantSelection.unit : '');
       setVariantSelection(prev => ({ ...prev, unit: newUnit }));
     } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, units: [] }));
@@ -279,10 +279,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     setVariantSelection(prev => {
       const newState = { ...prev, [field]: value };
       if (field === 'color') {
-        newState.size = '';
-        newState.unit = '';
+        newState.size = ''; // Reset size if color changes
+        newState.unit = ''; // Reset unit if color changes
       } else if (field === 'size') {
-        newState.unit = '';
+        newState.unit = ''; // Reset unit if size changes
       }
       return newState;
     });
@@ -394,7 +394,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                     alt={group.name}
                     width={100}
                     height={100}
-                    className="w-24 h-24 mx-auto rounded-full object-cover mb-2"
+                    className="w-24 h-24 mx-auto rounded-full object-cover mb-2 aspect-square"
                     data-ai-hint={`${group.name.split(' ')[0]} flower`}
                     onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100.png')}
                   />
@@ -421,57 +421,57 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
         <Card className="sticky top-6">
           <CardHeader>
-            <CardTitle className="flex items-center">
+            <CardTitle className="flex items-center text-xl">
                 <ShoppingCart className="mr-2 h-6 w-6 text-primary"/>
                 Giỏ hàng ({cart.reduce((acc, item) => acc + item.quantityInCart, 0)})
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
+          <CardContent className="space-y-3 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
             {cart.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">Giỏ hàng trống</p>
             ) : (
               cart.map(item => (
-                <Card key={item.id} className="p-3 bg-muted/20 shadow-sm">
-                    <div className="flex items-start gap-3">
+                <Card key={item.id} className="p-3.5 bg-muted/30 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-3.5">
                         <Image
                             src={item.image || `https://placehold.co/60x60.png`}
                             alt={item.name}
                             width={60}
                             height={60}
-                            className="w-16 h-16 rounded-md object-cover aspect-square"
+                            className="w-16 h-16 rounded-md object-cover aspect-square border"
                             data-ai-hint={`${item.name.split(' ')[0]} flower`}
                             onError={(e) => (e.currentTarget.src = 'https://placehold.co/60x60.png')}
                         />
                         <div className="flex-grow">
-                            <p className="font-semibold text-foreground text-sm leading-tight">{item.name}</p>
+                            <p className="font-semibold text-foreground text-base leading-tight mb-0.5">{item.name}</p>
                             <p className="text-xs text-muted-foreground">{item.color}, {item.size}, {item.unit}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                Đơn giá: {item.price.toLocaleString('vi-VN')} VNĐ
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Đơn giá: <span className="font-medium text-foreground/90">{item.price.toLocaleString('vi-VN')} VNĐ</span>
                             </p>
                         </div>
                          <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive/80 self-start"
+                            className="h-7 w-7 text-destructive hover:text-destructive/80 self-start shrink-0"
                             onClick={() => updateCartQuantity(item.id, '0')}
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-2.5">
                         <div className="flex items-center gap-2">
-                            <Label htmlFor={`qty-${item.id}`} className="text-xs">SL:</Label>
+                            <Label htmlFor={`qty-${item.id}`} className="text-sm font-medium">SL:</Label>
                             <Input
                                 id={`qty-${item.id}`}
                                 type="number"
                                 value={item.quantityInCart.toString()}
                                 onChange={(e) => updateCartQuantity(item.id, e.target.value)}
-                                className="w-16 h-8 p-1 text-center text-sm bg-background"
+                                className="w-20 h-9 p-1 text-center text-base bg-background border-input focus:ring-1 focus:ring-primary"
                                 min="1"
                                 max={(inventory.find(i => i.id === item.id)?.quantity ?? 1).toString()}
                             />
                         </div>
-                        <p className="font-semibold text-primary text-sm">
+                        <p className="font-bold text-lg text-primary">
                             {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
                         </p>
                     </div>
@@ -480,13 +480,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
-            <div className="flex justify-between font-bold text-lg w-full text-foreground">
+            <div className="flex justify-between font-bold text-xl w-full text-foreground">
               <span>Tổng cộng:</span>
               <span>{subtotal.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Button
               onClick={handleOpenPaymentDialog}
-              className="w-full bg-green-500 text-white hover:bg-green-600 text-base py-3"
+              className="w-full bg-green-500 text-white hover:bg-green-600 text-lg py-3 h-auto"
               disabled={cart.length === 0}
             >
               Thanh toán
@@ -763,3 +763,4 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     </>
   );
 }
+

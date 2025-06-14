@@ -2,12 +2,11 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Product, Debt, Supplier, ItemToImport } from '@/types';
+import type { Product, ItemToImport } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { initialSuppliers } from '@/lib/initial-data'; // Suppliers remain local for now
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 
 interface ImportTabProps {
@@ -16,7 +15,6 @@ interface ImportTabProps {
 }
 
 export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(initialSuppliers[0]?.id.toString() || '');
   const [itemsToImport, setItemsToImport] = useState<ItemToImport[]>([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
   
   const [localNotification, setLocalNotification] = useState<string | null>(null);
@@ -28,7 +26,6 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
   };
 
   useEffect(() => {
-    // Reset/update itemsToImport if inventory changes (e.g. first product ID)
     if (inventory.length > 0 && itemsToImport.some(item => !item.productId && inventory[0].id)) {
         setItemsToImport(prevItems => prevItems.map(item => item.productId ? item : { ...item, productId: inventory[0].id}));
     } else if (inventory.length === 0 && itemsToImport.some(item => item.productId)) {
@@ -75,19 +72,12 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
       showLocalNotification('Vui lòng thêm ít nhất một sản phẩm để nhập hàng.', 'error');
       return;
     }
-    if (!selectedSupplierId && initialSuppliers.length > 0) {
-      showLocalNotification('Vui lòng chọn nhà cung cấp.', 'error');
-      return;
-    }
 
-    const supplierName = initialSuppliers.find(s => s.id.toString() === selectedSupplierId)?.name;
-    const success = await onImportProducts(supplierName, itemsToImport, totalCost);
+    const success = await onImportProducts(undefined, itemsToImport, totalCost); // Supplier is now undefined
 
     if (success) {
       setItemsToImport([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
-      // Notification handled by page.tsx
     }
-    // Else, error notification handled by page.tsx
   };
 
   return (
@@ -99,24 +89,7 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
         </CardHeader>
         <CardContent>
             <form onSubmit={handleImport} className="space-y-6">
-                <div>
-                    <label className="block mb-2 font-medium text-foreground">Nhà cung cấp</label>
-                    <Select 
-                        value={selectedSupplierId} 
-                        onValueChange={setSelectedSupplierId} 
-                        disabled={initialSuppliers.length === 0}
-                    >
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Chọn nhà cung cấp" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {initialSuppliers.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}
-                            {initialSuppliers.length === 0 && 
-                                <div className="p-2 text-center text-muted-foreground">Không có nhà cung cấp nào. Vui lòng cấu hình.</div>
-                            }
-                        </SelectContent>
-                    </Select>
-                </div>
+                {/* Supplier selection removed */}
                 
                 {itemsToImport.map((item, index) => (
                     <Card key={index} className="p-4 bg-muted/50 relative">
@@ -187,7 +160,7 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
                 <Button 
                     type="submit" 
                     className="w-full bg-blue-500 text-white hover:bg-blue-600" 
-                    disabled={inventory.length === 0 || initialSuppliers.length === 0 || itemsToImport.length === 0 || itemsToImport.some(item => !item.productId)}
+                    disabled={inventory.length === 0 || itemsToImport.length === 0 || itemsToImport.some(item => !item.productId)}
                 >
                     Xác nhận nhập hàng
                 </Button>

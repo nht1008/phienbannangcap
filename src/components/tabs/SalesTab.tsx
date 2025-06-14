@@ -11,10 +11,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
+import { Separator } from '@/components/ui/separator';
 
 interface SalesTabProps {
   inventory: Product[];
-  onCreateInvoice: (customerName: string, cart: CartItem[], total: number, paymentMethod: string) => Promise<boolean>;
+  onCreateInvoice: (
+    customerName: string, 
+    cart: CartItem[], 
+    subtotal: number, 
+    paymentMethod: string,
+    discount: number,
+    amountPaid: number
+  ) => Promise<boolean>;
 }
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
@@ -25,6 +33,9 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
+  const [discountStr, setDiscountStr] = useState('');
+  const [amountPaidStr, setAmountPaidStr] = useState('');
+
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
@@ -70,10 +81,16 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
     }
   };
 
-  const total = useMemo(() =>
+  const subtotal = useMemo(() =>
     cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0),
     [cart]
   );
+
+  const parsedDiscount = parseFloat(discountStr) || 0;
+  const finalTotal = subtotal - parsedDiscount;
+  const parsedAmountPaid = parseFloat(amountPaidStr) || 0;
+  const change = parsedAmountPaid - finalTotal;
+
 
   const handleOpenPaymentDialog = () => {
     if (cart.length === 0) {
@@ -87,17 +104,44 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
         return;
       }
     }
+    setDiscountStr(''); // Reset on open
+    setAmountPaidStr(''); // Reset on open
     setIsPaymentDialogOpen(true);
   };
 
   const handleConfirmCheckout = async () => {
-    const success = await onCreateInvoice("Khách lẻ", cart, total, currentPaymentMethod);
+    const discountNum = parseFloat(discountStr) || 0;
+    const amountPaidNum = parseFloat(amountPaidStr) || 0;
+
+    if (discountNum < 0) {
+        showLocalNotification("Số tiền giảm giá không thể âm.", "error");
+        return;
+    }
+    if (amountPaidNum < 0) {
+        showLocalNotification("Số tiền khách trả không thể âm.", "error");
+        return;
+    }
+    if (subtotal - discountNum < 0) {
+        showLocalNotification("Số tiền giảm giá không thể lớn hơn tổng tiền hàng.", "error");
+        return;
+    }
+
+
+    const success = await onCreateInvoice(
+        "Khách lẻ", 
+        cart, 
+        subtotal, 
+        currentPaymentMethod,
+        discountNum,
+        amountPaidNum
+    );
     if (success) {
       setCart([]);
       setIsPaymentDialogOpen(false);
-      setCurrentPaymentMethod(paymentOptions[0]); // Reset to default
+      setCurrentPaymentMethod(paymentOptions[0]); 
+      setDiscountStr('');
+      setAmountPaidStr('');
     }
-    // If !success, onCreateInvoice already shows a toast.
   };
 
   return (
@@ -172,7 +216,7 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
              <hr className="w-full border-border my-2"/>
             <div className="flex justify-between font-bold text-lg w-full text-foreground">
               <span>Tổng cộng:</span>
-              <span>{total.toLocaleString('vi-VN')} VNĐ</span>
+              <span>{subtotal.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Button
               onClick={handleOpenPaymentDialog}
@@ -188,24 +232,81 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Chọn phương thức thanh toán</DialogTitle>
+            <DialogTitle>Thông tin thanh toán</DialogTitle>
             <DialogDescription>
-              Vui lòng chọn phương thức khách hàng sử dụng để thanh toán.
+              Vui lòng kiểm tra và nhập thông tin thanh toán.
             </DialogDescription>
           </DialogHeader>
-          <RadioGroup value={currentPaymentMethod} onValueChange={setCurrentPaymentMethod} className="my-4 space-y-2">
-            {paymentOptions.map((option) => (
-              <div key={option} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`payment-${option}`} />
-                <Label htmlFor={`payment-${option}`}>{option}</Label>
-              </div>
-            ))}
-          </RadioGroup>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center">
+              <Label>Tổng tiền hàng:</Label>
+              <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} Nghìn VND</span>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
+              <Input 
+                id="discount" 
+                type="number" 
+                value={discountStr} 
+                onChange={(e) => setDiscountStr(e.target.value)} 
+                placeholder="0"
+                min="0"
+                className="bg-card" 
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex justify-between items-center text-lg font-bold text-primary">
+              <Label>Thành tiền:</Label>
+              <span>{finalTotal >= 0 ? finalTotal.toLocaleString('vi-VN') : 'N/A'} Nghìn VND</span>
+            </div>
+            
+            <Separator />
+
+            <div>
+                <Label className="mb-2 block">Phương thức thanh toán</Label>
+                <RadioGroup value={currentPaymentMethod} onValueChange={setCurrentPaymentMethod} className="flex space-x-4">
+                    {paymentOptions.map((option) => (
+                    <div key={option} className="flex items-center space-x-2">
+                        <RadioGroupItem value={option} id={`payment-${option}`} />
+                        <Label htmlFor={`payment-${option}`}>{option}</Label>
+                    </div>
+                    ))}
+                </RadioGroup>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="amountPaid">Số tiền khách trả (Nghìn VND)</Label>
+              <Input 
+                id="amountPaid" 
+                type="number" 
+                value={amountPaidStr} 
+                onChange={(e) => setAmountPaidStr(e.target.value)} 
+                placeholder="0"
+                min="0"
+                className="bg-card" 
+              />
+            </div>
+
+            <div className="flex justify-between items-center">
+              <Label>Tiền thừa:</Label>
+              <span className="font-semibold">{change >= 0 && parsedAmountPaid > 0 ? change.toLocaleString('vi-VN') : '0'} Nghìn VND</span>
+            </div>
+          </div>
+
           <DialogFooter className="sm:justify-between gap-2">
             <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
               Hủy
             </Button>
-            <Button type="button" onClick={handleConfirmCheckout} className="bg-green-500 hover:bg-green-600 text-white">
+            <Button 
+              type="button" 
+              onClick={handleConfirmCheckout} 
+              className="bg-green-500 hover:bg-green-600 text-white"
+              disabled={finalTotal < 0}
+            >
               Xác nhận thanh toán
             </Button>
           </DialogFooter>

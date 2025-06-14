@@ -31,9 +31,11 @@ export interface Invoice {
   id: string; 
   customerName: string;
   items: CartItem[];
-  total: number;
+  total: number; // Final amount after discount
   date: string; // ISO date string
-  paymentMethod: string; // Added paymentMethod
+  paymentMethod: string;
+  discount?: number; // Discount amount
+  amountPaid?: number; // Amount paid by customer
 }
 
 export interface Debt {

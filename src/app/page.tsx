@@ -162,28 +162,28 @@ export default function FleurManagerPage() {
 
     const unsubProductNames = onValue(productNamesRef, (snapshot) => {
       if (snapshot.exists()) {
-        setProductNameOptions(Object.keys(snapshot.val()).sort());
+        setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)));
       } else {
         setProductNameOptions([]);
       }
     });
     const unsubColors = onValue(colorsRef, (snapshot) => {
       if (snapshot.exists()) {
-        setColorOptions(Object.keys(snapshot.val()).sort());
+        setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)));
       } else {
         setColorOptions([]);
       }
     });
     const unsubSizes = onValue(sizesRef, (snapshot) => {
       if (snapshot.exists()) {
-        setSizeOptions(Object.keys(snapshot.val()).sort());
+        setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)));
       } else {
         setSizeOptions([]);
       }
     });
     const unsubUnits = onValue(unitsRef, (snapshot) => {
        if (snapshot.exists()) {
-        setUnitOptions(Object.keys(snapshot.val()).sort());
+        setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)));
       } else {
         setUnitOptions([]);
       }
@@ -240,15 +240,24 @@ export default function FleurManagerPage() {
     }
   };
   
-  const handleCreateInvoice = async (customerName: string, cart: CartItem[], total: number, paymentMethod: string) => {
+  const handleCreateInvoice = async (
+    customerName: string, 
+    cart: CartItem[], 
+    subtotal: number, 
+    paymentMethod: string,
+    discount: number,
+    amountPaid: number
+  ) => {
     try {
       const newInvoiceRef = push(ref(db, 'invoices'));
       const newInvoice: Omit<Invoice, 'id'> = {
         customerName,
         items: cart,
-        total,
+        total: subtotal - discount, // Final total after discount
         date: new Date().toISOString(),
         paymentMethod,
+        discount,
+        amountPaid,
       };
       await set(newInvoiceRef, newInvoice);
 
@@ -318,7 +327,7 @@ export default function FleurManagerPage() {
     try {
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
-        supplier: supplierName,
+        supplier: supplierName, // This will be undefined
         amount: totalCost,
         date: new Date().toISOString(),
         status: 'Chưa thanh toán'
@@ -521,4 +530,5 @@ export default function FleurManagerPage() {
 
 
     
+
 

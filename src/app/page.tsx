@@ -162,28 +162,28 @@ export default function FleurManagerPage() {
 
     const unsubProductNames = onValue(productNamesRef, (snapshot) => {
       if (snapshot.exists()) {
-        setProductNameOptions(Object.keys(snapshot.val()));
+        setProductNameOptions(Object.keys(snapshot.val()).sort());
       } else {
         setProductNameOptions([]);
       }
     });
     const unsubColors = onValue(colorsRef, (snapshot) => {
       if (snapshot.exists()) {
-        setColorOptions(Object.keys(snapshot.val()));
+        setColorOptions(Object.keys(snapshot.val()).sort());
       } else {
         setColorOptions([]);
       }
     });
     const unsubSizes = onValue(sizesRef, (snapshot) => {
       if (snapshot.exists()) {
-        setSizeOptions(Object.keys(snapshot.val()));
+        setSizeOptions(Object.keys(snapshot.val()).sort());
       } else {
         setSizeOptions([]);
       }
     });
     const unsubUnits = onValue(unitsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setUnitOptions(Object.keys(snapshot.val()));
+       if (snapshot.exists()) {
+        setUnitOptions(Object.keys(snapshot.val()).sort());
       } else {
         setUnitOptions([]);
       }
@@ -206,6 +206,26 @@ export default function FleurManagerPage() {
     } catch (error) {
       console.error("Error adding product:", error);
       toast({ title: "Lỗi", description: "Không thể thêm sản phẩm. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateProduct = async (productId: string, updatedProductData: Omit<Product, 'id'>) => {
+    try {
+      await update(ref(db, `inventory/${productId}`), updatedProductData);
+      toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" });
+    } catch (error) {
+      console.error("Error updating product:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật sản phẩm. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await remove(ref(db, `inventory/${productId}`));
+      toast({ title: "Thành công", description: "Sản phẩm đã được xóa.", variant: "default" });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast({ title: "Lỗi", description: "Không thể xóa sản phẩm. Vui lòng thử lại.", variant: "destructive" });
     }
   };
 
@@ -301,7 +321,6 @@ export default function FleurManagerPage() {
       return;
     }
     try {
-      // Firebase keys cannot contain '.', '#', '$', '[', or ']'
       const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_');
       if (sanitizedName !== name.trim()) {
         toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" });
@@ -343,6 +362,8 @@ export default function FleurManagerPage() {
     'Kho hàng': <InventoryTab 
                     inventory={inventory} 
                     onAddProduct={handleAddProduct}
+                    onUpdateProduct={handleUpdateProduct}
+                    onDeleteProduct={handleDeleteProduct}
                     productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
                     sizeOptions={sizeOptions}
@@ -454,3 +475,6 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
+
+    

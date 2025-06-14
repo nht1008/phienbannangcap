@@ -20,6 +20,7 @@ export interface Employee {
   name: string;
   position: string;
   phone: string;
+  userId: string; // UID of the Firebase user who owns/created this employee
 }
 
 export interface Customer {

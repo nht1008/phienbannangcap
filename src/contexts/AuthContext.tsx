@@ -2,7 +2,7 @@
 "use client";
 
 import type { User, AuthError } from 'firebase/auth';
-import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { auth } from '@/lib/firebase';
 
@@ -11,6 +11,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, pass: string) => Promise<User | null>;
   signOut: () => Promise<void>;
+  updateUserProfileName: (name: string) => Promise<void>;
   error: AuthError | null;
   setError: React.Dispatch<React.SetStateAction<AuthError | null>>;
 }
@@ -37,6 +38,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
+      setLoading(false);
+    }, (err) => {
+      console.error("Auth state change error:", err);
+      setError(err as AuthError);
       setLoading(false);
     });
     return unsubscribe; // Cleanup subscription on unmount
@@ -70,14 +75,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const updateUserProfileName = async (name: string) => {
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, { displayName: name });
+        // No need to manually setCurrentUser here, onAuthStateChanged will trigger
+        // and update the currentUser state with the new displayName.
+      } catch (err) {
+        setError(err as AuthError);
+        throw err; // Re-throw to allow error handling in the component
+      }
+    } else {
+      const err = new Error("No current user to update.") as AuthError;
+      setError(err);
+      throw err;
+    }
+  };
+
   const value = {
     currentUser,
     loading,
     signIn,
     signOut,
+    updateUserProfileName,
     error,
     setError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+

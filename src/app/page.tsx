@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect } from 'react';
-import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport as OriginalItemToImport, ProductOptionType, Customer } from '@/types'; // Added Customer
+import type { Product, Employee, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,7 +14,7 @@ import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon';
 import { DebtIcon } from '@/components/icons/DebtIcon';
 import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { EmployeeIcon } from '@/components/icons/EmployeeIcon';
-import { CustomerIcon } from '@/components/icons/CustomerIcon'; // Added CustomerIcon
+import { CustomerIcon } from '@/components/icons/CustomerIcon';
 
 import { SalesTab } from '@/components/tabs/SalesTab';
 import { InventoryTab } from '@/components/tabs/InventoryTab';
@@ -23,7 +23,9 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
-import { CustomerTab } from '@/components/tabs/CustomerTab'; // Added CustomerTab
+import { CustomerTab } from '@/components/tabs/CustomerTab';
+import { SetNameDialog } from '@/components/auth/SetNameDialog';
+import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
 import { ToastAction } from "@/components/ui/toast";
 
@@ -45,25 +47,19 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
-// This type is for what ImportTab sends to onImportProducts
 interface SubmitItemToImport {
   productId: string;
   quantity: number;
-  cost: number; // Nghin VND
+  cost: number;
 }
 
 
-type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên' | 'Khách hàng'; // Added 'Khách hàng'
+type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên' | 'Khách hàng';
 
 export interface DateFilter {
   day: string;
   month: string;
   year: string;
-}
-
-interface NavItem {
-  name: TabName;
-  icon: ReactNode;
 }
 
 const getCurrentMonthYearFilter = (): DateFilter => {
@@ -79,17 +75,18 @@ const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all'
 
 
 export default function FleurManagerPage() {
-  const { currentUser, loading: authLoading, signOut } = useAuth();
+  const { currentUser, loading: authLoading, signOut, updateUserProfileName } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
+  const [isSettingName, setIsSettingName] = useState(false);
   const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
-  const { toast } = useToast();
-
+  
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
@@ -99,16 +96,20 @@ export default function FleurManagerPage() {
   const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialAllDateFilter);
   const [debtFilter, setDebtFilter] = useState<DateFilter>(initialAllDateFilter);
 
-
-  // Kiểm tra trạng thái đăng nhập
   useEffect(() => {
     if (!authLoading && !currentUser) {
       router.push('/login');
     }
   }, [currentUser, authLoading, router]);
 
+  useEffect(() => {
+    if (!authLoading && currentUser && !currentUser.displayName) {
+      setIsSettingName(true);
+    } else {
+      setIsSettingName(false);
+    }
+  }, [currentUser, authLoading]);
 
-  // Tải và lắng nghe dữ liệu Kho hàng
   useEffect(() => {
     if (!currentUser) return;
     const inventoryRef = ref(db, 'inventory');
@@ -127,17 +128,20 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Tải và lắng nghe dữ liệu Nhân viên
   useEffect(() => {
     if (!currentUser) return;
     const employeesRef = ref(db, 'employees');
     const unsubscribe = onValue(employeesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const employeesArray: Employee[] = Object.keys(data).map(key => ({
+        let employeesArray: Employee[] = Object.keys(data).map(key => ({
           id: key,
           ...data[key]
         }));
+        // Filter employees by currentUser.uid if it exists
+        if (currentUser.uid) {
+            employeesArray = employeesArray.filter(emp => emp.userId === currentUser.uid);
+        }
         setEmployeesData(employeesArray.sort((a,b) => a.name.localeCompare(b.name)));
       } else {
         setEmployeesData([]);
@@ -146,7 +150,6 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Tải và lắng nghe dữ liệu Khách hàng
   useEffect(() => {
     if (!currentUser) return;
     const customersRef = ref(db, 'customers');
@@ -165,8 +168,6 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-
-  // Tải và lắng nghe dữ liệu Hóa đơn
   useEffect(() => {
     if (!currentUser) return;
     const invoicesRef = ref(db, 'invoices');
@@ -185,7 +186,6 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Tải và lắng nghe dữ liệu Công nợ
   useEffect(() => {
     if (!currentUser) return;
     const debtsRef = ref(db, 'debts');
@@ -204,7 +204,6 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Tải và lắng nghe dữ liệu Product Options (ProductNames, Colors, Sizes, Units)
   useEffect(() => {
     if (!currentUser) return;
     const productNamesRef = ref(db, 'productOptions/productNames');
@@ -255,7 +254,7 @@ export default function FleurManagerPage() {
 
   const filterDataByDateRange = <T extends { date: string }>(
     data: T[],
-    filter: DateFilter
+    filterObj: DateFilter
   ): T[] => {
     if (!data) return [];
     return data.filter(item => {
@@ -264,9 +263,9 @@ export default function FleurManagerPage() {
       const itemMonth = (itemDate.getMonth() + 1).toString();
       const itemYear = itemDate.getFullYear().toString();
 
-      const dayMatch = filter.day === 'all' || filter.day === itemDay;
-      const monthMatch = filter.month === 'all' || filter.month === itemMonth;
-      const yearMatch = filter.year === 'all' || filter.year === itemYear;
+      const dayMatch = filterObj.day === 'all' || filterObj.day === itemDay;
+      const monthMatch = filterObj.month === 'all' || filterObj.month === itemMonth;
+      const yearMatch = filterObj.year === 'all' || filterObj.year === itemYear;
 
       return dayMatch && monthMatch && yearMatch;
     });
@@ -338,10 +337,14 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleAddEmployee = async (newEmployeeData: Omit<Employee, 'id'>) => {
+  const handleAddEmployee = async (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+    if (!currentUser || !currentUser.uid) {
+        toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để thêm nhân viên.", variant: "destructive" });
+        return;
+    }
     try {
       const newEmployeeRef = push(ref(db, 'employees'));
-      await set(newEmployeeRef, newEmployeeData);
+      await set(newEmployeeRef, { ...newEmployeeData, userId: currentUser.uid });
       toast({ title: "Thành công", description: "Nhân viên đã được thêm.", variant: "default" });
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -349,9 +352,17 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleUpdateEmployee = async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id'>) => {
+  const handleUpdateEmployee = async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+     if (!currentUser || !currentUser.uid) {
+        toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để cập nhật nhân viên.", variant: "destructive" });
+        return;
+    }
     try {
-      await update(ref(db, `employees/${employeeId}`), updatedEmployeeData);
+      // Ensure userId is maintained or correctly set if needed, though typically it shouldn't change.
+      // For this update, we assume the userId is not part of `updatedEmployeeData` from the form.
+      // We might need to fetch the existing employee to preserve userId if it's not passed.
+      // However, the current structure passes Omit<Employee, 'id' | 'userId'>, so we need to add it back.
+      await update(ref(db, `employees/${employeeId}`), { ...updatedEmployeeData, userId: currentUser.uid });
       toast({ title: "Thành công", description: "Thông tin nhân viên đã được cập nhật.", variant: "default" });
     } catch (error) {
       console.error("Error updating employee:", error);
@@ -403,10 +414,10 @@ export default function FleurManagerPage() {
   const handleCreateInvoice = async (
     customerName: string,
     cart: CartItem[],
-    subtotal: number, // actual VND
+    subtotal: number,
     paymentMethod: string,
-    discount: number, // actual VND
-    amountPaid: number, // actual VND
+    discount: number,
+    amountPaid: number,
     isGuestCustomer: boolean
   ) => {
     try {
@@ -609,14 +620,14 @@ export default function FleurManagerPage() {
 
   const handleImportProducts = async (
     supplierName: string | undefined, 
-    itemsToProcess: SubmitItemToImport[], // Updated type
+    itemsToProcess: SubmitItemToImport[],
     totalImportCostVND: number
   ) => {
     try {
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
-        supplier: supplierName || "Nhà cung cấp không xác định", // TODO: Consider making supplier selectable or mandatory
-        amount: totalImportCostVND, // This is already in VND
+        supplier: supplierName || "Nhà cung cấp không xác định",
+        amount: totalImportCostVND,
         date: new Date().toISOString(),
         status: 'Chưa thanh toán'
       };
@@ -624,16 +635,13 @@ export default function FleurManagerPage() {
 
       const updates: { [key: string]: any } = {};
       for (const importItem of itemsToProcess) {
-        // Product existence should be guaranteed by ImportTab's client-side validation
         const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
         if (productSnapshot.exists()) {
           const currentProduct = productSnapshot.val();
           updates[`inventory/${importItem.productId}/quantity`] = currentProduct.quantity + importItem.quantity;
-          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; // importItem.cost is in Nghin VND
+          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000;
         } else {
-          // This case should ideally not be reached if client-side validation is robust
           console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng và giá vốn cho sản phẩm này.`);
-          // Potentially throw an error or notify user more formally if this happens
         }
       }
       if (Object.keys(updates).length > 0) {
@@ -789,19 +797,17 @@ export default function FleurManagerPage() {
   }), [
       inventory, employeesData, customersData, invoicesData, debtsData, currentUser, 
       productNameOptions, colorOptions, sizeOptions, unitOptions, 
-      handleUpdateCustomer, handleDeleteCustomer,
-      handleUpdateEmployee, handleDeleteEmployee,
-      filteredInvoicesForRevenue, revenueFilter, handleRevenueFilterChange,
-      filteredInvoicesForInvoiceTab, invoiceFilter, handleInvoiceFilterChange,
-      filteredDebtsForDebtTab, debtFilter, handleDebtFilterChange,
+      filteredInvoicesForRevenue, revenueFilter, 
+      filteredInvoicesForInvoiceTab, invoiceFilter, 
+      filteredDebtsForDebtTab, debtFilter,
       availableInvoiceYears, availableDebtYears
   ]);
 
   const SidebarToggleButton = () => {
-    const { open, toggleSidebar } = useSidebar();
+    const { open, toggleSidebar: toggle } = useSidebar();
     return (
       <SidebarMenuButton
-        onClick={toggleSidebar}
+        onClick={toggle}
         className="w-full"
       >
         {open ? <ChevronsLeft className="h-5 w-5" /> : <ChevronsRight className="h-5 w-5" />}
@@ -823,13 +829,32 @@ export default function FleurManagerPage() {
     }
   };
 
-  if (authLoading || !currentUser) {
+  if (authLoading) {
+    return <LoadingScreen message="Đang tải ứng dụng..." />;
+  }
+
+  if (!currentUser) {
+     // Router.push in useEffect will handle redirection, this is a fallback.
+    return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
+  }
+
+  if (isSettingName) {
     return (
-        <div className="flex items-center justify-center min-h-screen bg-background">
-            <p>Đang tải ứng dụng...</p>
-        </div>
+      <SetNameDialog
+        onNameSet={async (name) => {
+          try {
+            await updateUserProfileName(name);
+            toast({title: "Thành công", description: "Tên hiển thị đã được cập nhật."});
+            // No need to setIsSettingName(false) here,
+            // The useEffect monitoring currentUser.displayName will handle it.
+          } catch (error) {
+            toast({title: "Lỗi", description: "Không thể cập nhật tên hiển thị.", variant: "destructive"});
+          }
+        }}
+      />
     );
   }
+  
 
   return (
     <SidebarProvider>
@@ -879,13 +904,13 @@ export default function FleurManagerPage() {
 
         <SidebarInset>
           <main className="flex-1 overflow-y-auto">
-            <div className="flex items-center mb-8 print:hidden p-6 lg:p-10 pb-0 lg:pb-0">
+            <div className="flex items-center mb-4 print:hidden px-4 pt-4 lg:px-6 lg:pt-6">
               <SidebarTrigger className="md:hidden mr-4">
                 <PanelLeft />
               </SidebarTrigger>
-              <h2 className="text-4xl font-bold text-foreground font-headline">{activeTab}</h2>
+              <h2 className="text-3xl font-bold text-foreground font-headline">{activeTab}</h2>
             </div>
-            <div className="min-h-[calc(100vh-10rem)] px-6 lg:px-10 pb-6 lg:pb-10 pt-0">
+            <div className="min-h-[calc(100vh-8rem)] px-4 pb-4 lg:px-6 lg:pb-6">
                {tabs[activeTab]}
             </div>
           </main>

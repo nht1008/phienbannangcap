@@ -16,20 +16,22 @@ import { formatPhoneNumber } from '@/lib/utils';
 
 interface EmployeeTabProps {
   employees: Employee[];
-  onAddEmployee: (newEmployeeData: Omit<Employee, 'id'>) => Promise<void>;
-  onUpdateEmployee: (employeeId: string, updatedEmployeeData: Omit<Employee, 'id'>) => Promise<void>;
+  onAddEmployee: (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
+  onUpdateEmployee: (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
   onDeleteEmployee: (employeeId: string) => Promise<void>;
 }
 
-const initialFormState: Omit<Employee, 'id'> = { name: '', position: '', phone: '' };
+// Form state does not include userId as it's handled by the parent
+const initialFormState: Omit<Employee, 'id' | 'userId'> = { name: '', position: '', phone: '' };
+
 
 export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDeleteEmployee }: EmployeeTabProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id'>>(initialFormState);
+  const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
 
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
-  const [editedEmployeeData, setEditedEmployeeData] = useState<Omit<Employee, 'id'>>(initialFormState);
+  const [editedEmployeeData, setEditedEmployeeData] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
 
   const [isConfirmingDeleteEmployee, setIsConfirmingDeleteEmployee] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -47,7 +49,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
     }
   }, [employeeToEdit]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id'>>>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'userId'>>>) => {
     const { name, value } = e.target;
     formSetter(prev => ({ ...prev, [name]: value }));
   };
@@ -58,7 +60,6 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
       toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên.", variant: "destructive" });
       return;
     }
-    // Optional: Check for duplicate phone numbers if needed
     if (employees.some(emp => emp.phone === newEmployee.phone)) {
         toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
@@ -71,7 +72,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
   const openEditDialog = (employee: Employee) => {
     setEmployeeToEdit(employee);
     setIsEditingEmployee(true);
-    setIsAdding(false); // Close add form if open
+    setIsAdding(false); 
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -80,7 +81,6 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
       toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên.", variant: "destructive" });
       return;
     }
-    // Optional: Check for duplicate phone numbers if needed for other employees
     if (employees.some(emp => emp.id !== employeeToEdit.id && emp.phone === editedEmployeeData.phone)) {
         toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
@@ -104,8 +104,8 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
   };
   
   const renderEmployeeForm = (
-    formState: Omit<Employee, 'id'>,
-    formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id'>>>,
+    formState: Omit<Employee, 'id' | 'userId'>,
+    formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'userId'>>>,
     handleSubmit: (e: React.FormEvent) => Promise<void>,
     isEditMode: boolean,
     onCancel?: () => void
@@ -153,7 +153,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-              <CardTitle className="text-4xl font-bold">Danh sách nhân viên</CardTitle>
+              <CardTitle className="text-2xl font-bold">Danh sách nhân viên</CardTitle>
               <Button 
                 onClick={() => { setIsAdding(!isAdding); if (isEditingEmployee) setIsEditingEmployee(false); setNewEmployee(initialFormState); }} 
                 variant="default" 
@@ -163,7 +163,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
               </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {isAdding && renderEmployeeForm(newEmployee, setNewEmployee, handleAdd, false, () => setIsAdding(false))}
           
           <div className="overflow-x-auto mt-4">
@@ -232,3 +232,4 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
     </>
   );
 }
+

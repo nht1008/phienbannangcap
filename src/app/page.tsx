@@ -27,7 +27,6 @@ import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
-import { ToastAction } from "@/components/ui/toast";
 
 import {
   Dialog,
@@ -40,6 +39,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 
 import {
@@ -984,15 +989,6 @@ export default function FleurManagerPage() {
                 </SidebarMenuButton>
             )}
             <SidebarMenuButton
-                onClick={() => { /* Placeholder for lock action */ }}
-                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                tooltip={{children: "Khóa", side: "right", align: "center"}}
-                variant="ghost"
-            >
-                <Lock className="h-5 w-5" />
-                <span>Khóa</span>
-            </SidebarMenuButton>
-            <SidebarMenuButton
                 onClick={() => { /* Placeholder for settings action */ }}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 tooltip={{children: "Cài đặt", side: "right", align: "center"}}
@@ -1065,6 +1061,23 @@ export default function FleurManagerPage() {
           </DialogContent>
         </Dialog>
       )}
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => { /* Placeholder for lock action */ }}
+              className="fixed bottom-8 right-8 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:bg-primary/80 transition-transform duration-150 ease-in-out hover:scale-105"
+              size="icon"
+              aria-label="Khóa màn hình"
+            >
+              <Lock className="h-7 w-7" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="bg-card text-card-foreground">
+            <p>Khóa màn hình</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </SidebarProvider>
   );
 }

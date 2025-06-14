@@ -930,7 +930,7 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-            <h1 className="text-xl font-bold text-primary group-data-[state=collapsed]:hidden truncate text-center w-full group-data-[state=expanded]:text-left">
+            <h1 className="text-xl font-bold text-primary text-center w-full group-data-[state=expanded]:text-left">
               Cửa Hàng Hoa Công Nguyệt
             </h1>
           </SidebarHeader>
@@ -999,4 +999,5 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 

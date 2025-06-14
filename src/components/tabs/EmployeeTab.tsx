@@ -6,12 +6,13 @@ import type { Employee, Invoice, Debt } from '@/types';
 import type { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatPhoneNumber } from '@/lib/utils';
+import { formatPhoneNumber, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 
 // Định nghĩa DateFilter và các hàm tiện ích liên quan trực tiếp ở đây hoặc import nếu đã chuyển ra utils
 interface DateFilter {
@@ -57,9 +58,10 @@ interface EmployeeTabProps {
   currentUser: User | null;
   invoices: Invoice[];
   debts: Debt[];
+  numericDisplaySize: NumericDisplaySize;
 }
 
-export function EmployeeTab({ employees, currentUser, invoices, debts }: EmployeeTabProps) {
+export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<DateFilter>(() => getCurrentDateFilter(false)); 
 
@@ -277,7 +279,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                     <CardDescription className="text-xs">(HĐ đã thu, do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold text-[hsl(var(--success))]">{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-success/10 border-[hsl(var(--success))]">
@@ -286,7 +288,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                      <CardDescription className="text-xs">(Nợ được NV này xử lý "Đã TT", theo bộ lọc ngày tạo nợ)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold text-[hsl(var(--success))]">{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-destructive/10 border-destructive">
@@ -295,7 +297,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                      <CardDescription className="text-xs">(Trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold text-[hsl(var(--destructive))]">{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className={cn("font-bold text-[hsl(var(--destructive))]", numericDisplaySize)}>{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
               </div>
@@ -387,3 +389,4 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
     </Card>
   );
 }
+

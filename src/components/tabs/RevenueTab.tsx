@@ -22,6 +22,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 
 
 interface RevenueTabProps {
@@ -29,6 +30,7 @@ interface RevenueTabProps {
   filter: DateFilter;
   onFilterChange: (newFilter: DateFilter) => void;
   availableYears: string[];
+  numericDisplaySize: NumericDisplaySize;
 }
 
 const chartConfig = {
@@ -55,7 +57,7 @@ const getDaysInMonth = (month: number, year: number): number => { // month is 1-
     return new Date(year, month, 0).getDate();
 };
 
-export function RevenueTab({ invoices, filter: filterProp, onFilterChange, availableYears }: RevenueTabProps) {
+export function RevenueTab({ invoices, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const { month: filterMonth, year: filterYear } = filterProp;
 
@@ -269,7 +271,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <CardDescription className="text-xs">(Đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
+            <p className={cn("font-bold text-primary", numericDisplaySize)}>{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
         <Card className="bg-chart-2/10 border-[hsl(var(--chart-2))]">
@@ -278,7 +280,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
              <CardDescription className="text-xs">(Hàng đã bán, đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-[hsl(var(--chart-2))]">{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
+            <p className={cn("font-bold text-[hsl(var(--chart-2))]", numericDisplaySize)}>{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
         <Card className="bg-success/10 border-[hsl(var(--success))]">
@@ -287,7 +289,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
              <CardDescription className="text-xs">(Từ doanh thu đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-[hsl(var(--success))]">{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
+            <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
         <Card className="bg-success/10 border-[hsl(var(--success))]">
@@ -296,7 +298,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-[hsl(var(--success))]">{totalInvoicesCount}</p>
+            <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalInvoicesCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -488,3 +490,4 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
+

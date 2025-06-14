@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, InvoiceCartItem } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
@@ -27,6 +27,7 @@ import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
+import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { cn } from '@/lib/utils';
 
 import {
@@ -121,6 +122,20 @@ export default function FleurManagerPage() {
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
 
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>('md');
+  const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>('text-2xl');
+  
+  const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
+  const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(false);
+  const isAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
+
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      document.documentElement.setAttribute('data-overall-font-size', overallFontSize);
+    }
+  }, [overallFontSize]);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -160,11 +175,33 @@ export default function FleurManagerPage() {
             setIsSettingName(false);
         }
     });
+    
+    if (isAdmin) {
+        setIsLoadingShopInfo(true);
+        const shopInfoRef = ref(db, 'shopInfo');
+        const unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
+            if (snapshot.exists()) {
+                setShopInfo(snapshot.val() as ShopInfo);
+            } else {
+                setShopInfo({ name: '', address: '', phone: '', logoUrl: '', bankAccountName: '', bankAccountNumber: '', bankName: '' }); 
+            }
+            setIsLoadingShopInfo(false);
+        }, (error) => {
+            console.error("Error fetching shop info:", error);
+            toast({ title: "Lỗi tải thông tin cửa hàng", description: error.message, variant: "destructive" });
+            setIsLoadingShopInfo(false);
+        });
+        return () => {
+          unsubscribeEmployees();
+          unsubscribeShopInfo();
+        };
+    }
+
 
     return () => {
       unsubscribeEmployees();
     };
-  }, [currentUser, authLoading]);
+  }, [currentUser, authLoading, isAdmin, toast]);
 
 
   useEffect(() => {
@@ -789,6 +826,21 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
+  const handleSaveShopInfo = async (newInfo: ShopInfo) => {
+    if (!isAdmin) {
+        toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+        throw new Error("Permission denied");
+    }
+    try {
+        await set(ref(db, 'shopInfo'), newInfo);
+        toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." });
+    } catch (error: any) {
+        console.error("Error updating shop info:", error);
+        toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" });
+        throw error;
+    }
+  };
+
   const navItems = [
     { name: 'Bán hàng', icon: <SellIcon /> },
     { name: 'Kho hàng', icon: <WarehouseIcon /> },
@@ -805,7 +857,8 @@ export default function FleurManagerPage() {
                     inventory={inventory} 
                     customers={customersData} 
                     onCreateInvoice={handleCreateInvoice} 
-                    currentUser={currentUser} 
+                    currentUser={currentUser}
+                    numericDisplaySize={numericDisplaySize}
                   />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
@@ -848,6 +901,7 @@ export default function FleurManagerPage() {
                   filter={revenueFilter}
                   onFilterChange={handleRevenueFilterChange}
                   availableYears={availableInvoiceYears}
+                  numericDisplaySize={numericDisplaySize}
                 />,
     'Khách hàng': <CustomerTab
                       customers={customersData}
@@ -860,10 +914,11 @@ export default function FleurManagerPage() {
                     currentUser={currentUser} 
                     invoices={invoicesData}
                     debts={debtsData}
+                    numericDisplaySize={numericDisplaySize}
                   />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData,
-      currentUser,
+      currentUser, numericDisplaySize,
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
       filteredInvoicesForInvoiceTab, invoiceFilter,
@@ -905,9 +960,9 @@ export default function FleurManagerPage() {
   const handleNameSet = async (inputName: string) => {
     if (!currentUser) return;
 
-    const isAdmin = currentUser.email === ADMIN_EMAIL;
-    const employeeName = isAdmin ? ADMIN_NAME : inputName;
-    const employeePosition = isAdmin ? 'Chủ cửa hàng' : 'Nhân viên';
+    const isAdminUser = currentUser.email === ADMIN_EMAIL;
+    const employeeName = isAdminUser ? ADMIN_NAME : inputName;
+    const employeePosition = isAdminUser ? 'Chủ cửa hàng' : 'Nhân viên';
 
     try {
         await updateUserProfileName(employeeName); 
@@ -952,7 +1007,7 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-             <h1 className="text-xl font-bold text-primary text-center w-full group-data-[state=expanded]:text-left">
+             <h1 className="text-xl font-bold text-primary text-center w-full group-data-[state=expanded]:text-left group-data-[state=collapsed]:text-[0px] group-data-[state=collapsed]:opacity-0 transition-all duration-300 ease-in-out">
                 Cửa Hàng Hoa Công Nguyệt
              </h1>
           </SidebarHeader>
@@ -991,7 +1046,7 @@ export default function FleurManagerPage() {
                 </SidebarMenuButton>
             )}
             <SidebarMenuButton
-                onClick={() => { /* Placeholder for settings action */ }}
+                onClick={() => setIsSettingsDialogOpen(true) }
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 tooltip={{children: "Cài đặt", side: "right", align: "center"}}
                 variant="ghost"
@@ -1063,6 +1118,18 @@ export default function FleurManagerPage() {
           </DialogContent>
         </Dialog>
       )}
+      <SettingsDialog
+        isOpen={isSettingsDialogOpen}
+        onClose={() => setIsSettingsDialogOpen(false)}
+        overallFontSize={overallFontSize}
+        onOverallFontSizeChange={setOverallFontSize}
+        numericDisplaySize={numericDisplaySize}
+        onNumericDisplaySizeChange={setNumericDisplaySize}
+        shopInfo={shopInfo}
+        onSaveShopInfo={handleSaveShopInfo}
+        isAdmin={isAdmin}
+        isLoadingShopInfo={isLoadingShopInfo}
+      />
       <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -1097,4 +1164,5 @@ export default function FleurManagerPage() {
     
 
     
+
 

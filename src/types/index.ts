@@ -87,3 +87,13 @@ export interface Employee {
   position: 'Chủ cửa hàng' | 'Nhân viên';
   phone?: string;
 }
+
+export interface ShopInfo {
+  name: string;
+  address: string;
+  phone: string;
+  logoUrl: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankName: string;
+}

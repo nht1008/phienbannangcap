@@ -29,6 +29,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatPhoneNumber } from '@/lib/utils';
+import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 
 
 interface SalesTabProps {
@@ -46,6 +47,7 @@ interface SalesTabProps {
     employeeName: string
   ) => Promise<boolean>;
   currentUser: User | null;
+  numericDisplaySize: NumericDisplaySize;
 }
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
@@ -62,7 +64,7 @@ interface AvailableVariants {
   units: string[];
 }
 
-export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }: SalesTabProps) {
+export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, numericDisplaySize }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
@@ -526,7 +528,11 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
-                        <p className={cn("font-bold text-xl", (item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
+                        <p className={cn(
+                            "font-bold",
+                             numericDisplaySize,
+                            (item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary"
+                            )}>
                             {itemFinalTotal.toLocaleString('vi-VN')} VNĐ
                         </p>
                     </div>
@@ -556,7 +562,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
-            <div className="flex justify-between font-bold text-2xl w-full text-foreground">
+            <div className={cn("flex justify-between font-bold w-full text-foreground", numericDisplaySize)}>
               <span>Tổng cộng:</span>
               <span>{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
@@ -762,7 +768,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
             <div className="flex justify-between items-center">
               <Label>Tổng tiền hàng (sau GG SP):</Label>
-              <span className="font-semibold text-2xl">{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
+              <span className={cn("font-semibold", numericDisplaySize)}>{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
 
             <div>
@@ -790,13 +796,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             </div>
 
             <div className="flex justify-between items-center text-red-500">
-              <Label className="text-red-500 text-lg">Thành tiền (sau tất cả GG):</Label>
-              <span className="font-semibold text-2xl">{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
+              <Label className={cn("text-red-500", numericDisplaySize === "text-xl" ? "text-lg" : numericDisplaySize === "text-2xl" ? "text-xl" : numericDisplaySize === "text-3xl" ? "text-2xl" : "text-3xl" )}>Thành tiền (sau tất cả GG):</Label>
+              <span className={cn("font-semibold", numericDisplaySize)}>{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Separator/>
 
             <div className="space-y-1">
-              <Label htmlFor="amountPaid" className="text-lg">Số tiền khách trả (Nghìn VND)</Label>
+              <Label htmlFor="amountPaid" className={cn(numericDisplaySize === "text-xl" ? "text-lg" : numericDisplaySize === "text-2xl" ? "text-xl" : numericDisplaySize === "text-3xl" ? "text-2xl" : "text-3xl" )}>Số tiền khách trả (Nghìn VND)</Label>
               <Input
                 id="amountPaid"
                 type="number"
@@ -809,13 +815,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
 
             <div className="flex justify-between items-center">
-              <Label className="text-lg">Tiền thừa:</Label>
-              <span className="font-semibold text-2xl">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterAllDiscounts ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
+              <Label className={cn(numericDisplaySize === "text-xl" ? "text-lg" : numericDisplaySize === "text-2xl" ? "text-xl" : numericDisplaySize === "text-3xl" ? "text-2xl" : "text-3xl" )}>Tiền thừa:</Label>
+              <span className={cn("font-semibold", numericDisplaySize)}>{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterAllDiscounts ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
             </div>
             {finalTotalAfterAllDiscounts > actualAmountPaidVND && customerNameForInvoice.toLowerCase() !== 'khách lẻ' && currentPaymentMethod !== 'Chuyển khoản' && (
                  <div className="flex justify-between items-center text-red-600">
-                    <Label className="text-red-600 text-lg">Còn nợ:</Label>
-                    <span className="font-semibold text-2xl">{(finalTotalAfterAllDiscounts - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
+                    <Label className={cn("text-red-600", numericDisplaySize === "text-xl" ? "text-lg" : numericDisplaySize === "text-2xl" ? "text-xl" : numericDisplaySize === "text-3xl" ? "text-2xl" : "text-3xl" )}>Còn nợ:</Label>
+                    <span className={cn("font-semibold", numericDisplaySize)}>{(finalTotalAfterAllDiscounts - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
                 </div>
             )}
           </div>
@@ -838,4 +844,5 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     </>
   );
 }
+
 

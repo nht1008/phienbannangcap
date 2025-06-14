@@ -35,74 +35,111 @@ const chartConfig = {
     label: "Doanh thu",
     color: "hsl(var(--primary))",
   },
+  giagoc: {
+    label: "Giá gốc",
+    color: "hsl(var(--chart-2))",
+  },
+  loinhuan: {
+    label: "Lợi nhuận",
+    color: "hsl(var(--chart-3))",
+  },
 } satisfies ChartConfig;
+
+interface AggregatedRevenueData {
+  doanhthu: number;
+  giagoc: number;
+}
 
 export function RevenueTab({ invoices, filter: filterProp, onFilterChange, availableYears }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
-  const { month: currentMonth, year: currentYear } = filterProp;
+  const { month: filterMonth, year: filterYear } = filterProp;
 
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
-    let newChartDescription = "Hiển thị doanh thu của cửa hàng.";
-    let aggregatedData: Record<string, number> = {};
-    let finalChartData: { name: string; doanhthu: number }[] = [];
+    let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng.";
+    let aggregatedData: Record<string, AggregatedRevenueData> = {};
+    let finalChartData: { name: string; doanhthu: number; giagoc: number; loinhuan: number }[] = [];
 
-    if (currentMonth !== 'all') { // Specific month is selected (regardless of year)
-        newChartTitle = `Doanh thu ngày (Tháng ${currentMonth}${currentYear !== 'all' ? `/${currentYear}` : ', tất cả các năm'})`;
-        newChartDescription = `Doanh thu hàng ngày cho Tháng ${currentMonth}${currentYear !== 'all' ? `, Năm ${currentYear}` : ', tổng hợp qua các năm'}.`;
-        invoices.forEach(invoice => { // Invoices are already filtered by month and year by page.tsx
+    const calculateInvoiceCost = (invoice: Invoice): number => {
+        return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
+    };
+
+    if (filterMonth !== 'all') { // Specific month is selected (regardless of year)
+        newChartTitle = `Phân tích ngày (Tháng ${filterMonth}${filterYear !== 'all' ? `/${filterYear}` : ', tất cả các năm'})`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}${filterYear !== 'all' ? `, Năm ${filterYear}` : ', tổng hợp qua các năm'}.`;
+        
+        invoices.forEach(invoice => { 
             const dateObj = new Date(invoice.date);
             const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit' }); 
-            aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
+            if (!aggregatedData[dayKey]) {
+                aggregatedData[dayKey] = { doanhthu: 0, giagoc: 0 };
+            }
+            aggregatedData[dayKey].doanhthu += invoice.total;
+            aggregatedData[dayKey].giagoc += calculateInvoiceCost(invoice);
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, doanhthu]) => ({ name: `${name}/${currentMonth}`, doanhthu })) 
+            .map(([name, data]) => ({ name: `${name}/${filterMonth}`, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc })) 
             .sort((a, b) => parseInt(a.name.split('/')[0]) - parseInt(b.name.split('/')[0]));
 
-    } else if (currentMonth === 'all' && currentYear !== 'all') { // All months, Specific Year
-        newChartTitle = `Doanh thu ngày (Năm ${currentYear})`;
-        newChartDescription = `Doanh thu hàng ngày trong Năm ${currentYear}.`;
+    } else if (filterMonth === 'all' && filterYear !== 'all') { // All months, Specific Year
+        newChartTitle = `Phân tích ngày (Năm ${filterYear})`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày trong Năm ${filterYear}.`;
         invoices.forEach(invoice => {
             const dateObj = new Date(invoice.date);
-            // Format as DD/MM for uniqueness within the year
             const dayMonthKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-            aggregatedData[dayMonthKey] = (aggregatedData[dayMonthKey] || 0) + invoice.total;
+            if (!aggregatedData[dayMonthKey]) {
+                aggregatedData[dayMonthKey] = { doanhthu: 0, giagoc: 0 };
+            }
+            aggregatedData[dayMonthKey].doanhthu += invoice.total;
+            aggregatedData[dayMonthKey].giagoc += calculateInvoiceCost(invoice);
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, doanhthu]) => ({ name, doanhthu })) // name is already DD/MM
-            .sort((a,b) => { // Sort by month, then by day
+            .map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
+            .sort((a,b) => { 
                 const [dayA, monthA] = a.name.split('/').map(Number);
                 const [dayB, monthB] = b.name.split('/').map(Number);
                 if (monthA !== monthB) return monthA - monthB;
                 return dayA - dayB;
             });
             
-    } else { // All Months & All Years (currentMonth === 'all' && currentYear === 'all')
-        newChartTitle = "Doanh thu theo năm";
-        newChartDescription = "Tổng doanh thu mỗi năm.";
+    } else { // All Months & All Years (filterMonth === 'all' && filterYear === 'all')
+        newChartTitle = "Phân tích theo năm";
+        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm.";
         invoices.forEach(invoice => {
             const yearKey = new Date(invoice.date).getFullYear().toString();
-            aggregatedData[yearKey] = (aggregatedData[yearKey] || 0) + invoice.total;
+            if (!aggregatedData[yearKey]) {
+                aggregatedData[yearKey] = { doanhthu: 0, giagoc: 0 };
+            }
+            aggregatedData[yearKey].doanhthu += invoice.total;
+            aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, doanhthu]) => ({ name, doanhthu }))
+            .map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
             .sort((a,b) => parseInt(a.name) - parseInt(b.name));
     }
     return { chartData: finalChartData, chartTitle: newChartTitle, chartDescription: newChartDescription };
-  }, [invoices, currentMonth, currentYear]);
+  }, [invoices, filterMonth, filterYear]);
 
 
   const totalRevenue = useMemo(() => invoices.reduce((sum, inv) => sum + inv.total, 0), [invoices]);
+  const totalCostPriceForPeriod = useMemo(() =>
+    invoices.reduce((totalCost, invoice) => {
+      const invoiceCost = invoice.items.reduce((itemSum, item) => itemSum + (item.costPrice ?? 0) * item.quantityInCart, 0);
+      return totalCost + invoiceCost;
+    }, 0),
+    [invoices]
+  );
+  const totalProfitForPeriod = useMemo(() => totalRevenue - totalCostPriceForPeriod, [totalRevenue, totalCostPriceForPeriod]);
   const totalInvoicesCount = invoices.length;
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 p-3 bg-muted/30 rounded-lg items-end">
         <div>
           <Label htmlFor="revenue-filter-month" className="text-sm">Tháng</Label>
           <Select
-            value={currentMonth}
-            onValueChange={(value) => onFilterChange({ day: 'all', month: value, year: currentYear })}
+            value={filterMonth}
+            onValueChange={(value) => onFilterChange({ day: 'all', month: value, year: filterYear })}
           >
             <SelectTrigger id="revenue-filter-month" className="w-full sm:w-32 bg-card h-9">
               <SelectValue placeholder="Tháng" />
@@ -120,8 +157,8 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         <div>
           <Label htmlFor="revenue-filter-year" className="text-sm">Năm</Label>
           <Select
-            value={currentYear}
-            onValueChange={(value) => onFilterChange({ day: 'all', month: currentMonth, year: value })}
+            value={filterYear}
+            onValueChange={(value) => onFilterChange({ day: 'all', month: filterMonth, year: value })}
           >
             <SelectTrigger id="revenue-filter-year" className="w-full sm:w-32 bg-card h-9">
               <SelectValue placeholder="Năm" />
@@ -150,47 +187,67 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-blue-500/10 border-blue-500">
-          <CardHeader>
-            <CardTitle className="text-4xl font-bold text-blue-800">Tổng doanh thu</CardTitle>
-            <CardDescription>(Theo bộ lọc)</CardDescription>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-primary/10 border-primary">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl font-bold text-primary">Tổng doanh thu</CardTitle>
+            <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-900">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
+            <p className="text-2xl font-bold text-primary">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-chart-2/10 border-chart-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl font-bold text-chart-2">Tổng giá gốc</CardTitle>
+             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-chart-2">{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-chart-3/10 border-chart-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl font-bold text-chart-3">Tổng lợi nhuận</CardTitle>
+             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-chart-3">{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
         <Card className="bg-green-500/10 border-green-500">
-          <CardHeader>
-            <CardTitle className="text-4xl font-bold text-green-800">Tổng số hóa đơn</CardTitle>
-            <CardDescription>(Theo bộ lọc)</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl font-bold text-green-700">Tổng số hóa đơn</CardTitle>
+            <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-900">{totalInvoicesCount}</p>
+            <p className="text-2xl font-bold text-green-700">{totalInvoicesCount}</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-4xl font-bold">{chartTitle}</CardTitle>
+          <CardTitle className="text-3xl font-bold">{chartTitle}</CardTitle>
           <CardDescription>{chartDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           {chartData.length === 0 ? (
-             <p className="text-muted-foreground text-center py-10">Chưa có dữ liệu doanh thu để hiển thị theo bộ lọc đã chọn.</p>
+             <p className="text-muted-foreground text-center py-10">Chưa có dữ liệu để hiển thị theo bộ lọc đã chọn.</p>
           ) : (
-          <ChartContainer config={chartConfig} className="h-[400px] w-full">
+          <ChartContainer config={chartConfig} className="h-[450px] w-full">
             <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-              <YAxis tickFormatter={(value) => new Intl.NumberFormat('vi-VN').format(value)} tickLine={false} tickMargin={10} axisLine={false} />
+              <YAxis tickFormatter={(value) => new Intl.NumberFormat('vi-VN').format(value)} tickLine={false} tickMargin={10} axisLine={false} width={80}/>
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent formatter={(value) => `${Number(value).toLocaleString('vi-VN')} VNĐ`} />}
+                content={<ChartTooltipContent formatter={(value, name) => `${(name === 'doanhthu' ? 'Doanh thu: ' : name === 'giagoc' ? 'Giá gốc: ' : 'Lợi nhuận: ') + Number(value).toLocaleString('vi-VN')} VNĐ`} />}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="doanhthu" fill="var(--color-doanhthu)" radius={4} />
+              <Bar dataKey="doanhthu" fill="var(--color-doanhthu)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="giagoc" fill="var(--color-giagoc)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="loinhuan" fill="var(--color-loinhuan)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ChartContainer>
           )}
@@ -213,22 +270,30 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
-                    <TableHead>Tổng tiền</TableHead>
-                    <TableHead>Chi tiết</TableHead>
+                    <TableHead className="text-right">Tổng tiền</TableHead>
+                    <TableHead className="text-right">Tổng giá gốc</TableHead>
+                    <TableHead className="text-right">Lợi nhuận</TableHead>
+                    <TableHead className="text-center">Chi tiết</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map(invoice => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>{invoice.id.substring(0,6)}...</TableCell>
-                      <TableCell>{invoice.customerName}</TableCell>
-                      <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                      <TableCell>{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
-                      <TableCell>
-                        <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {invoices.map(invoice => {
+                    const invoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
+                    const invoiceProfit = invoice.total - invoiceCost;
+                    return (
+                      <TableRow key={invoice.id}>
+                        <TableCell>{invoice.id.substring(0,6)}...</TableCell>
+                        <TableCell>{invoice.customerName}</TableCell>
+                        <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
+                        <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{invoiceCost.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{invoiceProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-center">
+                          <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -246,35 +311,53 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 <strong>Ngày:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
               </DialogDescription>
             </DialogHeader>
-            <Separator className="my-4" />
+            <Separator className="my-3" />
             <ScrollArea className="max-h-60">
               <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
               <ul className="space-y-1 pr-3">
                 {selectedInvoiceDetails.items.map((item: CartItem, index: number) => (
-                  <li key={`${item.id}-${index}`} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
-                    <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
+                  <li key={`${item.id}-${index}`} className="text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
+                      <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground/80 pl-2">Giá gốc đơn vị: {(item.costPrice ?? 0).toLocaleString('vi-VN')} VNĐ</span>
+                        <span className="text-muted-foreground/80">Lãi: {((item.price - (item.costPrice ?? 0)) * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
+                    </div>
                   </li>
                 ))}
               </ul>
             </ScrollArea>
-            <Separator className="my-4" />
+            <Separator className="my-3" />
             {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                 <>
                     <div className="flex justify-between text-sm">
                         <span>Giảm giá:</span>
                         <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                     </div>
-                    <Separator className="my-2" />
                 </>
             )}
-            <div className="flex justify-between font-bold text-xl text-foreground">
-              <span>Tổng cộng:</span>
+            <div className="flex justify-between font-bold text-lg text-foreground">
+              <span>Tổng thanh toán:</span>
               <span>{selectedInvoiceDetails.total.toLocaleString('vi-VN')} VNĐ</span>
             </div>
+             <div className="flex justify-between text-sm">
+                <span>Tổng giá gốc hóa đơn:</span>
+                <span>
+                    {selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0).toLocaleString('vi-VN')} VNĐ
+                </span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold text-green-600">
+                <span>Lợi nhuận hóa đơn:</span>
+                <span>
+                    {(selectedInvoiceDetails.total - selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0)).toLocaleString('vi-VN')} VNĐ
+                </span>
+            </div>
+
              {selectedInvoiceDetails.amountPaid !== undefined && (
                  <>
-                    <Separator className="my-2" />
+                    <Separator className="my-3" />
                     <div className="flex justify-between text-sm">
                         <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                         <span>{selectedInvoiceDetails.amountPaid.toLocaleString('vi-VN')} VNĐ</span>
@@ -302,3 +385,4 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
+

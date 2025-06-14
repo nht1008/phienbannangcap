@@ -26,6 +26,7 @@ import { CustomerTab } from '@/components/tabs/CustomerTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
+import { LockScreen } from '@/components/shared/LockScreen';
 import { cn } from '@/lib/utils';
 
 import {
@@ -97,7 +98,7 @@ const ADMIN_NAME = 'Thể';
 
 
 export default function FleurManagerPage() {
-  const { currentUser, loading: authLoading, signOut, updateUserProfileName } = useAuth() as AuthContextType;
+  const { currentUser, loading: authLoading, signOut, updateUserProfileName, signIn } = useAuth() as AuthContextType;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -118,6 +119,7 @@ export default function FleurManagerPage() {
   const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialAllDateFilter);
   const [debtFilter, setDebtFilter] = useState<DateFilter>(initialAllDateFilter);
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
+  const [isScreenLocked, setIsScreenLocked] = useState(false);
 
 
   useEffect(() => {
@@ -989,6 +991,15 @@ export default function FleurManagerPage() {
                 </SidebarMenuButton>
             )}
             <SidebarMenuButton
+                onClick={() => { /* Placeholder for lock action */ }}
+                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                tooltip={{children: "Khóa", side: "right", align: "center"}}
+                variant="ghost"
+            >
+                <Lock className="h-5 w-5" />
+                <span>Khóa</span>
+            </SidebarMenuButton>
+            <SidebarMenuButton
                 onClick={() => { /* Placeholder for settings action */ }}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 tooltip={{children: "Cài đặt", side: "right", align: "center"}}
@@ -1065,7 +1076,7 @@ export default function FleurManagerPage() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              onClick={() => { /* Placeholder for lock action */ }}
+              onClick={() => setIsScreenLocked(true)}
               className="fixed bottom-8 right-8 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:bg-primary/80 transition-transform duration-150 ease-in-out hover:scale-105"
               size="icon"
               aria-label="Khóa màn hình"
@@ -1078,6 +1089,13 @@ export default function FleurManagerPage() {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+      <LockScreen
+        isOpen={isScreenLocked}
+        onUnlock={() => setIsScreenLocked(false)}
+        currentUserEmail={currentUser?.email || null}
+        signIn={signIn}
+        currentUserName={currentUser?.displayName}
+      />
     </SidebarProvider>
   );
 }

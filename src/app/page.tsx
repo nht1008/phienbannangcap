@@ -3,8 +3,8 @@
 
 import React, { useState, useMemo, ReactNode, useEffect } from 'react';
 import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport, ProductOptionType, Customer } from '@/types'; // Added Customer
-import { useRouter } from 'next/navigation'; 
-import { useAuth } from '@/contexts/AuthContext'; 
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
@@ -26,20 +26,20 @@ import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { CustomerTab } from '@/components/tabs/CustomerTab'; // Added CustomerTab
 import { cn } from '@/lib/utils';
 
-import { 
-  SidebarProvider, 
-  Sidebar, 
-  SidebarTrigger, 
-  SidebarHeader, 
-  SidebarContent, 
-  SidebarMenu, 
-  SidebarMenuItem, 
-  SidebarMenuButton, 
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarTrigger,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
   SidebarInset,
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react'; 
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -54,8 +54,8 @@ interface NavItem {
 }
 
 export default function FleurManagerPage() {
-  const { currentUser, loading: authLoading, signOut } = useAuth(); 
-  const router = useRouter(); 
+  const { currentUser, loading: authLoading, signOut } = useAuth();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
@@ -81,7 +81,7 @@ export default function FleurManagerPage() {
 
   // Tải và lắng nghe dữ liệu Kho hàng
   useEffect(() => {
-    if (!currentUser) return; 
+    if (!currentUser) return;
     const inventoryRef = ref(db, 'inventory');
     const unsubscribe = onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
@@ -90,13 +90,13 @@ export default function FleurManagerPage() {
           id: key,
           ...data[key]
         }));
-        setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); 
+        setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name)));
       } else {
         setInventory([]);
       }
     });
     return () => unsubscribe();
-  }, [currentUser]); 
+  }, [currentUser]);
 
   // Tải và lắng nghe dữ liệu Nhân viên
   useEffect(() => {
@@ -224,6 +224,7 @@ export default function FleurManagerPage() {
   const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
     try {
       const newProductRef = push(ref(db, 'inventory'));
+      // newProductData already contains price & costPrice as full VND values from InventoryTab
       await set(newProductRef, newProductData);
       toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" });
     } catch (error) {
@@ -234,6 +235,7 @@ export default function FleurManagerPage() {
 
   const handleUpdateProduct = async (productId: string, updatedProductData: Omit<Product, 'id'>) => {
     try {
+      // updatedProductData already contains price & costPrice as full VND values from InventoryTab
       await update(ref(db, `inventory/${productId}`), updatedProductData);
       toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" });
     } catch (error) {
@@ -273,25 +275,25 @@ export default function FleurManagerPage() {
       toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" });
     }
   };
-  
+
   const handleCreateInvoice = async (
-    customerName: string, 
-    cart: CartItem[], 
-    subtotal: number, 
+    customerName: string,
+    cart: CartItem[], // item.price is actual VND
+    subtotal: number, // actual VND
     paymentMethod: string,
-    discount: number,
-    amountPaid: number
+    discount: number, // actual VND
+    amountPaid: number // actual VND
   ) => {
     try {
       const newInvoiceRef = push(ref(db, 'invoices'));
       const newInvoice: Omit<Invoice, 'id'> = {
         customerName,
-        items: cart,
-        total: subtotal - discount, // Final total after discount
+        items: cart.map(item => ({ ...item, price: item.price, costPrice: item.costPrice ?? 0 })), // Ensure price & costPrice are full VND values
+        total: subtotal - discount, // Final total in actual VND
         date: new Date().toISOString(),
         paymentMethod,
-        discount,
-        amountPaid,
+        discount, // actual VND
+        amountPaid, // actual VND
       };
       await set(newInvoiceRef, newInvoice);
 
@@ -307,11 +309,11 @@ export default function FleurManagerPage() {
       }
       await update(ref(db), updates);
       toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
-      return true; 
+      return true;
     } catch (error) {
       console.error("Error creating invoice:", error);
       toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
-      return false; 
+      return false;
     }
   };
 
@@ -337,7 +339,7 @@ export default function FleurManagerPage() {
         }
       }
 
-      updates[`invoices/${invoiceId}`] = null; 
+      updates[`invoices/${invoiceId}`] = null;
 
       await update(ref(db), updates);
 
@@ -357,37 +359,39 @@ export default function FleurManagerPage() {
   };
 
 
-  const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalCost: number) => {
+  const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalImportCost: number) => {
+    // totalImportCost is already in actual VND from ImportTab
     try {
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
-        supplier: supplierName, // This will be undefined
-        amount: totalCost,
+        supplier: supplierName,
+        amount: totalImportCost, // actual VND
         date: new Date().toISOString(),
         status: 'Chưa thanh toán'
       };
       await set(newDebtRef, newDebt);
-  
+
       const updates: { [key: string]: any } = {};
-      for (const importItem of itemsToImport) {
+      for (const importItem of itemsToImport) { // importItem.cost is in Nghin VND units
         const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
         if (productSnapshot.exists()) {
-          const currentQuantity = productSnapshot.val().quantity;
-          updates[`inventory/${importItem.productId}/quantity`] = currentQuantity + importItem.quantity;
+          const currentProduct = productSnapshot.val();
+          updates[`inventory/${importItem.productId}/quantity`] = currentProduct.quantity + importItem.quantity;
+          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; // Store costPrice as actual VND
         } else {
-          console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng cho sản phẩm này.`);
+          console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng và giá vốn cho sản phẩm này.`);
         }
       }
       if (Object.keys(updates).length > 0) {
         await update(ref(db), updates);
       }
-      
+
       toast({ title: "Thành công", description: "Nhập hàng thành công, công nợ và kho đã cập nhật.", variant: "default" });
-      return true; 
+      return true;
     } catch (error) {
       console.error("Error importing products:", error);
       toast({ title: "Lỗi", description: "Không thể nhập hàng. Vui lòng thử lại.", variant: "destructive" });
-      return false; 
+      return false;
     }
   };
 
@@ -446,8 +450,8 @@ export default function FleurManagerPage() {
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
     'Bán hàng': <SalesTab inventory={inventory} customers={customersData} onCreateInvoice={handleCreateInvoice} />,
-    'Kho hàng': <InventoryTab 
-                    inventory={inventory} 
+    'Kho hàng': <InventoryTab
+                    inventory={inventory}
                     onAddProduct={handleAddProduct}
                     onUpdateProduct={handleUpdateProduct}
                     onDeleteProduct={handleDeleteProduct}
@@ -464,14 +468,14 @@ export default function FleurManagerPage() {
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
     'Khách hàng': <CustomerTab customers={customersData} onAddCustomer={handleAddCustomer} />, // Added CustomerTab
-  }), [inventory, employeesData, customersData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions]); // Added customersData
+  }), [inventory, employeesData, customersData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions]);
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
     return (
       <SidebarMenuButton
         onClick={toggleSidebar}
-        className="w-full" 
+        className="w-full"
       >
         {open ? <ChevronsLeft className="h-5 w-5" /> : <ChevronsRight className="h-5 w-5" />}
         <span>
@@ -480,11 +484,11 @@ export default function FleurManagerPage() {
       </SidebarMenuButton>
     );
   };
-  
+
   const handleSignOut = async () => {
     try {
       await signOut();
-      router.push('/login'); 
+      router.push('/login');
       toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" });
     } catch (error) {
       console.error("Error signing out:", error);
@@ -519,9 +523,9 @@ export default function FleurManagerPage() {
                     isActive={activeTab === item.name}
                     tooltip={{ children: item.name, side: "right", align: "center" }}
                     className={cn(
-                      'rounded-lg', 
+                      'rounded-lg',
                       activeTab === item.name
-                        ? 'bg-primary text-primary-foreground shadow-lg' 
+                        ? 'bg-primary text-primary-foreground shadow-lg'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
                   >
@@ -532,12 +536,12 @@ export default function FleurManagerPage() {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2"> 
+          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2">
             <SidebarMenuButton
                 onClick={handleSignOut}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 tooltip={{children: "Đăng xuất", side: "right", align: "center"}}
-                variant="ghost" 
+                variant="ghost"
             >
                 <LogOut className="h-5 w-5" />
                 <span>Đăng xuất</span>
@@ -563,4 +567,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

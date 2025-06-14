@@ -35,6 +35,20 @@ const initialFormProductState: FormProduct = {
     name: '', color: '', size: '', unit: '', quantity: '', costPrice: '', price: '', image: ''
 };
 
+interface InventoryTabProps {
+  inventory: Product[];
+  onAddProduct: (newProductData: Omit<Product, 'id'>) => Promise<void>;
+  onUpdateProduct: (productId: string, updatedProductData: Omit<Product, 'id'>) => Promise<void>;
+  onDeleteProduct: (productId: string) => Promise<void>;
+  productNameOptions: string[];
+  colorOptions: string[];
+  sizeOptions: string[];
+  unitOptions: string[];
+  onAddOption: (type: ProductOptionType, name: string) => Promise<void>;
+  onDeleteOption: (type: ProductOptionType, name: string) => Promise<void>;
+}
+
+
 export function InventoryTab({ 
   inventory, 
   onAddProduct,
@@ -62,46 +76,40 @@ export function InventoryTab({
   const [newOptionName, setNewOptionName] = useState('');
 
   useEffect(() => {
+    const defaultState = {
+      ...initialFormProductState,
+      name: productNameOptions.length > 0 ? productNameOptions[0] : '',
+      color: colorOptions.length > 0 ? colorOptions[0] : '',
+      size: sizeOptions.length > 0 ? sizeOptions[0] : '',
+      unit: unitOptions.length > 0 ? unitOptions[0] : '',
+    };
+
     if (isAddingProduct) {
-        setNewItem(currentFormState => {
-            let updatedState = { ...currentFormState };
-            if (!updatedState.name && productNameOptions.length > 0) updatedState.name = productNameOptions[0];
-            if (!updatedState.color && colorOptions.length > 0) updatedState.color = colorOptions[0];
-            if (!updatedState.size && sizeOptions.length > 0) updatedState.size = sizeOptions[0];
-            if (!updatedState.unit && unitOptions.length > 0) updatedState.unit = unitOptions[0];
-            return updatedState;
-        });
+        setNewItem(currentFormState => ({
+            ...defaultState, 
+            ...currentFormState, // Keep any user-typed values if form was partially filled
+            name: currentFormState.name || defaultState.name, // Ensure defaults are applied if field becomes empty
+            color: currentFormState.color || defaultState.color,
+            size: currentFormState.size || defaultState.size,
+            unit: currentFormState.unit || defaultState.unit,
+        }));
     } else {
-        // Reset newItem when not adding, to ensure defaults are applied next time
-        setNewItem({
-            ...initialFormProductState,
-            name: productNameOptions.length > 0 ? productNameOptions[0] : '',
-            color: colorOptions.length > 0 ? colorOptions[0] : '',
-            size: sizeOptions.length > 0 ? sizeOptions[0] : '',
-            unit: unitOptions.length > 0 ? unitOptions[0] : '',
-        });
+        setNewItem(defaultState);
     }
 
     if (isEditingProduct && productToEdit) {
         setEditedItem({
             name: productToEdit.name,
-            color: productToEdit.color, // Keep original value, validation will enforce selection if empty
-            size: productToEdit.size,   // Keep original value, validation will enforce selection if empty
+            color: productToEdit.color,
+            size: productToEdit.size,
             unit: productToEdit.unit,
             quantity: productToEdit.quantity.toString(),
-            price: productToEdit.price.toString(),
-            costPrice: productToEdit.costPrice?.toString() || '',
+            price: (productToEdit.price / 1000).toString(), // Convert VND to Nghin VND for input
+            costPrice: productToEdit.costPrice ? (productToEdit.costPrice / 1000).toString() : '', // Convert VND to Nghin VND
             image: productToEdit.image,
         });
     } else if (!isEditingProduct) {
-        // Reset editedItem when not editing to ensure defaults for next time (though it's mostly for edit)
-         setEditedItem({
-            ...initialFormProductState,
-            name: productNameOptions.length > 0 ? productNameOptions[0] : '',
-            color: colorOptions.length > 0 ? colorOptions[0] : '',
-            size: sizeOptions.length > 0 ? sizeOptions[0] : '',
-            unit: unitOptions.length > 0 ? unitOptions[0] : '',
-        });
+        setEditedItem(defaultState);
     }
   }, [productNameOptions, colorOptions, sizeOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit]);
 
@@ -117,22 +125,22 @@ export function InventoryTab({
   
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.color || !newItem.size || !newItem.unit || newItem.quantity === '' || newItem.costPrice === '' || newItem.price === '' || parseInt(newItem.quantity) < 0 || parseInt(newItem.costPrice) < 0 || parseInt(newItem.price) < 0) {
+    if (!newItem.name || !newItem.color || !newItem.size || !newItem.unit || newItem.quantity === '' || newItem.costPrice === '' || newItem.price === '' || parseInt(newItem.quantity) < 0 || parseFloat(newItem.costPrice) < 0 || parseFloat(newItem.price) < 0) {
       alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
       return;
     }
     const newProductData: Omit<Product, 'id'> = {
       name: newItem.name,
       quantity: parseInt(newItem.quantity),
-      price: parseInt(newItem.price),
-      costPrice: parseInt(newItem.costPrice) || 0,
+      price: parseFloat(newItem.price) * 1000, // Convert Nghin VND from input to VND for storage
+      costPrice: (parseFloat(newItem.costPrice) || 0) * 1000, // Convert Nghin VND from input to VND for storage
       image: newItem.image || `https://placehold.co/100x100.png`,
       color: newItem.color,
       size: newItem.size,
       unit: newItem.unit,
     };
     await onAddProduct(newProductData);
-    setNewItem({
+    setNewItem({ // Reset with defaults
         ...initialFormProductState, 
         name: productNameOptions.length > 0 ? productNameOptions[0] : '',
         color: colorOptions.length > 0 ? colorOptions[0] : '',
@@ -150,15 +158,15 @@ export function InventoryTab({
 
   const handleUpdateExistingProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productToEdit || !editedItem.name || !editedItem.color || !editedItem.size || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.costPrice) < 0 || parseInt(editedItem.price) < 0) {
+    if (!productToEdit || !editedItem.name || !editedItem.color || !editedItem.size || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseFloat(editedItem.costPrice) < 0 || parseFloat(editedItem.price) < 0) {
       alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
       return;
     }
     const updatedProductData: Omit<Product, 'id'> = {
       name: editedItem.name,
       quantity: parseInt(editedItem.quantity),
-      price: parseInt(editedItem.price),
-      costPrice: parseInt(editedItem.costPrice) || 0,
+      price: parseFloat(editedItem.price) * 1000, // Convert Nghin VND from input to VND
+      costPrice: (parseFloat(editedItem.costPrice) || 0) * 1000, // Convert Nghin VND from input to VND
       image: editedItem.image || `https://placehold.co/100x100.png`,
       color: editedItem.color,
       size: editedItem.size,
@@ -287,11 +295,11 @@ export function InventoryTab({
         </div>
         <div>
             <label className="text-sm text-foreground">Giá gốc (Nghìn VND) (*)</label>
-            <Input type="number" name="costPrice" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <Input type="number" name="costPrice" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" step="any" className="bg-card"/>
         </div>
         <div>
             <label className="text-sm text-foreground">Giá bán (Nghìn VND) (*)</label>
-            <Input type="number" name="price" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <Input type="number" name="price" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" step="any" className="bg-card"/>
         </div>
         <div className="sm:col-span-2 md:col-span-3">
             <label className="text-sm text-foreground">URL Hình ảnh</label>
@@ -347,7 +355,6 @@ export function InventoryTab({
                     if (isCurrentlyAdding) {
                         setIsEditingProduct(false); 
                         setProductToEdit(null);
-                        // useEffect will set defaults for newItem
                     }
                 }} 
                 variant="default" 
@@ -374,8 +381,8 @@ export function InventoryTab({
                 <TableHead>Kích thước</TableHead>
                 <TableHead>Đơn vị</TableHead>
                 <TableHead className="text-right">Số lượng</TableHead>
-                <TableHead className="text-right">Giá gốc (Nghìn VND)</TableHead>
-                <TableHead className="text-right">Giá bán (Nghìn VND)</TableHead>
+                <TableHead className="text-right">Giá gốc</TableHead>
+                <TableHead className="text-right">Giá bán</TableHead>
                 <TableHead className="text-center">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -398,8 +405,8 @@ export function InventoryTab({
                   <TableCell>{item.size || 'N/A'}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{(item.costPrice ?? 0).toLocaleString('vi-VN')}</TableCell>
-                  <TableCell className="text-right">{item.price.toLocaleString('vi-VN')}</TableCell>
+                  <TableCell className="text-right">{(item.costPrice ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
+                  <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
                   <TableCell className="text-center space-x-2">
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
                         <Pencil className="h-4 w-4" />
@@ -492,5 +499,3 @@ export function InventoryTab({
   );
 }
     
-
-      

@@ -75,7 +75,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
-                    <TableHead>Tổng tiền (VNĐ)</TableHead>
+                    <TableHead>Tổng tiền</TableHead>
                     <TableHead>Chi tiết</TableHead>
                     <TableHead className="text-center">Hành động</TableHead>
                   </TableRow>
@@ -86,7 +86,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                       <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                       <TableCell>{invoice.customerName}</TableCell>
                       <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                      <TableCell>{invoice.total.toLocaleString('vi-VN')}</TableCell>
+                      <TableCell>{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell>
                         <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                       </TableCell>
@@ -128,11 +128,35 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                   </ul>
                 </div>
                 <Separator className="my-4" />
+                {selectedInvoiceDetails.discount && selectedInvoiceDetails.discount > 0 && (
+                    <>
+                        <div className="flex justify-between text-sm">
+                            <span>Giảm giá:</span>
+                            <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
+                        </div>
+                        <Separator className="my-2" />
+                    </>
+                )}
                 <div className="flex justify-between font-bold text-xl text-foreground">
                   <span>Tổng cộng:</span>
                   <span>{selectedInvoiceDetails.total.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
-                <DialogFooter>
+                 {selectedInvoiceDetails.amountPaid !== undefined && (
+                     <>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between text-sm">
+                            <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
+                            <span>{selectedInvoiceDetails.amountPaid.toLocaleString('vi-VN')} VNĐ</span>
+                        </div>
+                        {(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total) > 0 && (
+                             <div className="flex justify-between text-sm text-green-600">
+                                <span>Tiền thừa:</span>
+                                <span>{(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
+                            </div>
+                        )}
+                     </>
+                )}
+                <DialogFooter className="mt-4">
                   <Button onClick={() => setSelectedInvoiceDetails(null)} variant="outline" className="w-full">Đóng</Button>
                 </DialogFooter>
               </DialogContent>

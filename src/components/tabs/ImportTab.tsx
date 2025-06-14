@@ -27,18 +27,23 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
 
   useEffect(() => {
     if (inventory.length > 0 && itemsToImport.some(item => !item.productId && inventory[0].id)) {
-        setItemsToImport(prevItems => prevItems.map(item => item.productId ? item : { ...item, productId: inventory[0].id}));
+        setItemsToImport(prevItems => prevItems.map(item => item.productId ? item : { ...item, productId: inventory[0].id, cost: 0, quantity: 1 }));
     } else if (inventory.length === 0 && itemsToImport.some(item => item.productId)) {
-        setItemsToImport(prevItems => prevItems.map(item => ({...item, productId: ''})));
+        setItemsToImport(prevItems => prevItems.map(item => ({...item, productId: '', cost: 0, quantity: 1})));
+    } else if (itemsToImport.length === 0 && inventory.length > 0) {
+        setItemsToImport([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
     }
   }, [inventory]);
 
 
   const handleItemChange = (index: number, field: keyof ItemToImport, value: string | number) => {
     const newItems = [...itemsToImport];
-    if (field === 'quantity' || field === 'cost') {
+    if (field === 'quantity') {
         newItems[index][field] = Number(value) < 0 ? 0 : Number(value) ;
-    } else if (field === 'productId') {
+    } else if (field === 'cost') {
+        newItems[index][field] = Number(value) < 0 ? 0 : parseFloat(value.toString()) ;
+    }
+     else if (field === 'productId') {
         newItems[index][field] = value.toString();
     }
     setItemsToImport(newItems);
@@ -57,8 +62,9 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
     setItemsToImport(newItems);
   };
 
+  // totalCost is now actual VND
   const totalCost = useMemo(() =>
-    itemsToImport.reduce((sum, item) => sum + (item.quantity * item.cost), 0),
+    itemsToImport.reduce((sum, item) => sum + (item.quantity * item.cost * 1000), 0),
     [itemsToImport]
   );
 
@@ -73,7 +79,8 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
       return;
     }
 
-    const success = await onImportProducts(undefined, itemsToImport, totalCost); // Supplier is now undefined
+    // Pass totalCost (actual VND) and itemsToImport (item.cost is in Nghin VND)
+    const success = await onImportProducts(undefined, itemsToImport, totalCost); 
 
     if (success) {
       setItemsToImport([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
@@ -89,7 +96,6 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
         </CardHeader>
         <CardContent>
             <form onSubmit={handleImport} className="space-y-6">
-                {/* Supplier selection removed */}
                 
                 {itemsToImport.map((item, index) => (
                     <Card key={index} className="p-4 bg-muted/50 relative">
@@ -124,10 +130,11 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1 text-sm text-foreground">Giá nhập / đơn vị (VNĐ)</label>
+                                <label className="block mb-1 text-sm text-foreground">Giá nhập / đơn vị (Nghìn VND)</label>
                                 <Input
                                     type="number"
                                     min="0"
+                                    step="any"
                                     value={item.cost.toString()}
                                     onChange={e => handleItemChange(index, 'cost', parseFloat(e.target.value))}
                                     className="w-full bg-card"
@@ -170,3 +177,4 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
     </>
   );
 }
+

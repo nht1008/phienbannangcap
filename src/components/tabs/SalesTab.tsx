@@ -25,7 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn, formatPhoneNumber } from '@/lib/utils'; // Import formatPhoneNumber
+import { cn, formatPhoneNumber } from '@/lib/utils'; 
 
 
 interface SalesTabProps {
@@ -34,10 +34,10 @@ interface SalesTabProps {
   onCreateInvoice: (
     customerName: string, 
     cart: CartItem[], 
-    subtotal: number, 
+    subtotal: number, // actual VND
     paymentMethod: string,
-    discount: number,
-    amountPaid: number
+    discount: number, // actual VND
+    amountPaid: number // actual VND
   ) => Promise<boolean>;
 }
 
@@ -53,8 +53,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
   const [customerSearchText, setCustomerSearchText] = useState(""); 
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
-  const [discountStr, setDiscountStr] = useState('');
-  const [amountPaidStr, setAmountPaidStr] = useState('');
+  const [discountStr, setDiscountStr] = useState(''); // Input as "Nghin VND"
+  const [amountPaidStr, setAmountPaidStr] = useState(''); // Input as "Nghin VND"
 
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
@@ -80,6 +80,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
         showLocalNotification(`Không đủ số lượng "${item.name}" trong kho (Còn: ${stockItem.quantity}).`, 'error');
       }
     } else {
+      // item.price and item.costPrice are actual VND from inventory
       setCart([...cart, { ...item, quantityInCart: 1 }]);
     }
   };
@@ -101,15 +102,20 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     }
   };
 
+  // subtotal is in actual VND because item.price is actual VND
   const subtotal = useMemo(() =>
     cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0),
     [cart]
   );
 
-  const parsedDiscount = parseFloat(discountStr) || 0;
-  const finalTotal = subtotal - parsedDiscount;
-  const parsedAmountPaid = parseFloat(amountPaidStr) || 0;
-  const change = parsedAmountPaid - finalTotal;
+  // For dialog display and calculations:
+  const parsedDiscountNghin = parseFloat(discountStr) || 0;
+  const actualDiscountVND = parsedDiscountNghin * 1000;
+  const finalTotalAfterDiscount = subtotal - actualDiscountVND;
+
+  const parsedAmountPaidNghin = parseFloat(amountPaidStr) || 0;
+  const actualAmountPaidVND = parsedAmountPaidNghin * 1000;
+  const changeVND = actualAmountPaidVND - finalTotalAfterDiscount;
 
 
   const handleOpenPaymentDialog = () => {
@@ -134,30 +140,28 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
 
   const handleConfirmCheckout = async () => {
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
-    const discountNum = parseFloat(discountStr) || 0;
-    const amountPaidNum = parseFloat(amountPaidStr) || 0;
-
-    if (discountNum < 0) {
+    
+    // actualDiscountVND and actualAmountPaidVND are already calculated based on discountStr and amountPaidStr
+    if (actualDiscountVND < 0) {
         showLocalNotification("Số tiền giảm giá không thể âm.", "error");
         return;
     }
-    if (amountPaidNum < 0) {
+    if (actualAmountPaidVND < 0) {
         showLocalNotification("Số tiền khách trả không thể âm.", "error");
         return;
     }
-    if (subtotal - discountNum < 0) {
+    if (finalTotalAfterDiscount < 0) { // subtotal - actualDiscountVND
         showLocalNotification("Số tiền giảm giá không thể lớn hơn tổng tiền hàng.", "error");
         return;
     }
 
-
     const success = await onCreateInvoice(
         finalCustomerName, 
         cart, 
-        subtotal, 
+        subtotal, // Pass subtotal (actual VND)
         currentPaymentMethod,
-        discountNum,
-        amountPaidNum
+        actualDiscountVND, // Pass actual VND
+        actualAmountPaidVND // Pass actual VND
     );
     if (success) {
       setCart([]);
@@ -305,7 +309,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
                                   customerNameForInvoice === customer.name ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {customer.name} ({formatPhoneNumber(customer.phone)}) {/* Apply formatting here */}
+                              {customer.name} ({formatPhoneNumber(customer.phone)})
                             </CommandItem>
                           ))}
                       </CommandGroup>
@@ -333,7 +337,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
 
             <div className="flex justify-between items-center">
               <Label>Tổng tiền hàng:</Label>
-              <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} Nghìn VND</span>
+              <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             
             <div>
@@ -374,7 +378,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
 
             <div className="flex justify-between items-center">
               <Label>Tiền thừa:</Label>
-              <span className="font-semibold">{change >= 0 && parsedAmountPaid > 0 && parsedAmountPaid >= finalTotal ? change.toLocaleString('vi-VN') : '0'} Nghìn VND</span>
+              <span className="font-semibold">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterDiscount ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
             </div>
           </div>
 
@@ -386,7 +390,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
               type="button" 
               onClick={handleConfirmCheckout} 
               className="bg-green-500 hover:bg-green-600 text-white"
-              disabled={finalTotal < 0}
+              disabled={finalTotalAfterDiscount < 0}
             >
               Xác nhận thanh toán
             </Button>
@@ -396,3 +400,4 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     </>
   );
 }
+

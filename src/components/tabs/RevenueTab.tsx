@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -24,12 +25,10 @@ export function RevenueTab({ invoices }: RevenueTabProps) {
       if (!acc[date]) {
         acc[date] = 0;
       }
-      acc[date] += invoice.total;
+      acc[date] += invoice.total; // invoice.total is actual VND
       return acc;
     }, {} as Record<string, number>);
 
-    // Sort by date for chronological chart, assuming dates are within a reasonable range for string sort
-    // For robust sorting, convert keys to Date objects
     return Object.entries(dataByDay)
       .map(([date, doanhthu]) => ({ name: date, doanhthu }))
       .sort((a, b) => {

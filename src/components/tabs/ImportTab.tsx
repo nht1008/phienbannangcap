@@ -33,7 +33,7 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
     } else if (itemsToImport.length === 0 && inventory.length > 0) {
         setItemsToImport([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
     }
-  }, [inventory]);
+  }, [inventory, itemsToImport]);
 
 
   const handleItemChange = (index: number, field: keyof ItemToImport, value: string | number) => {
@@ -92,7 +92,7 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
       <Card>
         <CardHeader>
-            <CardTitle>Tạo phiếu nhập hàng</CardTitle>
+            <CardTitle className="text-4xl font-bold">Tạo phiếu nhập hàng</CardTitle>
         </CardHeader>
         <CardContent>
             <form onSubmit={handleImport} className="space-y-6">
@@ -156,9 +156,7 @@ export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
                     </Card>
                 ))}
                 
-                <Button type="button" onClick={addItemField} variant="link" className="text-primary hover:text-primary/80 p-0" disabled={inventory.length === 0}>
-                    + Thêm sản phẩm khác
-                </Button>
+                {/* Button removed from here */}
 
                 <div className="text-right font-bold text-xl text-foreground">
                     Tổng tiền: {totalCost.toLocaleString('vi-VN')} VNĐ

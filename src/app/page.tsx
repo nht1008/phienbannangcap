@@ -104,22 +104,15 @@ export default function FleurManagerPage() {
 
   useEffect(() => {
     if (authLoading) {
-        // Still waiting for authentication state to be determined
         return;
     }
-
     if (currentUser) {
-        // User is logged in
         if (!currentUser.displayName) {
-            // User is logged in but has no display name set in Firebase Auth
             setIsSettingName(true);
         } else {
-            // User is logged in AND has a display name set in Firebase Auth
-            // As per the new requirement, do not show the dialog.
             setIsSettingName(false);
         }
     } else {
-        // No user is logged in (or user has logged out)
         setIsSettingName(false);
     }
   }, [currentUser, authLoading]);
@@ -353,7 +346,7 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
-  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id' | 'userId'> & { email?: string }) => {
     if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để thêm nhân viên.", variant: "destructive" });
         return;
@@ -368,7 +361,7 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, toast]);
 
-  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'> & { email?: string }) => {
      if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để cập nhật nhân viên.", variant: "destructive" });
         return;
@@ -862,27 +855,24 @@ export default function FleurManagerPage() {
           try {
             await updateUserProfileName(name);
 
-
             const existingOwnerEmployee = employeesData.find(
               (emp) => emp.userId === currentUser?.uid && emp.position === 'Chủ cửa hàng'
             );
 
             if (existingOwnerEmployee) {
-              if (existingOwnerEmployee.name !== name) {
                 await handleUpdateEmployee(existingOwnerEmployee.id, {
                   name: name,
                   position: existingOwnerEmployee.position,
                   phone: existingOwnerEmployee.phone,
+                  email: currentUser?.email || '', 
                 });
                  toast({title: "Thành công", description: "Tên của bạn và thông tin nhân viên chủ cửa hàng đã được cập nhật."});
-              } else {
-                 toast({title: "Thông báo", description: "Tên của bạn đã được lưu. Không có thay đổi về thông tin nhân viên."});
-              }
             } else {
-              const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
+              const newEmployeeData: Omit<Employee, 'id' | 'userId'> & { email?: string } = {
                 name: name,
                 position: 'Chủ cửa hàng',
                 phone: 'Chưa cập nhật',
+                email: currentUser?.email || '',
               };
               await handleAddEmployee(newEmployeeData);
               toast({title: "Thành công", description: "Tên của bạn đã được lưu và nhân viên chủ cửa hàng mới đã được tạo."});
@@ -962,7 +952,7 @@ export default function FleurManagerPage() {
               </SidebarTrigger>
               <h2 className="text-3xl font-bold text-foreground font-headline">{activeTab}</h2>
             </div>
-            <div className="min-h-[calc(100vh-8rem)] px-4 pb-4 lg:px-6 lg:pb-6">
+            <div className="min-h-[calc(100vh-8rem)] px-0 pb-0 lg:px-0 lg:pb-0">
                {tabs[activeTab]}
             </div>
           </main>

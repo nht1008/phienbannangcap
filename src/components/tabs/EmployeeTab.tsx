@@ -9,29 +9,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2 } from 'lucide-react'; // Removed PlusCircle
+import { Pencil, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneNumber } from '@/lib/utils';
 
 
 interface EmployeeTabProps {
   employees: Employee[];
-  onAddEmployee: (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
-  onUpdateEmployee: (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
+  onAddEmployee: (newEmployeeData: Omit<Employee, 'id' | 'userId' | 'email'>) => Promise<void>;
+  onUpdateEmployee: (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId' | 'email'>) => Promise<void>;
   onDeleteEmployee: (employeeId: string) => Promise<void>;
 }
 
-// Form state does not include userId as it's handled by the parent
-const initialFormState: Omit<Employee, 'id' | 'userId'> = { name: '', position: '', phone: '' };
+const initialFormState: Omit<Employee, 'id' | 'userId' | 'email'> = { name: '', position: '', phone: '' };
 
 
 export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDeleteEmployee }: EmployeeTabProps) {
-  const [isAdding, setIsAdding] = useState(false); // This state will no longer be toggled by a button in this tab
-  const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id' | 'userId' | 'email'>>(initialFormState);
 
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
-  const [editedEmployeeData, setEditedEmployeeData] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
+  const [editedEmployeeData, setEditedEmployeeData] = useState<Omit<Employee, 'id' | 'userId' | 'email'>>(initialFormState);
 
   const [isConfirmingDeleteEmployee, setIsConfirmingDeleteEmployee] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -49,7 +48,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
     }
   }, [employeeToEdit]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'userId'>>>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'userId' | 'email'>>>) => {
     const { name, value } = e.target;
     formSetter(prev => ({ ...prev, [name]: value }));
   };
@@ -85,6 +84,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
         toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
     }
+    // Email is not part of this form, so it's not passed to onUpdateEmployee from here
     await onUpdateEmployee(employeeToEdit.id, editedEmployeeData);
     setIsEditingEmployee(false);
     setEmployeeToEdit(null);
@@ -104,8 +104,8 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
   };
   
   const renderEmployeeForm = (
-    formState: Omit<Employee, 'id' | 'userId'>,
-    formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'userId'>>>,
+    formState: Omit<Employee, 'id' | 'userId' | 'email'>,
+    formSetter: React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'userId' | 'email'>>>,
     handleSubmit: (e: React.FormEvent) => Promise<void>,
     isEditMode: boolean,
     onCancel?: () => void
@@ -151,14 +151,12 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4">
           <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Danh sách nhân viên</CardTitle>
-              {/* Button "Thêm nhân viên" has been removed */}
           </div>
         </CardHeader>
         <CardContent className="p-4">
-          {/* Form for adding new employee will not be shown as isAdding will remain false */}
           {isAdding && renderEmployeeForm(newEmployee, setNewEmployee, handleAdd, false, () => setIsAdding(false))}
           
           <div className="overflow-x-auto mt-4">
@@ -168,6 +166,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
                   <TableHead>Họ và tên</TableHead>
                   <TableHead>Chức vụ</TableHead>
                   <TableHead>Số điện thoại</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead className="text-center">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
@@ -177,6 +176,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
                     <TableCell>{emp.name}</TableCell>
                     <TableCell>{emp.position}</TableCell>
                     <TableCell>{formatPhoneNumber(emp.phone)}</TableCell>
+                    <TableCell>{emp.email || 'N/A'}</TableCell>
                     <TableCell className="text-center space-x-2">
                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)}>
                             <Pencil className="h-4 w-4" />
@@ -188,7 +188,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
                   </TableRow>
                 ))}
                 {employees.length === 0 && !isAdding && !isEditingEmployee && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">Chưa có nhân viên nào.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Chưa có nhân viên nào.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -201,7 +201,7 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Chỉnh sửa thông tin nhân viên</DialogTitle>
-              <DialogDescription>Cập nhật thông tin cho {employeeToEdit.name}.</DialogDescription>
+              <DialogDescription>Cập nhật thông tin cho {employeeToEdit.name}. Email không thể chỉnh sửa tại đây.</DialogDescription>
             </DialogHeader>
             {renderEmployeeForm(editedEmployeeData, setEditedEmployeeData, handleUpdate, true, () => { setIsEditingEmployee(false); setEmployeeToEdit(null); })}
           </DialogContent>

@@ -292,8 +292,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
                           .map((customer) => (
                             <CommandItem
                               key={customer.id}
-                              value={customer.name} // Used by Command for matching
-                              onSelect={() => { // No need for currentValue, direct access to customer
+                              value={customer.name} 
+                              onSelect={() => { 
                                 setCustomerNameForInvoice(customer.name);
                                 setCustomerSearchText(customer.name); 
                                 setOpenCustomerCombobox(false);
@@ -305,7 +305,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
                                   customerNameForInvoice === customer.name ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {customer.name}
+                              {customer.name} ({customer.phone || 'N/A'})
                             </CommandItem>
                           ))}
                       </CommandGroup>
@@ -374,7 +374,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
 
             <div className="flex justify-between items-center">
               <Label>Tiền thừa:</Label>
-              <span className="font-semibold">{change >= 0 && parsedAmountPaid > 0 ? change.toLocaleString('vi-VN') : '0'} Nghìn VND</span>
+              <span className="font-semibold">{change >= 0 && parsedAmountPaid > 0 && parsedAmountPaid >= finalTotal ? change.toLocaleString('vi-VN') : '0'} Nghìn VND</span>
             </div>
           </div>
 

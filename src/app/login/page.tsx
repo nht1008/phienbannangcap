@@ -59,11 +59,10 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-muted p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-16 w-16 text-primary flex items-center justify-center rounded-full bg-primary/10">
-            <HomeIcon className="h-8 w-8" />
+          <div className="mx-auto mb-6 h-20 w-20 text-primary flex items-center justify-center rounded-full bg-primary/10">
+            <HomeIcon className="h-10 w-10" />
           </div>
-          <CardTitle className="text-3xl font-bold text-primary">Fleur Manager</CardTitle>
-          <CardDescription>Đăng nhập để quản lý cửa hàng</CardDescription>
+          <CardDescription className="text-lg">Đăng nhập để quản lý cửa hàng</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">

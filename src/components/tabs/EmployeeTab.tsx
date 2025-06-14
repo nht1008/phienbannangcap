@@ -56,7 +56,6 @@ export function EmployeeTab({ employees, onAddEmployee }: EmployeeTabProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
                 <TableHead>Họ và tên</TableHead>
                 <TableHead>Chức vụ</TableHead>
                 <TableHead>Số điện thoại</TableHead>
@@ -65,7 +64,6 @@ export function EmployeeTab({ employees, onAddEmployee }: EmployeeTabProps) {
             <TableBody>
               {employees.map(emp => (
                 <TableRow key={emp.id}>
-                  <TableCell>{emp.id.substring(0,6)}...</TableCell> {/* Display shortened ID */}
                   <TableCell>{emp.name}</TableCell>
                   <TableCell>{emp.position}</TableCell>
                   <TableCell>{emp.phone}</TableCell>
@@ -73,7 +71,7 @@ export function EmployeeTab({ employees, onAddEmployee }: EmployeeTabProps) {
               ))}
               {employees.length === 0 && !isAdding && (
                 <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">Chưa có nhân viên nào.</TableCell>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground">Chưa có nhân viên nào.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -83,3 +81,4 @@ export function EmployeeTab({ employees, onAddEmployee }: EmployeeTabProps) {
     </Card>
   );
 }
+

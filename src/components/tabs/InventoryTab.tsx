@@ -100,7 +100,8 @@ export function InventoryTab({
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Danh sách sản phẩm</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <span className="text-sm font-medium text-muted-foreground">Tên sản phẩm</span>
             <Button onClick={() => openOptionsDialog('colors')} variant="outline">
               <Settings className="mr-2 h-4 w-4" /> Màu sắc
             </Button>
@@ -228,3 +229,4 @@ export function InventoryTab({
     </Card>
   );
 }
+

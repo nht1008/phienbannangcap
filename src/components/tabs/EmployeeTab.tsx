@@ -249,10 +249,11 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-1/4">ID HĐ</TableHead>
-                        <TableHead className="w-1/4">Khách hàng</TableHead>
-                        <TableHead className="w-1/4">Ngày tạo</TableHead>
-                        <TableHead className="w-1/4 text-right">Tổng tiền</TableHead>
+                        <TableHead>ID HĐ</TableHead>
+                        <TableHead>Khách hàng</TableHead>
+                        <TableHead>Ngày tạo</TableHead>
+                        <TableHead className="text-right">Tổng tiền</TableHead>
+                        <TableHead className="text-right">Giảm giá</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -262,6 +263,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                           <TableCell>{invoice.customerName}</TableCell>
                           <TableCell>{new Date(invoice.date).toLocaleDateString('vi-VN')}</TableCell>
                           <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
+                          <TableCell className="text-right">{(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

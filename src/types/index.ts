@@ -20,8 +20,8 @@ export interface Employee {
   name: string;
   position: string;
   phone: string;
-  userId: string; // UID of the Firebase user who owns/created this employee
-  email?: string; // Email of the user, primarily for the "Owner"
+  userId: string; // UID of the Firebase user who owns/created this employee OR admin's UID if admin created
+  email?: string; 
 }
 
 export interface Customer {

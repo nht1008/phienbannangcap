@@ -4,7 +4,7 @@
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
 import type { Product, Employee, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type AuthContextType } from '@/contexts/AuthContext'; // Ensure AuthContextType is exported if not already
 
 import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
@@ -46,6 +46,8 @@ import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle } from 'luci
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from 'firebase/auth';
+
 
 interface SubmitItemToImport {
   productId: string;
@@ -75,7 +77,7 @@ const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all'
 
 
 export default function FleurManagerPage() {
-  const { currentUser, loading: authLoading, signOut, updateUserProfileName } = useAuth();
+  const { currentUser, loading: authLoading, signOut, updateUserProfileName } = useAuth() as AuthContextType;
   const router = useRouter();
   const { toast } = useToast();
 
@@ -113,7 +115,7 @@ export default function FleurManagerPage() {
             setIsSettingName(false);
         }
     } else {
-        setIsSettingName(false);
+        setIsSettingName(false); // No user, not setting name
     }
   }, [currentUser, authLoading]);
 
@@ -148,6 +150,9 @@ export default function FleurManagerPage() {
         }));
 
         if (currentUser.uid) {
+            // Admin (nthe1008@gmail.com) sees all employees they manage (userId === admin's uid)
+            // Other users only see their own employee record (userId === their own uid)
+            // This logic assumes that when admin adds an employee, that employee's record has userId = admin's uid.
             employeesArray = employeesArray.filter(emp => emp.userId === currentUser.uid);
         }
         setEmployeesData(employeesArray.sort((a,b) => a.name.localeCompare(b.name)));
@@ -346,14 +351,14 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
-  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id' | 'userId'> & { email?: string }) => {
+  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
     if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để thêm nhân viên.", variant: "destructive" });
         return;
     }
     try {
       const newEmployeeRef = push(ref(db, 'employees'));
-      await set(newEmployeeRef, { ...newEmployeeData, userId: currentUser.uid });
+      await set(newEmployeeRef, { ...newEmployeeData, userId: currentUser.uid }); // Admin's UID is used as userId for managed employees
       toast({ title: "Thành công", description: "Nhân viên đã được thêm.", variant: "default" });
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -361,12 +366,15 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, toast]);
 
-  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'> & { email?: string }) => {
+  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
      if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để cập nhật nhân viên.", variant: "destructive" });
         return;
     }
     try {
+      // When admin updates an employee, the employee's record in DB has userId = admin's UID.
+      // When a user's own record (created via onNameSet) is updated, their own UID is used.
+      // This is correct because updatedEmployeeData is passed with the correct fields and then `userId` is merged.
       await update(ref(db, `employees/${employeeId}`), { ...updatedEmployeeData, userId: currentUser.uid });
       toast({ title: "Thành công", description: "Thông tin nhân viên đã được cập nhật.", variant: "default" });
     } catch (error) {
@@ -607,6 +615,8 @@ export default function FleurManagerPage() {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newTotal;
           updates[`invoices/${invoiceId}/discount`] = newDiscount;
+          // Debt amount of original invoice is not changed on partial return.
+          // User must handle debt separately if they want to adjust it.
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi.", variant: "default" });
         }
@@ -789,6 +799,7 @@ export default function FleurManagerPage() {
                 />,
     'Nhân viên': <EmployeeTab
                     employees={employeesData}
+                    currentUser={currentUser as User | null} // Pass currentUser
                     onAddEmployee={handleAddEmployee}
                     onUpdateEmployee={handleUpdateEmployee}
                     onDeleteEmployee={handleDeleteEmployee}
@@ -801,6 +812,7 @@ export default function FleurManagerPage() {
                     />,
   }), [
       inventory, employeesData, customersData, invoicesData, debtsData,
+      currentUser, // Add currentUser to dependency array
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
       filteredInvoicesForInvoiceTab, invoiceFilter,
@@ -853,29 +865,33 @@ export default function FleurManagerPage() {
       <SetNameDialog
         onNameSet={async (name) => {
           try {
-            await updateUserProfileName(name);
+            await updateUserProfileName(name); // Update Auth displayName
 
-            const existingOwnerEmployee = employeesData.find(
-              (emp) => emp.userId === currentUser?.uid && emp.position === 'Chủ cửa hàng'
+            const userEmail = currentUser?.email;
+            const isAdmin = userEmail === 'nthe1008@gmail.com';
+            const userPosition = isAdmin ? 'Chủ cửa hàng' : 'Nhân viên';
+
+            const existingEmployeeRecord = employeesData.find(
+              (emp) => emp.userId === currentUser?.uid
             );
 
-            if (existingOwnerEmployee) {
-                await handleUpdateEmployee(existingOwnerEmployee.id, {
+            if (existingEmployeeRecord) {
+                await handleUpdateEmployee(existingEmployeeRecord.id, {
                   name: name,
-                  position: existingOwnerEmployee.position,
-                  phone: existingOwnerEmployee.phone,
-                  email: currentUser?.email || '', 
+                  position: userPosition, // Set position based on role
+                  phone: existingEmployeeRecord.phone,
+                  email: userEmail || '', 
                 });
-                 toast({title: "Thành công", description: "Tên của bạn và thông tin nhân viên chủ cửa hàng đã được cập nhật."});
+                 toast({title: "Thành công", description: "Tên của bạn và thông tin nhân viên đã được cập nhật."});
             } else {
-              const newEmployeeData: Omit<Employee, 'id' | 'userId'> & { email?: string } = {
+              const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
                 name: name,
-                position: 'Chủ cửa hàng',
+                position: userPosition, // Set position based on role
                 phone: 'Chưa cập nhật',
-                email: currentUser?.email || '',
+                email: userEmail || '',
               };
               await handleAddEmployee(newEmployeeData);
-              toast({title: "Thành công", description: "Tên của bạn đã được lưu và nhân viên chủ cửa hàng mới đã được tạo."});
+              toast({title: "Thành công", description: "Tên của bạn đã được lưu và nhân viên mới đã được tạo."});
             }
           } catch (error) {
             toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo/cập nhật nhân viên.", variant: "destructive"});
@@ -922,13 +938,13 @@ export default function FleurManagerPage() {
             {currentUser && (
                 <SidebarMenuButton
                     className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-default"
-                    tooltip={{children: currentUser.displayName || "Tài khoản", side: "right", align: "center"}}
+                    tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
                     asChild={false}
-                    onClick={(e) => e.preventDefault()}
+                    onClick={(e) => e.preventDefault()} // Make it non-interactive
                 >
                     <UserCircle className="h-5 w-5" />
-                    <span>{currentUser.displayName || "Tài khoản"}</span>
+                    <span>{currentUser.displayName || currentUser.email}</span>
                 </SidebarMenuButton>
             )}
             <SidebarMenuButton

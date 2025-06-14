@@ -157,12 +157,11 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       onClick={() => toggleStatus(debt.id, debt.status)}
                       variant={'ghost'}
                       size="sm"
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs h-auto",
+                      className={
                         debt.status === 'Chưa thanh toán'
-                          ? 'bg-success text-success-foreground hover:bg-success/90' 
-                          : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                      )}
+                          ? 'bg-success text-success-foreground hover:bg-success/90 px-3 py-1 rounded-full text-xs h-auto'
+                          : 'bg-destructive text-destructive-foreground hover:bg-destructive/90 px-3 py-1 rounded-full text-xs h-auto'
+                      }
                     >
                       {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
                     </Button>

@@ -283,7 +283,8 @@ export default function FleurManagerPage() {
   }, [invoicesData, invoiceFilter]);
 
   const filteredDebtsForDebtTab = useMemo(() => {
-    return filterDataByDateRange(debtsData, debtFilter);
+    const dateFilteredDebts = filterDataByDateRange(debtsData, debtFilter);
+    return dateFilteredDebts.filter(debt => debt.status === 'Chưa thanh toán');
   }, [debtsData, debtFilter]);
 
 

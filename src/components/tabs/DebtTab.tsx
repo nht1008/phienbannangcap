@@ -26,7 +26,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, ava
   };
 
   const totalUnpaid = useMemo(() =>
-    debts.filter(d => d.status === 'Chưa thanh toán').reduce((sum, d) => sum + d.amount, 0),
+    debts.reduce((sum, d) => sum + d.amount, 0),
     [debts]
   );
 

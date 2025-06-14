@@ -17,8 +17,8 @@ interface SalesTabProps {
 
 export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState('');
-  const { toast } = useToast(); // For local notifications if needed, main ones in page.tsx
+  // const [customerName, setCustomerName] = useState(''); // Đã xóa
+  const { toast } = useToast(); 
 
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
@@ -79,10 +79,10 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
       return;
     }
 
-    if (!customerName.trim()) {
-      showLocalNotification("Vui lòng nhập tên khách hàng!", 'error');
-      return;
-    }
+    // if (!customerName.trim()) { // Đã xóa kiểm tra customerName
+    //   showLocalNotification("Vui lòng nhập tên khách hàng!", 'error');
+    //   return;
+    // }
 
     for (const cartItem of cart) {
       const stockItem = inventory.find(i => i.id === cartItem.id);
@@ -92,13 +92,11 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
       }
     }
 
-    const success = await onCreateInvoice(customerName, cart, total);
+    const success = await onCreateInvoice("Khách lẻ", cart, total); // Mặc định "Khách lẻ"
     if (success) {
       setCart([]);
-      setCustomerName('');
-      // Notification is handled by page.tsx after Firebase operation
+      // setCustomerName(''); // Đã xóa
     }
-    // Else, notification of failure is handled by page.tsx
   };
 
   return (
@@ -148,13 +146,7 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
             <CardTitle>Giỏ hàng</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Tên khách hàng"
-              className="w-full"
-            />
+            {/* Input cho customerName đã bị xóa */}
             {cart.length === 0 ? (
               <p className="text-muted-foreground">Giỏ hàng trống</p>
             ) : (

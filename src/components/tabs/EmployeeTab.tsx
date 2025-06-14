@@ -2,67 +2,84 @@
 "use client";
 
 import React from 'react';
-import type { Employee } from '@/types'; // Giữ lại type Employee nếu cần cho tương lai
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
+import type { Employee } from '@/types';
 import type { User } from 'firebase/auth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatPhoneNumber } from '@/lib/utils';
+// Import Button, Input, Dialog etc. if actions like edit/delete are added later
+// For now, it's display-only as per current request stage.
 
 interface EmployeeTabProps {
-  employees: Employee[]; // Sẽ luôn là mảng rỗng
+  employees: Employee[];
   currentUser: User | null;
-  // Không còn các prop onAdd, onUpdate, onDelete
+  // onDeleteEmployee?: (employeeId: string) => Promise<void>; // Kept for future, but not used now
+  // onUpdateEmployee?: (employeeId: string, updatedData: Partial<Omit<Employee, 'id'>>) => Promise<void>; // Kept for future
 }
 
 export function EmployeeTab({ employees, currentUser }: EmployeeTabProps) {
-  // Không còn state và logic quản lý form thêm/sửa/xóa nhân viên
+  // const isAdmin = currentUser?.email === 'nthe1008@gmail.com';
+
+  // Logic for edit/delete dialogs and forms would go here if those actions were enabled.
+  // Currently, this tab is display-only.
 
   return (
-    <>
-      <Card>
-        <CardHeader className="p-4">
-          <div className="flex justify-between items-center">
-              <CardTitle className="text-2xl font-bold">Danh sách nhân viên</CardTitle>
-              {/* Nút Thêm nhân viên đã được xóa */}
-          </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          {/* Biểu mẫu thêm nhân viên đã được xóa */}
-          
-          <div className="overflow-x-auto mt-4">
-            <Table>
-              <TableHeader>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Họ và tên</TableHead>
+                <TableHead>Chức vụ</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Số điện thoại</TableHead>
+                {/* <TableHead className="text-center">Hành động</TableHead> */}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {employees.length === 0 ? (
                 <TableRow>
-                  <TableCell>Họ và tên</TableCell>
-                  <TableCell>Chức vụ</TableCell>
-                  <TableCell>Số điện thoại</TableCell>
-                  <TableCell>Email</TableCell>
-                  {/* Không còn cột Hành động */}
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+                    Chưa có nhân viên nào trong danh sách.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Vì employees sẽ luôn rỗng, đoạn map này sẽ không render gì */}
-                {employees.map(emp => (
+              ) : (
+                employees.map(emp => (
                   <TableRow key={emp.id}>
                     <TableCell>{emp.name}</TableCell>
                     <TableCell>{emp.position}</TableCell>
-                    <TableCell>{emp.phone}</TableCell>
-                    <TableCell>{emp.email || 'N/A'}</TableCell>
-                    {/* Các nút Sửa/Xóa đã được loại bỏ */}
-                  </TableRow>
-                ))}
-                {/* Luôn hiển thị thông báo này vì employees rỗng */}
-                <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
-                        Chưa có nhân viên nào.
+                    <TableCell>{emp.email}</TableCell>
+                    <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
+                    {/* Actions Cell - Hidden for now
+                    <TableCell className="text-center space-x-2">
+                      {isAdmin && emp.email !== currentUser?.email && (
+                        <>
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {}}>
+                              <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => {}}>
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                       {emp.email === currentUser?.email && (
+                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {}}>
+                            <Pencil className="h-4 w-4" />
+                         </Button>
+                       )}
                     </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Các Dialog thêm/sửa/xóa nhân viên đã được loại bỏ */}
-    </>
+                    */}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

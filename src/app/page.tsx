@@ -2,9 +2,10 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
+import type { User } from 'firebase/auth';
 
 import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
@@ -14,7 +15,7 @@ import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon';
 import { DebtIcon } from '@/components/icons/DebtIcon';
 import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { CustomerIcon } from '@/components/icons/CustomerIcon';
-import { EmployeeIcon } from '@/components/icons/EmployeeIcon'; // Giữ lại icon
+import { EmployeeIcon } from '@/components/icons/EmployeeIcon';
 
 import { SalesTab } from '@/components/tabs/SalesTab';
 import { InventoryTab } from '@/components/tabs/InventoryTab';
@@ -23,7 +24,7 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { CustomerTab } from '@/components/tabs/CustomerTab';
-import { EmployeeTab } from '@/components/tabs/EmployeeTab'; // Giữ lại import tab
+import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
@@ -74,6 +75,9 @@ const getCurrentMonthYearFilter = (): DateFilter => {
 
 const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
 
+const ADMIN_EMAIL = 'nthe1008@gmail.com';
+const ADMIN_NAME = 'Thể';
+
 
 export default function FleurManagerPage() {
   const { currentUser, loading: authLoading, signOut, updateUserProfileName } = useAuth() as AuthContextType;
@@ -86,7 +90,7 @@ export default function FleurManagerPage() {
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
-  const [employeesData, setEmployeesData] = useState<any[]>([]); // Sẽ luôn là mảng rỗng
+  const [employeesData, setEmployeesData] = useState<Employee[]>([]);
 
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -103,16 +107,44 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, authLoading, router]);
 
+  // Effect for loading employees and then deciding on SetNameDialog
   useEffect(() => {
-    if (authLoading || !currentUser) {
-      return;
-    }
-     // Chỉ kiểm tra displayName để quyết định hiển thị SetNameDialog
-    if (!currentUser.displayName) {
-        setIsSettingName(true);
-    } else {
-        setIsSettingName(false);
-    }
+    if (authLoading || !currentUser) return;
+
+    const employeesRef = ref(db, 'employees');
+    const unsubscribeEmployees = onValue(employeesRef, (snapshot) => {
+        const data = snapshot.val();
+        const loadedEmployees: Employee[] = [];
+        if (data) {
+            Object.keys(data).forEach(key => {
+                loadedEmployees.push({ id: key, ...data[key] });
+            });
+        }
+
+        const adminUser = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
+        let otherEmployees = loadedEmployees.filter(emp => emp.email !== ADMIN_EMAIL);
+        otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
+
+        let finalSortedEmployees: Employee[] = [];
+        if (adminUser) {
+            finalSortedEmployees.push(adminUser);
+        }
+        finalSortedEmployees = [...finalSortedEmployees, ...otherEmployees];
+        
+        setEmployeesData(finalSortedEmployees);
+
+        // Decide on SetNameDialog after employeesData is loaded
+        const currentUserEmployeeRecord = finalSortedEmployees.find(emp => emp.id === currentUser.uid);
+        if (!currentUser.displayName || !currentUserEmployeeRecord) {
+            setIsSettingName(true);
+        } else {
+            setIsSettingName(false);
+        }
+    });
+
+    return () => {
+      unsubscribeEmployees();
+    };
   }, [currentUser, authLoading]);
 
 
@@ -776,15 +808,31 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleNameSet = async (name: string) => {
+  const handleNameSet = async (inputName: string) => {
     if (!currentUser) return;
+
+    const isAdmin = currentUser.email === ADMIN_EMAIL;
+    const employeeName = isAdmin ? ADMIN_NAME : inputName;
+    const employeePosition = isAdmin ? 'Chủ cửa hàng' : 'Nhân viên';
+
     try {
-      await updateUserProfileName(name);
-      toast({ title: "Thành công", description: "Tên của bạn đã được cập nhật." });
-      setIsSettingName(false);
+        await updateUserProfileName(employeeName);
+
+        const employeeDataForDb = { // Explicitly type for clarity if needed
+            name: employeeName,
+            email: currentUser.email!,
+            position: employeePosition,
+            // phone: '', // Initialize phone if desired
+        };
+
+        const employeeRef = ref(db, `employees/${currentUser.uid}`);
+        await set(employeeRef, employeeDataForDb);
+
+        toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." });
+        setIsSettingName(false);
     } catch (error) {
-      console.error("Error in onNameSet:", error);
-      toast({ title: "Lỗi", description: "Không thể cập nhật tên.", variant: "destructive" });
+        console.error("Error in onNameSet:", error);
+        toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" });
     }
   };
 
@@ -794,13 +842,19 @@ export default function FleurManagerPage() {
   }
 
   if (!currentUser) {
+    // This check might be redundant due to the redirect in the first useEffect,
+    // but it's a good safeguard before SetNameDialog or main app renders.
     return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
   }
-
+  
+  // isSettingName is now primarily controlled by the useEffect that loads employeesData
   if (isSettingName) {
     return (
       <SetNameDialog
         onNameSet={handleNameSet}
+        // Optionally pass initialName or isAdmin status if dialog needs to behave differently
+        // initialName={currentUser.email === ADMIN_EMAIL ? ADMIN_NAME : ''} 
+        // isPrefilled={currentUser.email === ADMIN_EMAIL}
       />
     );
   }
@@ -845,7 +899,7 @@ export default function FleurManagerPage() {
                     tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
                     asChild={false}
-                    onClick={(e) => e.preventDefault()}
+                    onClick={(e) => e.preventDefault()} // Prevent action on click
                 >
                     <UserCircle className="h-5 w-5" />
                     <span>{currentUser.displayName || currentUser.email}</span>
@@ -881,4 +935,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

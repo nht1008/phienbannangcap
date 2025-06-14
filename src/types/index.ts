@@ -15,8 +15,6 @@ export interface CartItem extends Product {
   quantityInCart: number;
 }
 
-// Employee interface removed
-
 export interface Customer {
   id: string;
   name: string;
@@ -60,3 +58,11 @@ export interface ItemToImport {
 }
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
+
+export interface Employee {
+  id: string; // Firebase Auth UID
+  name: string;
+  email: string;
+  position: 'Chủ cửa hàng' | 'Nhân viên';
+  phone?: string;
+}

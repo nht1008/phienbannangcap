@@ -160,7 +160,7 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
             variant="outline"
             className="h-9"
         >
-            Mặc định (Tháng/Năm hiện tại)
+            Hôm nay
         </Button>
       </div>
       

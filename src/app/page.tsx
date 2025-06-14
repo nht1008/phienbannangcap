@@ -42,7 +42,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -104,9 +104,10 @@ export default function FleurManagerPage() {
 
   useEffect(() => {
     if (!authLoading && currentUser) {
-      // Show SetNameDialog if Auth displayName is missing OR if no employee record for this user UID exists
-      const userHasNoEmployeeRecord = employeesData.length === 0;
-      if (!currentUser.displayName || userHasNoEmployeeRecord) {
+      const userHasNoEmployeeRecordOrNoDisplayName = !currentUser.displayName || 
+        (employeesData && employeesData.filter(emp => emp.userId === currentUser.uid && emp.position === 'Chủ cửa hàng').length === 0);
+      
+      if (userHasNoEmployeeRecordOrNoDisplayName) {
         setIsSettingName(true);
       } else {
         setIsSettingName(false);
@@ -147,6 +148,9 @@ export default function FleurManagerPage() {
         }));
         
         if (currentUser.uid) {
+            // This filter is now to ensure that if we have multiple users in the 'employees' node,
+            // the `employeesData` state only contains employees relevant to the current user.
+            // The SetNameDialog logic will use this filtered list to check for an existing "Chủ cửa hàng".
             employeesArray = employeesArray.filter(emp => emp.userId === currentUser.uid);
         }
         setEmployeesData(employeesArray.sort((a,b) => a.name.localeCompare(b.name)));
@@ -855,13 +859,11 @@ export default function FleurManagerPage() {
             await updateUserProfileName(name);
             toast({title: "Thành công", description: "Tên hiển thị Auth đã được cập nhật."});
             
-            // Check if a "Chủ cửa hàng" employee record already exists for this user
             const existingOwnerEmployee = employeesData.find(
               (emp) => emp.userId === currentUser?.uid && emp.position === 'Chủ cửa hàng'
             );
 
             if (existingOwnerEmployee) {
-              // Update existing owner employee if name changed
               if (existingOwnerEmployee.name !== name) {
                 await handleUpdateEmployee(existingOwnerEmployee.id, {
                   name: name,
@@ -871,13 +873,13 @@ export default function FleurManagerPage() {
                  toast({title: "Thành công", description: "Thông tin nhân viên chủ cửa hàng đã được cập nhật."});
               }
             } else {
-              // Add new owner employee
               const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
                 name: name,
                 position: 'Chủ cửa hàng', 
                 phone: 'Chưa cập nhật', 
               };
               await handleAddEmployee(newEmployeeData); 
+              toast({title: "Thành công", description: "Nhân viên chủ cửa hàng mới đã được tạo."});
             }
           } catch (error) {
             toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo/cập nhật nhân viên.", variant: "destructive"});
@@ -921,6 +923,18 @@ export default function FleurManagerPage() {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2">
+            {currentUser && (
+                <SidebarMenuButton
+                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-default"
+                    tooltip={{children: currentUser.displayName || "Tài khoản", side: "right", align: "center"}}
+                    variant="ghost"
+                    asChild={false} // Ensure it's a button, not a link
+                    onClick={(e) => e.preventDefault()} // Prevent any action on click
+                >
+                    <UserCircle className="h-5 w-5" />
+                    <span>{currentUser.displayName || "Tài khoản"}</span>
+                </SidebarMenuButton>
+            )}
             <SidebarMenuButton
                 onClick={handleSignOut}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -951,3 +965,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

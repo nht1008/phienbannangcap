@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface DebtTabProps {
   debts: Debt[];
@@ -53,11 +54,11 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
   );
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle className="text-4xl font-bold">Quản lý công nợ</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow flex flex-col">
         <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
           <div>
             <Label htmlFor="debt-filter-day" className="text-sm">Ngày</Label>
@@ -133,45 +134,48 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
         <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded-md text-[hsl(var(--destructive))]">
           <p className="font-bold">Tổng công nợ chưa thanh toán (theo bộ lọc): {totalUnpaid.toLocaleString('vi-VN')} VNĐ</p>
         </div>
-        {debts.length === 0 ? (
-            <p className="text-muted-foreground text-center py-6">Không có công nợ nào phù hợp với bộ lọc.</p>
-        ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nhà cung cấp/Khách hàng</TableHead>
-                <TableHead>Ngày tạo</TableHead>
-                <TableHead>Số tiền</TableHead>
-                <TableHead className="text-center">Chức năng</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {debts.map(debt => (
-                <TableRow key={debt.id}>
-                  <TableCell>{debt.supplier || 'N/A'}</TableCell>
-                  <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
-                  <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
-                  <TableCell className="text-center">
-                    <Button
-                      onClick={() => toggleStatus(debt.id, debt.status)}
-                      variant={'ghost'}
-                      size="sm"
-                      className={
-                        debt.status === 'Chưa thanh toán'
-                          ? 'bg-success text-success-foreground hover:bg-success/90 px-3 py-1 rounded-full text-xs h-auto'
-                          : 'bg-destructive text-destructive-foreground hover:bg-destructive/90 px-3 py-1 rounded-full text-xs h-auto'
-                      }
-                    >
-                      {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
-                    </Button>
-                  </TableCell>
+        <div className="flex-grow overflow-hidden"> {/* Added for ScrollArea to work correctly */}
+          {debts.length === 0 ? (
+              <p className="text-muted-foreground text-center py-6">Không có công nợ nào phù hợp với bộ lọc.</p>
+          ) : (
+          <ScrollArea className="h-full"> {/* ScrollArea to handle overflow if content is too long */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nhà cung cấp/Khách hàng</TableHead>
+                  <TableHead>Ngày tạo</TableHead>
+                  <TableHead>Số tiền</TableHead>
+                  <TableHead className="text-center">Chức năng</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {debts.map(debt => (
+                  <TableRow key={debt.id}>
+                    <TableCell>{debt.supplier || 'N/A'}</TableCell>
+                    <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
+                    <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        onClick={() => toggleStatus(debt.id, debt.status)}
+                        variant={'ghost'}
+                        size="sm"
+                        className={cn(
+                          'px-3 py-1 rounded-full text-xs h-auto',
+                          debt.status === 'Chưa thanh toán'
+                            ? 'bg-success text-success-foreground hover:bg-success/90'
+                            : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                        )}
+                      >
+                        {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+          )}
         </div>
-        )}
       </CardContent>
     </Card>
   );

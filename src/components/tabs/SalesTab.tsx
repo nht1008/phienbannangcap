@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -112,20 +112,21 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
   const updateCartQuantity = (itemId: string, newQuantityStr: string) => {
     const newQuantity = parseInt(newQuantityStr);
+    if (isNaN(newQuantity)) return; // Prevent updates if not a number
+
     const stockItem = inventory.find(i => i.id === itemId);
     if (!stockItem) return;
 
-    if (newQuantity > stockItem.quantity) {
-      showLocalNotification(`Số lượng tồn kho không đủ! Chỉ còn ${stockItem.quantity} ${stockItem.unit}.`, 'error');
-      setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
-      return;
-    }
     if (newQuantity <= 0) {
       setCart(cart.filter(item => item.id !== itemId));
+    } else if (newQuantity > stockItem.quantity) {
+      showLocalNotification(`Số lượng tồn kho không đủ! Chỉ còn ${stockItem.quantity} ${stockItem.unit}.`, 'error');
+      setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
     } else {
       setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
   };
+
 
   const subtotal = useMemo(() =>
     cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0),
@@ -218,7 +219,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     });
     return Array.from(nameMap.entries()).map(([name, products]) => ({
       name,
-      firstVariant: products[0],
+      firstVariant: products[0], // Used for image and potentially other shared info
       totalStock: products.reduce((sum, p) => sum + p.quantity, 0)
     }));
   }, [inventory]);
@@ -231,12 +232,14 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     }
 
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
-    setAvailableVariants({ colors, sizes: [], units: [] });
+    setAvailableVariants({ colors, sizes: [], units: [] }); // Reset sizes and units when color changes
     setSelectedProductNameForVariants(productName);
+    // Set initial color, which will trigger useEffects for size and unit
     setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
   }, [inventory, showLocalNotification]);
 
+  // Effect to update available sizes when color changes
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
       const variantsMatchingNameAndColor = inventory.filter(p =>
@@ -247,14 +250,16 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
       setAvailableVariants(prev => ({ ...prev, sizes }));
 
+      // Auto-select size if only one, or if previous selection is still valid
       const newSize = sizes.length === 1 ? sizes[0] : (sizes.includes(variantSelection.size) ? variantSelection.size : '');
-      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' }));
-    } else if (selectedProductNameForVariants) {
+      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' })); // Reset unit when size changes
+    } else if (selectedProductNameForVariants) { // If color is deselected or not set
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
         setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
     }
   }, [selectedProductNameForVariants, variantSelection.color, inventory]);
 
+  // Effect to update available units when size changes
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
       const variantsMatchingNameColorSize = inventory.filter(p =>
@@ -266,9 +271,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
       setAvailableVariants(prev => ({ ...prev, units }));
 
+      // Auto-select unit if only one, or if previous selection is still valid
       const newUnit = units.length === 1 ? units[0] : (units.includes(variantSelection.unit) ? variantSelection.unit : '');
       setVariantSelection(prev => ({ ...prev, unit: newUnit }));
-    } else if (selectedProductNameForVariants) {
+    } else if (selectedProductNameForVariants) { // If size is deselected or not set
         setAvailableVariants(prev => ({ ...prev, units: [] }));
         setVariantSelection(prev => ({ ...prev, unit: '' }));
     }
@@ -304,8 +310,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     if (productToAdd) {
       addToCart(productToAdd);
       setIsVariantSelectorOpen(false);
-      setSelectedProductNameForVariants(null);
-      setVariantSelection({ color: '', size: '', unit: '' });
+      setSelectedProductNameForVariants(null); // Reset after adding
+      setVariantSelection({ color: '', size: '', unit: '' }); // Reset selection
     } else {
       showLocalNotification('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.', 'error');
     }
@@ -443,10 +449,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                             onError={(e) => (e.currentTarget.src = 'https://placehold.co/60x60.png')}
                         />
                         <div className="flex-grow">
-                            <p className="font-semibold text-foreground text-base leading-tight mb-0.5">{item.name}</p>
+                            <p className="font-bold text-foreground text-base leading-tight mb-0.5">{item.name}</p>
                             <p className="text-xs text-muted-foreground">{item.color}, {item.size}, {item.unit}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Đơn giá: <span className="font-medium text-foreground/90">{item.price.toLocaleString('vi-VN')} VNĐ</span>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Đơn giá: <span className="font-semibold text-foreground/90">{item.price.toLocaleString('vi-VN')} VNĐ</span>
                             </p>
                         </div>
                          <Button
@@ -454,22 +460,41 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                             size="icon"
                             className="h-7 w-7 text-destructive hover:text-destructive/80 self-start shrink-0"
                             onClick={() => updateCartQuantity(item.id, '0')}
+                            aria-label="Xóa sản phẩm khỏi giỏ hàng"
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
                     <div className="flex items-center justify-between mt-2.5">
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor={`qty-${item.id}`} className="text-sm font-medium">SL:</Label>
-                            <Input
-                                id={`qty-${item.id}`}
-                                type="number"
-                                value={item.quantityInCart.toString()}
-                                onChange={(e) => updateCartQuantity(item.id, e.target.value)}
-                                className="w-20 h-9 p-1 text-center text-base bg-background border-input focus:ring-1 focus:ring-primary"
-                                min="1"
-                                max={(inventory.find(i => i.id === item.id)?.quantity ?? 1).toString()}
-                            />
+                        <div className="flex items-center gap-1">
+                            <Label htmlFor={`qty-display-${item.id}`} className="text-sm font-medium mr-1">SL:</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0"
+                                onClick={() => updateCartQuantity(item.id, (item.quantityInCart - 1).toString())}
+                                aria-label="Giảm số lượng"
+                            >
+                                <Minus className="h-4 w-4" />
+                            </Button>
+                            <span
+                                id={`qty-display-${item.id}`}
+                                className="w-10 h-8 flex items-center justify-center text-center text-base font-medium border border-input rounded-md bg-background"
+                            >
+                                {item.quantityInCart}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0"
+                                onClick={() => updateCartQuantity(item.id, (item.quantityInCart + 1).toString())}
+                                disabled={item.quantityInCart >= (inventory.find(p => p.id === item.id)?.quantity ?? 0)}
+                                aria-label="Tăng số lượng"
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
                         </div>
                         <p className="font-bold text-lg text-primary">
                             {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ

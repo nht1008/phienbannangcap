@@ -155,7 +155,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                   <TableCell className="text-center">
                     <Button
                       onClick={() => toggleStatus(debt.id, debt.status)}
-                      variant={'default'}
+                      variant={'ghost'}
                       size="sm"
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",

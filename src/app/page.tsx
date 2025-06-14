@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect } from 'react';
-import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport, ProductOptionType, Customer } from '@/types'; // Added Customer
+import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport as OriginalItemToImport, ProductOptionType, Customer } from '@/types'; // Added Customer
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -43,6 +43,13 @@ import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
+
+// This type is for what ImportTab sends to onImportProducts
+interface SubmitItemToImport {
+  productId: string;
+  quantity: number;
+  cost: number; // Nghin VND
+}
 
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên' | 'Khách hàng'; // Added 'Khách hàng'
@@ -588,26 +595,33 @@ export default function FleurManagerPage() {
   };
 
 
-  const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalImportCostVND: number) => {
+  const handleImportProducts = async (
+    supplierName: string | undefined, 
+    itemsToProcess: SubmitItemToImport[], // Updated type
+    totalImportCostVND: number
+  ) => {
     try {
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
-        supplier: supplierName || "Nhà cung cấp không xác định",
-        amount: totalImportCostVND,
+        supplier: supplierName || "Nhà cung cấp không xác định", // TODO: Consider making supplier selectable or mandatory
+        amount: totalImportCostVND, // This is already in VND
         date: new Date().toISOString(),
         status: 'Chưa thanh toán'
       };
       await set(newDebtRef, newDebt);
 
       const updates: { [key: string]: any } = {};
-      for (const importItem of itemsToImport) {
+      for (const importItem of itemsToProcess) {
+        // Product existence should be guaranteed by ImportTab's client-side validation
         const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
         if (productSnapshot.exists()) {
           const currentProduct = productSnapshot.val();
           updates[`inventory/${importItem.productId}/quantity`] = currentProduct.quantity + importItem.quantity;
-          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000;
+          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; // importItem.cost is in Nghin VND
         } else {
+          // This case should ideally not be reached if client-side validation is robust
           console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng và giá vốn cho sản phẩm này.`);
+          // Potentially throw an error or notify user more formally if this happens
         }
       }
       if (Object.keys(updates).length > 0) {
@@ -690,7 +704,14 @@ export default function FleurManagerPage() {
                     onAddOption={handleAddProductOption}
                     onDeleteOption={handleDeleteProductOption}
                   />,
-    'Nhập hàng': <ImportTab inventory={inventory} onImportProducts={handleImportProducts} />,
+    'Nhập hàng': <ImportTab 
+                    inventory={inventory} 
+                    onImportProducts={handleImportProducts} 
+                    productNameOptions={productNameOptions}
+                    colorOptions={colorOptions}
+                    sizeOptions={sizeOptions}
+                    unitOptions={unitOptions}
+                  />,
     'Hóa đơn': <InvoiceTab 
                   invoices={filteredInvoicesForInvoiceTab} 
                   onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}

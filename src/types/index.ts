@@ -56,9 +56,13 @@ export interface Debt {
 }
 
 export interface ItemToImport {
-  productId: string; 
+  name: string;
+  color: string;
+  size: string;
+  unit: string;
   quantity: number;
-  cost: number;
+  cost: number; // Cost per unit in Nghin VND
 }
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
+

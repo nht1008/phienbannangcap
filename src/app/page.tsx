@@ -271,6 +271,50 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleProcessInvoiceCancellationOrReturn = async (invoiceId: string, operationType: 'delete' | 'return') => {
+    try {
+      const invoiceSnapshot = await get(child(ref(db), `invoices/${invoiceId}`));
+      if (!invoiceSnapshot.exists()) {
+        toast({ title: "Lỗi", description: "Không tìm thấy hóa đơn để xử lý.", variant: "destructive" });
+        return false;
+      }
+
+      const invoiceData = invoiceSnapshot.val() as Invoice;
+      const updates: { [key: string]: any } = {};
+
+      for (const cartItem of invoiceData.items) {
+        const productRef = child(ref(db), `inventory/${cartItem.id}`);
+        const productSnapshot = await get(productRef);
+        if (productSnapshot.exists()) {
+          const currentQuantity = productSnapshot.val().quantity;
+          updates[`inventory/${cartItem.id}/quantity`] = currentQuantity + cartItem.quantityInCart;
+        } else {
+          console.warn(`Sản phẩm ID ${cartItem.id} (tên: ${cartItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
+          // Optionally, inform user more directly if critical
+          // toast({ title: "Cảnh báo", description: `Sản phẩm ${cartItem.name} không còn trong kho, không thể hoàn kho.`, variant: "default" });
+        }
+      }
+
+      updates[`invoices/${invoiceId}`] = null; // Mark for deletion
+
+      await update(ref(db), updates);
+
+      const successMessage = operationType === 'delete'
+        ? "Hóa đơn đã được xóa và các sản phẩm (nếu còn tồn tại) đã được hoàn kho."
+        : "Hoàn trả thành công, hóa đơn đã được xử lý và các sản phẩm (nếu còn tồn tại) đã được hoàn kho.";
+      toast({ title: "Thành công", description: successMessage, variant: "default" });
+      return true;
+    } catch (error) {
+      console.error(`Error processing invoice ${operationType} for ID ${invoiceId}:`, error);
+      const errorMessage = operationType === 'delete'
+        ? "Không thể xóa hóa đơn."
+        : "Không thể xử lý hoàn trả.";
+      toast({ title: "Lỗi", description: `${errorMessage} Vui lòng thử lại. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+      return false;
+    }
+  };
+
+
   const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalCost: number) => {
     try {
       const newDebtRef = push(ref(db, 'debts'));
@@ -372,7 +416,7 @@ export default function FleurManagerPage() {
                     onDeleteOption={handleDeleteProductOption}
                   />,
     'Nhập hàng': <ImportTab inventory={inventory} onImportProducts={handleImportProducts} />,
-    'Hóa đơn': <InvoiceTab invoices={invoicesData} />,
+    'Hóa đơn': <InvoiceTab invoices={invoicesData} onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn} />,
     'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,

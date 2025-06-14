@@ -47,10 +47,14 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
     }
   };
 
+  const invoiceIdDisplay = operationTarget?.invoice?.id ? operationTarget.invoice.id.substring(0,6) : '...';
+
   const dialogTitle = operationTarget?.type === 'delete' ? "Xác nhận xóa hóa đơn?" : "Xác nhận hoàn trả hóa đơn?";
+  
   const dialogDescription = operationTarget?.type === 'delete'
-    ? `Bạn có chắc chắn muốn xóa hóa đơn #${operationTarget.invoice?.id.substring(0,6)}...? Các sản phẩm trong hóa đơn này sẽ được hoàn trả lại vào kho.`
-    : `Bạn có chắc chắn muốn xử lý hoàn trả cho hóa đơn #${operationTarget.invoice?.id.substring(0,6)}...? Các sản phẩm sẽ được hoàn trả lại vào kho và hóa đơn sẽ được coi như đã hủy.`;
+    ? `Bạn có chắc chắn muốn xóa hóa đơn #${invoiceIdDisplay}...? Các sản phẩm trong hóa đơn này sẽ được hoàn trả lại vào kho.`
+    : `Bạn có chắc chắn muốn xử lý hoàn trả cho hóa đơn #${invoiceIdDisplay}...? Các sản phẩm sẽ được hoàn trả lại vào kho và hóa đơn sẽ được coi như đã hủy.`;
+  
   const actionButtonText = operationTarget?.type === 'delete' ? "Xóa hóa đơn" : "Xác nhận hoàn trả";
 
 

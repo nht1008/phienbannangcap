@@ -116,7 +116,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
 
     const stockItem = inventory.find(i => i.id === itemId);
-    if (!stockItem && newQuantity > 0) return; 
+    if (!stockItem && newQuantity > 0) return;
 
     if (newQuantity === 0) {
       setCart(cart.filter(item => item.id !== itemId));
@@ -160,10 +160,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
   const parsedOverallDiscountNghin = parseFloat(overallDiscountStr) || 0;
   const actualOverallInvoiceDiscountVND = parsedOverallDiscountNghin * 1000;
-  
+
   const finalTotalAfterAllDiscounts = useMemo(() => {
       const total = subtotalAfterItemDiscounts - actualOverallInvoiceDiscountVND;
-      return total < 0 ? 0 : total; 
+      return total < 0 ? 0 : total;
   }, [subtotalAfterItemDiscounts, actualOverallInvoiceDiscountVND]);
 
 
@@ -190,7 +190,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
     setOverallDiscountStr('');
-    setAmountPaidStr((finalTotalAfterAllDiscounts / 1000).toString()); 
+    setAmountPaidStr((finalTotalAfterAllDiscounts / 1000).toString());
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
@@ -211,7 +211,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         showLocalNotification("Số tiền khách trả không thể âm.", "error");
         return;
     }
-    
+
     if (subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND) {
         showLocalNotification("Tổng giảm giá chung không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.", "error");
         return;
@@ -230,7 +230,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     const success = await onCreateInvoice(
         finalCustomerName,
         cart,
-        subtotalAfterItemDiscounts, 
+        subtotalAfterItemDiscounts,
         currentPaymentMethod,
         actualOverallInvoiceDiscountVND,
         actualAmountPaidVND,
@@ -271,7 +271,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     setSelectedProductNameForVariants(productName);
     setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
-  }, [inventory, showLocalNotification]); // Added showLocalNotification to dependencies
+  }, [inventory, showLocalNotification]);
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
@@ -288,7 +288,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
         setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
     }
-  }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.size]); // Added variantSelection.size
+  }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.size]);
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
@@ -306,7 +306,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         setAvailableVariants(prev => ({ ...prev, units: [] }));
         setVariantSelection(prev => ({ ...prev, unit: '' }));
     }
-  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory, variantSelection.unit]); // Added variantSelection.unit
+  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory, variantSelection.unit]);
 
 
   const handleVariantSelectionChange = (field: keyof VariantSelection, value: string) => {
@@ -551,7 +551,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                         />
                     </div>
                 </Card>
-                )})}
+                );
+              })
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
@@ -569,6 +570,92 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
           </CardFooter>
         </Card>
       </div>
+
+      <Dialog open={isVariantSelectorOpen} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setSelectedProductNameForVariants(null);
+          setVariantSelection({ color: '', size: '', unit: '' });
+        }
+        setIsVariantSelectorOpen(isOpen);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chọn thuộc tính cho: {selectedProductNameForVariants}</DialogTitle>
+            <DialogDescription>
+              Vui lòng chọn màu sắc, kích thước và đơn vị.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="variant-color">Màu sắc</Label>
+              <Select
+                value={variantSelection.color}
+                onValueChange={(value) => handleVariantSelectionChange('color', value)}
+                disabled={availableVariants.colors.length === 0}
+              >
+                <SelectTrigger id="variant-color" className="bg-card">
+                  <SelectValue placeholder="Chọn màu sắc" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.colors.map(color => (
+                    <SelectItem key={color} value={color}>{color}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="variant-size">Kích thước</Label>
+              <Select
+                value={variantSelection.size}
+                onValueChange={(value) => handleVariantSelectionChange('size', value)}
+                disabled={!variantSelection.color || availableVariants.sizes.length === 0}
+              >
+                <SelectTrigger id="variant-size" className="bg-card">
+                  <SelectValue placeholder="Chọn kích thước" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.sizes.map(size => (
+                    <SelectItem key={size} value={size}>{size}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="variant-unit">Đơn vị</Label>
+              <Select
+                value={variantSelection.unit}
+                onValueChange={(value) => handleVariantSelectionChange('unit', value)}
+                disabled={!variantSelection.color || !variantSelection.size || availableVariants.units.length === 0}
+              >
+                <SelectTrigger id="variant-unit" className="bg-card">
+                  <SelectValue placeholder="Chọn đơn vị" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.units.map(unit => (
+                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedVariantDetails && (
+              <Card className="p-3 bg-muted/50 text-sm">
+                <p><strong>Giá bán:</strong> {selectedVariantDetails.price.toLocaleString('vi-VN')} VNĐ</p>
+                <p><strong>Tồn kho:</strong> {selectedVariantDetails.quantity}</p>
+              </Card>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
+            <Button
+              onClick={handleAddVariantToCart}
+              disabled={!variantSelection.color || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Thêm vào giỏ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -744,92 +831,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               disabled={finalTotalAfterAllDiscounts < 0 || subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND}
             >
               Xác nhận thanh toán
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isVariantSelectorOpen} onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setSelectedProductNameForVariants(null);
-          setVariantSelection({ color: '', size: '', unit: '' });
-        }
-        setIsVariantSelectorOpen(isOpen);
-      }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Chọn thuộc tính cho: {selectedProductNameForVariants}</DialogTitle>
-            <DialogDescription>
-              Vui lòng chọn màu sắc, kích thước và đơn vị.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="variant-color">Màu sắc</Label>
-              <Select
-                value={variantSelection.color}
-                onValueChange={(value) => handleVariantSelectionChange('color', value)}
-                disabled={availableVariants.colors.length === 0}
-              >
-                <SelectTrigger id="variant-color" className="bg-card">
-                  <SelectValue placeholder="Chọn màu sắc" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableVariants.colors.map(color => (
-                    <SelectItem key={color} value={color}>{color}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="variant-size">Kích thước</Label>
-              <Select
-                value={variantSelection.size}
-                onValueChange={(value) => handleVariantSelectionChange('size', value)}
-                disabled={!variantSelection.color || availableVariants.sizes.length === 0}
-              >
-                <SelectTrigger id="variant-size" className="bg-card">
-                  <SelectValue placeholder="Chọn kích thước" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableVariants.sizes.map(size => (
-                    <SelectItem key={size} value={size}>{size}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="variant-unit">Đơn vị</Label>
-              <Select
-                value={variantSelection.unit}
-                onValueChange={(value) => handleVariantSelectionChange('unit', value)}
-                disabled={!variantSelection.color || !variantSelection.size || availableVariants.units.length === 0}
-              >
-                <SelectTrigger id="variant-unit" className="bg-card">
-                  <SelectValue placeholder="Chọn đơn vị" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableVariants.units.map(unit => (
-                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedVariantDetails && (
-              <Card className="p-3 bg-muted/50 text-sm">
-                <p><strong>Giá bán:</strong> {selectedVariantDetails.price.toLocaleString('vi-VN')} VNĐ</p>
-                <p><strong>Tồn kho:</strong> {selectedVariantDetails.quantity}</p>
-              </Card>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
-            <Button
-              onClick={handleAddVariantToCart}
-              disabled={!variantSelection.color || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              Thêm vào giỏ
             </Button>
           </DialogFooter>
         </DialogContent>

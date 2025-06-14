@@ -43,14 +43,16 @@ export interface Invoice {
   paymentMethod: string;
   discount?: number; // Discount amount
   amountPaid?: number; // Amount paid by customer
+  debtAmount?: number; // Amount of debt created from this invoice
 }
 
 export interface Debt {
   id: string; 
-  supplier: string | undefined; 
+  supplier: string; // For customer debt, this will be customerName. For supplier debt, actual supplier name.
   amount: number;
   date: string; // ISO date string
   status: 'Chưa thanh toán' | 'Đã thanh toán';
+  invoiceId?: string; // Link to the invoice that generated this debt (for customer debts)
 }
 
 export interface ItemToImport {

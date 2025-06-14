@@ -37,7 +37,8 @@ interface SalesTabProps {
     subtotal: number, // actual VND
     paymentMethod: string,
     discount: number, // actual VND
-    amountPaid: number // actual VND
+    amountPaid: number, // actual VND
+    isGuestCustomer: boolean
   ) => Promise<boolean>;
 }
 
@@ -53,8 +54,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
   const [customerSearchText, setCustomerSearchText] = useState(""); 
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
-  const [discountStr, setDiscountStr] = useState(''); // Input as "Nghin VND"
-  const [amountPaidStr, setAmountPaidStr] = useState(''); // Input as "Nghin VND"
+  const [discountStr, setDiscountStr] = useState(''); 
+  const [amountPaidStr, setAmountPaidStr] = useState('');
 
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
@@ -80,7 +81,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
         showLocalNotification(`Không đủ số lượng "${item.name}" trong kho (Còn: ${stockItem.quantity}).`, 'error');
       }
     } else {
-      // item.price and item.costPrice are actual VND from inventory
       setCart([...cart, { ...item, quantityInCart: 1 }]);
     }
   };
@@ -102,13 +102,11 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     }
   };
 
-  // subtotal is in actual VND because item.price is actual VND
   const subtotal = useMemo(() =>
     cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0),
     [cart]
   );
 
-  // For dialog display and calculations:
   const parsedDiscountNghin = parseFloat(discountStr) || 0;
   const actualDiscountVND = parsedDiscountNghin * 1000;
   const finalTotalAfterDiscount = subtotal - actualDiscountVND;
@@ -140,8 +138,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
 
   const handleConfirmCheckout = async () => {
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
+    const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
     
-    // actualDiscountVND and actualAmountPaidVND are already calculated based on discountStr and amountPaidStr
     if (actualDiscountVND < 0) {
         showLocalNotification("Số tiền giảm giá không thể âm.", "error");
         return;
@@ -150,18 +148,29 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
         showLocalNotification("Số tiền khách trả không thể âm.", "error");
         return;
     }
-    if (finalTotalAfterDiscount < 0) { // subtotal - actualDiscountVND
+    if (finalTotalAfterDiscount < 0) { 
         showLocalNotification("Số tiền giảm giá không thể lớn hơn tổng tiền hàng.", "error");
         return;
+    }
+
+    if (finalTotalAfterDiscount > actualAmountPaidVND) {
+      if (isGuest || currentPaymentMethod === 'Chuyển khoản') {
+        showLocalNotification(
+          "Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.",
+          "error"
+        );
+        return; 
+      }
     }
 
     const success = await onCreateInvoice(
         finalCustomerName, 
         cart, 
-        subtotal, // Pass subtotal (actual VND)
+        subtotal, 
         currentPaymentMethod,
-        actualDiscountVND, // Pass actual VND
-        actualAmountPaidVND // Pass actual VND
+        actualDiscountVND, 
+        actualAmountPaidVND,
+        isGuest
     );
     if (success) {
       setCart([]);
@@ -380,6 +389,12 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
               <Label>Tiền thừa:</Label>
               <span className="font-semibold">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterDiscount ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
             </div>
+            {finalTotalAfterDiscount > actualAmountPaidVND && customerNameForInvoice.toLowerCase() !== 'khách lẻ' && currentPaymentMethod !== 'Chuyển khoản' && (
+                 <div className="flex justify-between items-center text-red-600">
+                    <Label className="text-red-600">Còn nợ:</Label>
+                    <span className="font-semibold">{(finalTotalAfterDiscount - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
+                </div>
+            )}
           </div>
 
           <DialogFooter className="sm:justify-between gap-2">
@@ -400,4 +415,3 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     </>
   );
 }
-

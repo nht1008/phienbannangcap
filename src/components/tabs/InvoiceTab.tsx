@@ -73,7 +73,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
     setCurrentInvoiceForReturnDialog(invoice);
     const initialReturnItems: Record<string, ReturnItemDetail> = {};
     invoice.items.forEach(item => {
-      initialReturnItems[item.id] = { // item.id is Product.id, unique within invoice.items
+      initialReturnItems[item.id] = { 
         originalQuantityInCart: item.quantityInCart,
         quantityToReturn: "0",
         name: item.name,
@@ -116,7 +116,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
       .filter(item => item.quantityToReturn > 0);
 
     if (itemsToReturnForApi.length === 0) {
-      // Optionally show a toast that no items were selected for return
       setIsReturnItemsDialogOpen(false);
       return;
     }
@@ -224,6 +223,12 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                                 <span>{(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                             </div>
                         )}
+                        {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
+                             <div className="flex justify-between text-sm text-red-600">
+                                <span>Số tiền nợ:</span>
+                                <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
+                            </div>
+                        )}
                      </>
                 )}
                 <DialogFooter className="mt-4">
@@ -241,7 +246,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                 <AlertDialogHeader>
                 <AlertDialogTitle>Xác nhận xóa hóa đơn?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Bạn có chắc chắn muốn xóa hóa đơn #{invoiceToDelete.id.substring(0,6)}...? Các sản phẩm trong hóa đơn này sẽ được hoàn trả lại vào kho.
+                    Bạn có chắc chắn muốn xóa hóa đơn #{invoiceToDelete.id.substring(0,6)}...? Các sản phẩm trong hóa đơn này sẽ được hoàn trả lại vào kho. Công nợ liên quan (nếu có) cũng sẽ được xóa.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

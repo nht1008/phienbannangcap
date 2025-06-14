@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneNumber } from '@/lib/utils';
 import type { User } from 'firebase/auth';
@@ -18,7 +18,7 @@ import type { User } from 'firebase/auth';
 interface EmployeeTabProps {
   employees: Employee[];
   currentUser: User | null;
-  onAddEmployee: (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
+  onAddEmployee: (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>; // Kept for potential future use or programmatic additions
   onUpdateEmployee: (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => Promise<void>;
   onDeleteEmployee: (employeeId: string) => Promise<void>;
 }
@@ -27,8 +27,9 @@ const initialFormState: Omit<Employee, 'id' | 'userId'> = { name: '', position: 
 
 
 export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmployee, onDeleteEmployee }: EmployeeTabProps) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
+  // State related to adding employee is removed as the button and form are removed
+  // const [isAdding, setIsAdding] = useState(false);
+  // const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
 
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
@@ -58,29 +59,12 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
     formSetter(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmployee.name || !newEmployee.position || !newEmployee.phone || !newEmployee.email) {
-      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên (bao gồm email).", variant: "destructive" });
-      return;
-    }
-    if (employees.some(emp => emp.phone === newEmployee.phone)) {
-        toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho nhân viên khác.", variant: "destructive"});
-        return;
-    }
-    if (newEmployee.email && employees.some(emp => emp.email === newEmployee.email)) {
-        toast({ title: "Lỗi", description: "Email đã tồn tại cho nhân viên khác.", variant: "destructive"});
-        return;
-    }
-    await onAddEmployee(newEmployee);
-    setNewEmployee(initialFormState);
-    setIsAdding(false);
-  };
+  // handleAdd function is removed as the form is removed
 
   const openEditDialog = (employee: Employee) => {
     setEmployeeToEdit(employee);
     setIsEditingEmployee(true);
-    setIsAdding(false); 
+    // setIsAdding(false); // No longer needed
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -89,9 +73,10 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
       toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên (Tên, Chức vụ, SĐT).", variant: "destructive" });
       return;
     }
-     // Email validation for admin editing other employees
-    if (isAdmin && employeeToEdit.email !== currentUser?.email && !editedEmployeeData.email) {
-      toast({ title: "Lỗi", description: "Email không được để trống khi Admin sửa thông tin nhân viên khác.", variant: "destructive" });
+    // Email validation for admin editing other employees
+    if (isAdmin && employeeToEdit.userId === currentUser?.uid && employeeToEdit.email !== currentUser?.email && !editedEmployeeData.email) {
+      // This case is when admin is editing an employee they manage (not themselves)
+      toast({ title: "Lỗi", description: "Email không được để trống khi Admin sửa thông tin nhân viên.", variant: "destructive" });
       return;
     }
 
@@ -100,15 +85,19 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
         return;
     }
     // Check for email uniqueness only if admin is editing an employee (not themselves) and email has changed
-    if (isAdmin && editedEmployeeData.email && employeeToEdit.email !== editedEmployeeData.email && employees.some(emp => emp.id !== employeeToEdit.id && emp.email === editedEmployeeData.email)) {
+    if (isAdmin && employeeToEdit.userId === currentUser?.uid && editedEmployeeData.email && employeeToEdit.email !== editedEmployeeData.email && employees.some(emp => emp.id !== employeeToEdit.id && emp.email === editedEmployeeData.email)) {
         toast({ title: "Lỗi", description: "Email đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
     }
     
-    // If Admin is editing their own record, ensure email isn't changed through this form
     let finalEditedData = { ...editedEmployeeData };
-    if (isAdmin && employeeToEdit.email === currentUser?.email) {
-        finalEditedData.email = currentUser.email; // Keep admin's own email fixed
+    // If Admin is editing their own record, ensure email isn't changed through this form (it's tied to Auth)
+    // Same for regular users editing their own record.
+    if (employeeToEdit.userId === currentUser?.uid) {
+        finalEditedData.email = currentUser?.email || employeeToEdit.email || ''; // Keep user's own email fixed, fallback to existing if somehow current user email is null
+        finalEditedData.name = currentUser?.displayName || employeeToEdit.name; // Keep user's own name fixed
+        // Position also fixed for user's own record
+        finalEditedData.position = (isAdmin && employeeToEdit.email === currentUser?.email) ? "Chủ cửa hàng" : "Nhân viên";
     }
 
 
@@ -118,11 +107,6 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
   };
 
   const openDeleteConfirmDialog = (employee: Employee) => {
-    // Admin cannot delete their own primary record
-    if (isAdmin && employee.email === 'nthe1008@gmail.com' && employee.userId === currentUser?.uid) {
-        toast({ title: "Không thể xóa", description: "Không thể xóa tài khoản Chủ cửa hàng của chính bạn.", variant: "destructive" });
-        return;
-    }
     setEmployeeToDelete(employee);
     setIsConfirmingDeleteEmployee(true);
   };
@@ -142,11 +126,8 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
     isEditMode: boolean,
     onCancel?: () => void
   ) => {
-    // Determine if the form is for the admin editing their own "Chủ cửa hàng" record
-    const isEditingOwnAdminRecord = isEditMode && employeeToEdit?.email === currentUser?.email && employeeToEdit?.position === 'Chủ cửa hàng';
-    // Determine if the form is for a regular user editing their own record
-    const isEditingOwnRegularRecord = isEditMode && employeeToEdit?.userId === currentUser?.uid && !isAdmin;
-
+    const isEditingOwnRecord = isEditMode && employeeToEdit?.userId === currentUser?.uid;
+    const isEditingAdminOwnRecord = isEditingOwnRecord && isAdmin;
 
     return (
      <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -158,7 +139,7 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             onChange={(e) => handleInputChange(e, formSetter)}
             required
             className="bg-card"
-            disabled={isEditingOwnAdminRecord || isEditingOwnRegularRecord} // Name is from Auth for self
+            disabled={isEditingOwnRecord} // Name is from Auth for self
         />
         <Input
             type="text"
@@ -168,7 +149,7 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             onChange={(e) => handleInputChange(e, formSetter)}
             required
             className="bg-card"
-            disabled={isEditingOwnAdminRecord || isEditingOwnRegularRecord} // Position fixed for self
+            disabled={isEditingOwnRecord} // Position fixed for self
         />
         <Input
             type="tel"
@@ -178,7 +159,6 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             onChange={(e) => handleInputChange(e, formSetter)}
             required
             className="bg-card"
-            // Phone is editable
         />
         <Input
             type="email"
@@ -187,8 +167,10 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             value={formState.email || ''}
             onChange={(e) => handleInputChange(e, formSetter)}
             className="bg-card"
-            disabled={isEditingOwnAdminRecord || isEditingOwnRegularRecord} // Email is from Auth for self
-            required={!isEditMode && isAdmin} // Email required for admin adding new employee
+            disabled={isEditingOwnRecord} // Email is from Auth for self
+            // Email is required for admin adding new employee, but adding form is removed.
+            // For editing, if admin edits another user, it's not disabled.
+            required={isAdmin && !isEditMode && !isEditingAdminOwnRecord} 
         />
         <div className="md:col-span-2 flex justify-end gap-2">
             {onCancel && <Button type="button" variant="outline" onClick={onCancel} className="h-10">Hủy</Button>}
@@ -207,19 +189,11 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
         <CardHeader className="p-4">
           <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Danh sách nhân viên</CardTitle>
-              {isAdmin && (
-                <Button 
-                    onClick={() => { setIsAdding(!isAdding); if (isEditingEmployee) setIsEditingEmployee(false); setNewEmployee(initialFormState); }} 
-                    variant="default" 
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm' : 'Thêm nhân viên'}
-                </Button>
-              )}
+              {/* Add Employee Button and its logic removed */}
           </div>
         </CardHeader>
         <CardContent className="p-4">
-          {isAdding && isAdmin && renderEmployeeForm(newEmployee, setNewEmployee, handleAdd, false, () => setIsAdding(false))}
+          {/* Form for adding new employee removed */}
           
           <div className="overflow-x-auto mt-4">
             <Table>
@@ -240,25 +214,26 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
                     <TableCell>{formatPhoneNumber(emp.phone)}</TableCell>
                     <TableCell>{emp.email || 'N/A'}</TableCell>
                     <TableCell className="text-center space-x-2">
-                        { (isAdmin || emp.userId === currentUser?.uid) && ( // Edit is available if admin OR if it's user's own record
+                        { (isAdmin || emp.userId === currentUser?.uid) && ( 
                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)}>
                                 <Pencil className="h-4 w-4" />
                             </Button>
                         )}
-                        { isAdmin && emp.userId === currentUser?.uid && emp.email === 'nthe1008@gmail.com' && ( // Admin's own record delete button (disabled)
-                            <Button variant="destructive" size="icon" className="h-8 w-8" disabled>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        )}
-                        { isAdmin && emp.userId === currentUser?.uid && emp.email !== 'nthe1008@gmail.com' && ( // Admin can delete other employees they manage
-                             <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(emp)}>
+                        { isAdmin && (
+                            <Button 
+                                variant="destructive" 
+                                size="icon" 
+                                className="h-8 w-8" 
+                                onClick={() => openDeleteConfirmDialog(emp)}
+                                disabled={emp.email === 'nthe1008@gmail.com' && emp.userId === currentUser?.uid} // Admin cannot delete their own "Chủ cửa hàng" record
+                            >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         )}
                     </TableCell>
                   </TableRow>
                 ))}
-                {employees.length === 0 && !isAdding && !isEditingEmployee && (
+                {employees.length === 0 && !isEditingEmployee && (
                   <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-10">Chưa có nhân viên nào.</TableCell></TableRow>
                 )}
               </TableBody>
@@ -274,7 +249,7 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
               <DialogTitle>Chỉnh sửa thông tin nhân viên</DialogTitle>
               <DialogDescription>
                 Chỉnh sửa thông tin cho {employeeToEdit.name}.
-                {(employeeToEdit.userId === currentUser?.uid && (employeeToEdit.position === 'Chủ cửa hàng' || !isAdmin)) && " Tên, email và chức vụ của bạn được quản lý qua hệ thống."}
+                {(employeeToEdit.userId === currentUser?.uid) && " Tên, email và chức vụ của bạn được quản lý qua hệ thống."}
               </DialogDescription>
             </DialogHeader>
             {renderEmployeeForm(editedEmployeeData, setEditedEmployeeData, handleUpdate, true, () => { setIsEditingEmployee(false); setEmployeeToEdit(null); })}

@@ -1,6 +1,6 @@
 
 export interface Product {
-  id: string; 
+  id: string;
   name: string;
   quantity: number;
   price: number; // Selling price
@@ -12,17 +12,10 @@ export interface Product {
 }
 
 export interface CartItem extends Product {
-  quantityInCart: number; 
+  quantityInCart: number;
 }
 
-export interface Employee {
-  id: string; // Firebase key
-  name: string;
-  position: string; // e.g., "Chủ cửa hàng", "Nhân viên"
-  phone: string;
-  userId: string; // uid of the Firebase Auth user associated with this employee record
-  email?: string; // Email of the employee
-}
+// Employee interface removed
 
 export interface Customer {
   id: string;
@@ -32,12 +25,12 @@ export interface Customer {
 }
 
 export interface Supplier {
-  id: number; 
+  id: number;
   name: string;
 }
 
 export interface Invoice {
-  id: string; 
+  id: string;
   customerName: string;
   items: CartItem[];
   total: number; // Final amount after discount
@@ -49,7 +42,7 @@ export interface Invoice {
 }
 
 export interface Debt {
-  id: string; 
+  id: string;
   supplier: string; // For customer debt, this will be customerName. For supplier debt, actual supplier name.
   amount: number;
   date: string; // ISO date string
@@ -67,5 +60,3 @@ export interface ItemToImport {
 }
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
-
-    

@@ -2,9 +2,9 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types'; // Removed Employee
 import { useRouter } from 'next/navigation';
-import { useAuth, type AuthContextType } from '@/contexts/AuthContext'; 
+import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 
 import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
@@ -14,7 +14,7 @@ import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon';
 import { DebtIcon } from '@/components/icons/DebtIcon';
 import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { CustomerIcon } from '@/components/icons/CustomerIcon';
-import { EmployeeIcon } from '@/components/icons/EmployeeIcon'; // Added
+// Removed EmployeeIcon import
 
 import { SalesTab } from '@/components/tabs/SalesTab';
 import { InventoryTab } from '@/components/tabs/InventoryTab';
@@ -23,7 +23,7 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { CustomerTab } from '@/components/tabs/CustomerTab';
-import { EmployeeTab } from '@/components/tabs/EmployeeTab'; // Added
+// Removed EmployeeTab import
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, push, update, get, child, remove, query, orderByChild, equalTo } from "firebase/database"; // Added query, orderByChild, equalTo
+import { ref, onValue, set, push, update, get, child, remove } from "firebase/database"; // Removed query, orderByChild, equalTo
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -55,7 +55,7 @@ interface SubmitItemToImport {
 }
 
 
-type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên'; // Added 'Nhân viên'
+type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng'; // Removed 'Nhân viên'
 
 export interface DateFilter {
   day: string;
@@ -86,7 +86,7 @@ export default function FleurManagerPage() {
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
-  const [employeesData, setEmployeesData] = useState<Employee[]>([]); // Added
+  // Removed employeesData state
 
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -107,13 +107,12 @@ export default function FleurManagerPage() {
     if (authLoading || !currentUser) {
       return;
     }
-    const userHasEmployeeRecord = employeesData.some(emp => emp.userId === currentUser.uid);
-    if (!currentUser.displayName || !userHasEmployeeRecord) {
+    if (!currentUser.displayName) {
         setIsSettingName(true);
     } else {
-        setIsSettingName(false); 
+        setIsSettingName(false);
     }
-  }, [currentUser, authLoading, employeesData]);
+  }, [currentUser, authLoading]);
 
 
   useEffect(() => {
@@ -189,45 +188,7 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  useEffect(() => { // Added useEffect for employees
-    if (!currentUser) return;
-    const employeesRef = ref(db, 'employees');
-    const unsubscribe = onValue(employeesRef, (snapshot) => {
-      const data = snapshot.val();
-      let employeesArray: Employee[] = [];
-      if (data) {
-        employeesArray = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-      }
-
-      const adminRecord = employeesArray.find(emp => emp.email === 'nthe1008@gmail.com');
-      const otherEmployees = employeesArray.filter(emp => emp.email !== 'nthe1008@gmail.com');
-      
-      otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
-
-      let sortedEmployees = [];
-      if (adminRecord) {
-        sortedEmployees.push(adminRecord);
-      }
-      
-      if (currentUser.email === 'nthe1008@gmail.com') {
-        // Admin sees their record first, then all other employees sorted
-        sortedEmployees = sortedEmployees.concat(otherEmployees);
-      } else {
-        // Regular user sees admin record first, then their own record if it exists and isn't the admin record
-        const ownRecord = otherEmployees.find(emp => emp.userId === currentUser.uid);
-        if (ownRecord) {
-          sortedEmployees.push(ownRecord);
-        }
-      }
-      
-      setEmployeesData(sortedEmployees);
-    });
-    return () => unsubscribe();
-  }, [currentUser]);
-
+  // Removed useEffect for employees
 
   useEffect(() => {
     if (!currentUser) return;
@@ -396,50 +357,7 @@ export default function FleurManagerPage() {
   }, [toast]);
 
 
-  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id'>) => { // Added
-    if (!currentUser || currentUser.email !== 'nthe1008@gmail.com') {
-      toast({ title: "Lỗi", description: "Bạn không có quyền thêm nhân viên.", variant: "destructive" });
-      return;
-    }
-    try {
-      const newEmployeeRef = push(ref(db, 'employees'));
-      await set(newEmployeeRef, { ...newEmployeeData, userId: newEmployeeData.userId || currentUser.uid });
-      toast({ title: "Thành công", description: "Nhân viên đã được thêm.", variant: "default" });
-    } catch (error) {
-      console.error("Error adding employee:", error);
-      toast({ title: "Lỗi", description: "Không thể thêm nhân viên. Vui lòng thử lại.", variant: "destructive" });
-    }
-  }, [toast, currentUser]);
-
-  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Partial<Omit<Employee, 'id'>>) => { // Added Partial
-    try {
-      await update(ref(db, `employees/${employeeId}`), updatedEmployeeData);
-      toast({ title: "Thành công", description: "Thông tin nhân viên đã được cập nhật.", variant: "default" });
-    } catch (error) {
-      console.error("Error updating employee:", error);
-      toast({ title: "Lỗi", description: "Không thể cập nhật thông tin nhân viên. Vui lòng thử lại.", variant: "destructive" });
-    }
-  }, [toast]);
-
-  const handleDeleteEmployee = useCallback(async (employeeId: string) => { // Added
-    if (!currentUser || currentUser.email !== 'nthe1008@gmail.com') {
-      toast({ title: "Lỗi", description: "Bạn không có quyền xóa nhân viên.", variant: "destructive" });
-      return;
-    }
-    try {
-      const employeeToDelete = employeesData.find(emp => emp.id === employeeId);
-      if (employeeToDelete && employeeToDelete.email === 'nthe1008@gmail.com') {
-        toast({ title: "Không thể xóa", description: "Không thể xóa tài khoản Chủ cửa hàng.", variant: "destructive" });
-        return;
-      }
-      await remove(ref(db, `employees/${employeeId}`));
-      toast({ title: "Thành công", description: "Nhân viên đã được xóa.", variant: "default" });
-    } catch (error) {
-      console.error("Error deleting employee:", error);
-      toast({ title: "Lỗi", description: "Không thể xóa nhân viên. Vui lòng thử lại.", variant: "destructive" });
-    }
-  }, [toast, currentUser, employeesData]);
-
+  // Removed employee handler functions (handleAddEmployee, handleUpdateEmployee, handleDeleteEmployee)
 
   const handleCreateInvoice = useCallback(async (
     customerName: string,
@@ -769,7 +687,7 @@ export default function FleurManagerPage() {
     { name: 'Công nợ', icon: <DebtIcon /> },
     { name: 'Doanh thu', icon: <RevenueIcon /> },
     { name: 'Khách hàng', icon: <CustomerIcon /> },
-    { name: 'Nhân viên', icon: <EmployeeIcon /> }, // Added
+    // Removed 'Nhân viên'
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
@@ -820,16 +738,10 @@ export default function FleurManagerPage() {
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
                     />,
-    'Nhân viên': <EmployeeTab // Added
-                      employees={employeesData}
-                      currentUser={currentUser}
-                      onAddEmployee={handleAddEmployee}
-                      onUpdateEmployee={handleUpdateEmployee}
-                      onDeleteEmployee={handleDeleteEmployee}
-                    />,
+    // Removed 'Nhân viên' tab content
   }), [
-      inventory, customersData, invoicesData, debtsData, employeesData, // Added employeesData
-      currentUser, 
+      inventory, customersData, invoicesData, debtsData, // Removed employeesData
+      currentUser,
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
       filteredInvoicesForInvoiceTab, invoiceFilter,
@@ -839,7 +751,7 @@ export default function FleurManagerPage() {
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer,
-      handleAddEmployee, handleUpdateEmployee, handleDeleteEmployee, // Added employee handlers
+      // Removed employee handlers
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
   ]);
 
@@ -869,38 +781,16 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleNameSet = async (name: string) => { // Renamed onNameSet to handleNameSet
+  const handleNameSet = async (name: string) => {
     if (!currentUser) return;
     try {
       await updateUserProfileName(name);
       toast({ title: "Thành công", description: "Tên của bạn đã được cập nhật." });
-
-      // Check if employee record exists for this user
-      const existingEmployeeQuery = query(ref(db, 'employees'), orderByChild('userId'), equalTo(currentUser.uid));
-      const snapshot = await get(existingEmployeeQuery);
-      
-      const position = currentUser.email === 'nthe1008@gmail.com' ? "Chủ cửa hàng" : "Nhân viên";
-      const employeeEmail = currentUser.email || '';
-      const employeePhone = "Chưa cập nhật";
-
-      if (snapshot.exists()) {
-        // Update existing employee record's name
-        const employeeId = Object.keys(snapshot.val())[0];
-        await handleUpdateEmployee(employeeId, { name, position, email: employeeEmail }); // Ensure position and email are updated if changed
-      } else {
-        // Add new employee record
-        await handleAddEmployee({ 
-            name, 
-            position, 
-            phone: employeePhone, 
-            userId: currentUser.uid, 
-            email: employeeEmail 
-        });
-      }
+      // No longer interacts with employee records
       setIsSettingName(false);
     } catch (error) {
       console.error("Error in onNameSet:", error);
-      toast({ title: "Lỗi", description: "Không thể cập nhật tên hoặc thông tin nhân viên.", variant: "destructive" });
+      toast({ title: "Lỗi", description: "Không thể cập nhật tên.", variant: "destructive" });
     }
   };
 
@@ -916,7 +806,7 @@ export default function FleurManagerPage() {
   if (isSettingName) {
     return (
       <SetNameDialog
-        onNameSet={handleNameSet} // Changed prop name to onNameSet to match local function
+        onNameSet={handleNameSet}
       />
     );
   }
@@ -961,7 +851,7 @@ export default function FleurManagerPage() {
                     tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
                     asChild={false}
-                    onClick={(e) => e.preventDefault()} 
+                    onClick={(e) => e.preventDefault()}
                 >
                     <UserCircle className="h-5 w-5" />
                     <span>{currentUser.displayName || currentUser.email}</span>
@@ -997,5 +887,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-
-    

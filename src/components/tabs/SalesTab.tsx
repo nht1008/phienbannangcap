@@ -255,14 +255,9 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
                 className="bg-card" 
               />
             </div>
-
-            <Separator />
-
-            <div className="flex justify-between items-center text-lg font-bold text-primary">
-              <Label>Thành tiền:</Label>
-              <span>{finalTotal >= 0 ? finalTotal.toLocaleString('vi-VN') : 'N/A'} Nghìn VND</span>
-            </div>
             
+            {/* Thành tiền section removed */}
+
             <Separator />
 
             <div>

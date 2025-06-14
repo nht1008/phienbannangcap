@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useState, useMemo, ReactNode } from 'react';
-import type { Product, Employee, Invoice, Debt } from '@/types';
-import { initialInventory, initialEmployees } from '@/lib/initial-data';
+import React, { useState, useMemo, ReactNode, useEffect } from 'react';
+import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport } from '@/types';
+// import { initialInventory, initialEmployees } from '@/lib/initial-data'; // Không dùng initial data nữa
 
 import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
@@ -37,6 +37,10 @@ import {
   useSidebar
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { ref, onValue, set, push, update, get, child, serverTimestamp } from "firebase/database";
+import { useToast } from "@/hooks/use-toast";
+
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên';
 
@@ -47,10 +51,191 @@ interface NavItem {
 
 export default function FleurManagerPage() {
   const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
-  const [inventory, setInventory] = useState<Product[]>(initialInventory);
-  const [employeesData, setEmployeesData] = useState<Employee[]>(initialEmployees);
+  const [inventory, setInventory] = useState<Product[]>([]);
+  const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
+  const { toast } = useToast();
+
+  // Fetch and listen to Inventory
+  useEffect(() => {
+    const inventoryRef = ref(db, 'inventory');
+    const unsubscribe = onValue(inventoryRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const inventoryArray: Product[] = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); // Sort by name for consistency
+      } else {
+        setInventory([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch and listen to Employees
+  useEffect(() => {
+    const employeesRef = ref(db, 'employees');
+    const unsubscribe = onValue(employeesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const employeesArray: Employee[] = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        setEmployeesData(employeesArray.sort((a,b) => a.name.localeCompare(b.name)));
+      } else {
+        setEmployeesData([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch and listen to Invoices
+  useEffect(() => {
+    const invoicesRef = ref(db, 'invoices');
+    const unsubscribe = onValue(invoicesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const invoicesArray: Invoice[] = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      } else {
+        setInvoicesData([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch and listen to Debts
+  useEffect(() => {
+    const debtsRef = ref(db, 'debts');
+    const unsubscribe = onValue(debtsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const debtsArray: Debt[] = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      } else {
+        setDebtsData([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+
+  const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
+    try {
+      const newProductRef = push(ref(db, 'inventory'));
+      await set(newProductRef, newProductData);
+      toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" });
+    } catch (error) {
+      console.error("Error adding product:", error);
+      toast({ title: "Lỗi", description: "Không thể thêm sản phẩm. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  const handleAddEmployee = async (newEmployeeData: Omit<Employee, 'id'>) => {
+    try {
+      const newEmployeeRef = push(ref(db, 'employees'));
+      await set(newEmployeeRef, newEmployeeData);
+      toast({ title: "Thành công", description: "Nhân viên đã được thêm.", variant: "default" });
+    } catch (error) {
+      console.error("Error adding employee:", error);
+      toast({ title: "Lỗi", description: "Không thể thêm nhân viên. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+  
+  const handleCreateInvoice = async (customerName: string, cart: CartItem[], total: number) => {
+    try {
+      const newInvoiceRef = push(ref(db, 'invoices'));
+      const newInvoice: Omit<Invoice, 'id'> = {
+        customerName,
+        items: cart,
+        total,
+        date: new Date().toISOString(),
+      };
+      await set(newInvoiceRef, newInvoice);
+
+      // Update inventory quantities
+      const updates: { [key: string]: any } = {};
+      for (const cartItem of cart) {
+        const productRef = ref(db, `inventory/${cartItem.id}`);
+        const productSnapshot = await get(child(ref(db), `inventory/${cartItem.id}`));
+        if (productSnapshot.exists()) {
+          const currentQuantity = productSnapshot.val().quantity;
+          updates[`inventory/${cartItem.id}/quantity`] = currentQuantity - cartItem.quantityInCart;
+        } else {
+          throw new Error(`Sản phẩm ID ${cartItem.id} không tồn tại để cập nhật số lượng.`);
+        }
+      }
+      await update(ref(db), updates);
+      toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
+      return true; // Indicate success
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+      return false; // Indicate failure
+    }
+  };
+
+  const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalCost: number) => {
+    try {
+      // Create new debt
+      const newDebtRef = push(ref(db, 'debts'));
+      const newDebt: Omit<Debt, 'id'> = {
+        supplier: supplierName,
+        amount: totalCost,
+        date: new Date().toISOString(),
+        status: 'Chưa thanh toán'
+      };
+      await set(newDebtRef, newDebt);
+  
+      // Update inventory quantities
+      const updates: { [key: string]: any } = {};
+      for (const importItem of itemsToImport) {
+        const productRef = ref(db, `inventory/${importItem.productId}`);
+        const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
+        if (productSnapshot.exists()) {
+          const currentQuantity = productSnapshot.val().quantity;
+          updates[`inventory/${importItem.productId}/quantity`] = currentQuantity + importItem.quantity;
+        } else {
+           // This case implies adding a new product if not found, or an error.
+           // For now, let's assume product must exist.
+           // If you want to add new products here, the logic needs to be expanded.
+          console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng cho sản phẩm này.`);
+          // Optionally, show a specific warning for this product.
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
+      }
+      
+      toast({ title: "Thành công", description: "Nhập hàng thành công, công nợ và kho đã cập nhật.", variant: "default" });
+      return true; // Indicate success
+    } catch (error) {
+      console.error("Error importing products:", error);
+      toast({ title: "Lỗi", description: "Không thể nhập hàng. Vui lòng thử lại.", variant: "destructive" });
+      return false; // Indicate failure
+    }
+  };
+
+  const handleUpdateDebtStatus = async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán') => {
+    try {
+      await update(ref(db, `debts/${debtId}`), { status: newStatus });
+      toast({ title: "Thành công", description: "Trạng thái công nợ đã được cập nhật.", variant: "default" });
+    } catch (error) {
+      console.error("Error updating debt status:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" });
+    }
+  };
+
 
   const navItems: NavItem[] = [
     { name: 'Bán hàng', icon: <SellIcon /> },
@@ -63,13 +248,13 @@ export default function FleurManagerPage() {
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
-    'Bán hàng': <SalesTab inventory={inventory} setInventory={setInventory} invoices={invoicesData} setInvoices={setInvoicesData} />,
-    'Kho hàng': <InventoryTab inventory={inventory} setInventory={setInventory} />,
-    'Nhập hàng': <ImportTab inventory={inventory} setInventory={setInventory} debts={debtsData} setDebts={setDebtsData} />,
+    'Bán hàng': <SalesTab inventory={inventory} onCreateInvoice={handleCreateInvoice} />,
+    'Kho hàng': <InventoryTab inventory={inventory} onAddProduct={handleAddProduct} />,
+    'Nhập hàng': <ImportTab inventory={inventory} onImportProducts={handleImportProducts} />,
     'Hóa đơn': <InvoiceTab invoices={invoicesData} />,
-    'Công nợ': <DebtTab debts={debtsData} setDebts={setDebtsData} />,
+    'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
-    'Nhân viên': <EmployeeTab employees={employeesData} setEmployees={setEmployeesData} />,
+    'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
   }), [inventory, employeesData, invoicesData, debtsData]);
 
   const SidebarToggleButton = () => {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -10,13 +11,13 @@ import Image from 'next/image';
 
 interface InventoryTabProps {
   inventory: Product[];
-  setInventory: React.Dispatch<React.SetStateAction<Product[]>>;
+  onAddProduct: (newProductData: Omit<Product, 'id'>) => Promise<void>;
 }
 
-export function InventoryTab({ inventory, setInventory }: InventoryTabProps) {
+export function InventoryTab({ inventory, onAddProduct }: InventoryTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newItem, setNewItem] = useState<Omit<Product, 'id' | 'quantity' | 'price'> & { quantity: string; price: string }>({ 
-    name: '', quantity: '', price: '', image: '', color: '', size: '', unit: '' 
+    name: '', quantity: '0', price: '0', image: '', color: '', size: '', unit: '' 
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,20 +25,24 @@ export function InventoryTab({ inventory, setInventory }: InventoryTabProps) {
     setNewItem(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newProduct: Product = {
-      id: inventory.length > 0 ? Math.max(...inventory.map(i => i.id)) + 1 : 1,
+    if (!newItem.name || !newItem.unit || parseInt(newItem.quantity) < 0 || parseInt(newItem.price) < 0) {
+      // Add more specific validation feedback if needed
+      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm.");
+      return;
+    }
+    const newProductData: Omit<Product, 'id'> = {
       name: newItem.name,
       quantity: parseInt(newItem.quantity),
       price: parseInt(newItem.price),
-      image: newItem.image || `https://placehold.co/100x100/cccccc/ffffff?text=${encodeURIComponent(newItem.name.charAt(0))}`,
+      image: newItem.image || `https://placehold.co/100x100.png`,
       color: newItem.color,
       size: newItem.size,
       unit: newItem.unit,
     };
-    setInventory([newProduct, ...inventory].sort((a,b) => b.id - a.id));
-    setNewItem({ name: '', quantity: '', price: '', image: '', color: '', size: '', unit: '' });
+    await onAddProduct(newProductData);
+    setNewItem({ name: '', quantity: '0', price: '0', image: '', color: '', size: '', unit: '' });
     setIsAdding(false);
   };
 
@@ -59,7 +64,7 @@ export function InventoryTab({ inventory, setInventory }: InventoryTabProps) {
             <div><label className="text-sm text-foreground">Đơn vị</label><Input type="text" name="unit" placeholder="Bông" value={newItem.unit} onChange={handleInputChange} required /></div>
             <div><label className="text-sm text-foreground">Số lượng</label><Input type="number" name="quantity" placeholder="50" value={newItem.quantity} onChange={handleInputChange} required min="0"/></div>
             <div><label className="text-sm text-foreground">Giá bán (VNĐ)</label><Input type="number" name="price" placeholder="10000" value={newItem.price} onChange={handleInputChange} required min="0"/></div>
-            <div className="sm:col-span-2"><label className="text-sm text-foreground">URL Hình ảnh (tùy chọn)</label><Input type="text" name="image" placeholder="https://..." value={newItem.image} onChange={handleInputChange} /></div>
+            <div className="sm:col-span-2"><label className="text-sm text-foreground">URL Hình ảnh (tùy chọn)</label><Input type="text" name="image" placeholder="https://placehold.co/100x100.png" value={newItem.image} onChange={handleInputChange} /></div>
             <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 md:col-start-4">Lưu sản phẩm</Button>
           </form>
         )}
@@ -81,12 +86,13 @@ export function InventoryTab({ inventory, setInventory }: InventoryTabProps) {
                 <TableRow key={item.id}>
                   <TableCell className="flex items-center">
                     <Image 
-                        src={item.image} 
+                        src={item.image || `https://placehold.co/40x40.png`} 
                         alt={item.name} 
                         width={40} 
                         height={40} 
                         className="w-10 h-10 rounded-full object-cover mr-4" 
                         data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                        onError={(e) => (e.currentTarget.src = 'https://placehold.co/40x40.png')}
                     />
                     {item.name}
                   </TableCell>
@@ -97,9 +103,9 @@ export function InventoryTab({ inventory, setInventory }: InventoryTabProps) {
                   <TableCell>{item.price.toLocaleString('vi-VN')}</TableCell>
                 </TableRow>
               ))}
-              {inventory.length === 0 && (
+              {inventory.length === 0 && !isAdding && (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">Chưa có sản phẩm nào.</TableCell>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">Chưa có sản phẩm nào. Hãy thêm sản phẩm mới.</TableCell>
                 </TableRow>
               )}
             </TableBody>

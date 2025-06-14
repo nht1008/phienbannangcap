@@ -1,49 +1,58 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Product, Debt, Supplier, ItemToImport } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { initialSuppliers } from '@/lib/initial-data';
+import { initialSuppliers } from '@/lib/initial-data'; // Suppliers remain local for now
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 
 interface ImportTabProps {
   inventory: Product[];
-  setInventory: React.Dispatch<React.SetStateAction<Product[]>>;
-  debts: Debt[];
-  setDebts: React.Dispatch<React.SetStateAction<Debt[]>>;
+  onImportProducts: (supplierName: string | undefined, itemsToImport: ItemToImport[], totalCost: number) => Promise<boolean>;
 }
 
-export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTabProps) {
+export function ImportTab({ inventory, onImportProducts }: ImportTabProps) {
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(initialSuppliers[0]?.id.toString() || '');
-  const [itemsToImport, setItemsToImport] = useState<ItemToImport[]>([{ productId: inventory[0]?.id.toString() || '', quantity: 1, cost: 0 }]);
-  const [notification, setNotification] = useState<string | null>(null);
-  const [notificationType, setNotificationType] = useState<'success' | 'error'>('error');
+  const [itemsToImport, setItemsToImport] = useState<ItemToImport[]>([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
+  
+  const [localNotification, setLocalNotification] = useState<string | null>(null);
+  const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
 
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification(message);
-    setNotificationType(type);
+  const showLocalNotification = (message: string, type: 'success' | 'error') => {
+    setLocalNotification(message);
+    setLocalNotificationType(type);
   };
+
+  useEffect(() => {
+    // Reset/update itemsToImport if inventory changes (e.g. first product ID)
+    if (inventory.length > 0 && itemsToImport.some(item => !item.productId && inventory[0].id)) {
+        setItemsToImport(prevItems => prevItems.map(item => item.productId ? item : { ...item, productId: inventory[0].id}));
+    } else if (inventory.length === 0 && itemsToImport.some(item => item.productId)) {
+        setItemsToImport(prevItems => prevItems.map(item => ({...item, productId: ''})));
+    }
+  }, [inventory]);
+
 
   const handleItemChange = (index: number, field: keyof ItemToImport, value: string | number) => {
     const newItems = [...itemsToImport];
     if (field === 'quantity' || field === 'cost') {
-        newItems[index][field] = Number(value);
-    } else {
+        newItems[index][field] = Number(value) < 0 ? 0 : Number(value) ;
+    } else if (field === 'productId') {
         newItems[index][field] = value.toString();
-    }
-    // If productId is changed, ensure it's a valid product or reset if necessary
-    if (field === 'productId' && value === '' && inventory.length > 0) {
-        newItems[index][field] = inventory[0].id.toString(); // Default to first product if cleared and inventory exists
     }
     setItemsToImport(newItems);
   };
 
   const addItemField = () => {
-    setItemsToImport([...itemsToImport, { productId: inventory[0]?.id.toString() || '', quantity: 1, cost: 0 }]);
+    if (inventory.length === 0) {
+      showLocalNotification("Không có sản phẩm nào trong kho để chọn cho việc nhập hàng.", "error");
+      return;
+    }
+    setItemsToImport([...itemsToImport, { productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
   };
 
   const removeItemField = (index: number) => {
@@ -56,50 +65,34 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
     [itemsToImport]
   );
 
-  const handleImport = (e: React.FormEvent) => {
+  const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (itemsToImport.some(item => !item.productId || item.quantity <= 0 || item.cost < 0)) {
-        showNotification('Vui lòng kiểm tra lại thông tin sản phẩm nhập. Mỗi sản phẩm phải có ID, số lượng > 0 và giá >= 0.', 'error');
+        showLocalNotification('Vui lòng kiểm tra lại thông tin sản phẩm nhập. Mỗi sản phẩm phải có ID, số lượng > 0 và giá >= 0.', 'error');
         return;
     }
      if (itemsToImport.length === 0) {
-      showNotification('Vui lòng thêm ít nhất một sản phẩm để nhập hàng.', 'error');
+      showLocalNotification('Vui lòng thêm ít nhất một sản phẩm để nhập hàng.', 'error');
+      return;
+    }
+    if (!selectedSupplierId && initialSuppliers.length > 0) {
+      showLocalNotification('Vui lòng chọn nhà cung cấp.', 'error');
       return;
     }
 
+    const supplierName = initialSuppliers.find(s => s.id.toString() === selectedSupplierId)?.name;
+    const success = await onImportProducts(supplierName, itemsToImport, totalCost);
 
-    const newInventory = inventory.map(p => ({ ...p })); // Deep copy
-    itemsToImport.forEach(importItem => {
-      const productIndex = newInventory.findIndex(p => p.id === parseInt(importItem.productId as string));
-      if (productIndex !== -1) {
-        newInventory[productIndex].quantity += importItem.quantity;
-      } else {
-        // This case should ideally not happen if product IDs are from existing inventory
-        // Or it could be a new product, but current logic doesn't support adding new products via import directly
-        console.error(`Product with ID ${importItem.productId} not found in inventory.`);
-        showNotification(`Sản phẩm với ID ${importItem.productId} không tìm thấy. Hàng không được nhập cho sản phẩm này.`, 'error');
-        return; // Skip this item
-      }
-    });
-    setInventory(newInventory);
-
-    const supplierName = initialSuppliers.find(s => s.id === parseInt(selectedSupplierId))?.name;
-    const newDebt: Debt = {
-      id: debts.length > 0 ? Math.max(...debts.map(d => d.id)) + 1 : 1,
-      supplier: supplierName,
-      amount: totalCost,
-      date: new Date().toISOString(),
-      status: 'Chưa thanh toán'
-    };
-    setDebts([newDebt, ...debts].sort((a,b) => b.id - a.id));
-
-    setItemsToImport([{ productId: inventory[0]?.id.toString() || '', quantity: 1, cost: 0 }]);
-    showNotification('Nhập hàng thành công!', 'success');
+    if (success) {
+      setItemsToImport([{ productId: inventory[0]?.id || '', quantity: 1, cost: 0 }]);
+      // Notification handled by page.tsx
+    }
+    // Else, error notification handled by page.tsx
   };
 
   return (
     <>
-      <NotificationDialog message={notification} type={notificationType} onClose={() => setNotification(null)} />
+      <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
       <Card>
         <CardHeader>
             <CardTitle>Tạo phiếu nhập hàng</CardTitle>
@@ -108,13 +101,19 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
             <form onSubmit={handleImport} className="space-y-6">
                 <div>
                     <label className="block mb-2 font-medium text-foreground">Nhà cung cấp</label>
-                    <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId} disabled={initialSuppliers.length === 0}>
+                    <Select 
+                        value={selectedSupplierId} 
+                        onValueChange={setSelectedSupplierId} 
+                        disabled={initialSuppliers.length === 0}
+                    >
                         <SelectTrigger className="w-full">
                             <SelectValue placeholder="Chọn nhà cung cấp" />
                         </SelectTrigger>
                         <SelectContent>
                             {initialSuppliers.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}
-                            {initialSuppliers.length === 0 && <div className="p-2 text-muted-foreground">Không có nhà cung cấp</div> }
+                            {initialSuppliers.length === 0 && 
+                                <div className="p-2 text-center text-muted-foreground">Không có nhà cung cấp nào. Vui lòng cấu hình.</div>
+                            }
                         </SelectContent>
                     </Select>
                 </div>
@@ -125,7 +124,7 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
                             <div>
                                 <label className="block mb-1 text-sm text-foreground">Sản phẩm</label>
                                 <Select
-                                    value={item.productId.toString()}
+                                    value={item.productId}
                                     onValueChange={value => handleItemChange(index, 'productId', value)}
                                     disabled={inventory.length === 0}
                                 >
@@ -133,7 +132,10 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
                                         <SelectValue placeholder="Chọn sản phẩm" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {inventory.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.name} ({p.color}, {p.size})</SelectItem>)}
+                                        {inventory.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.color}, {p.size})</SelectItem>)}
+                                        {inventory.length === 0 && 
+                                            <div className="p-2 text-center text-muted-foreground">Không có sản phẩm trong kho.</div>
+                                        }
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -142,7 +144,7 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
                                 <Input
                                     type="number"
                                     min="1"
-                                    value={item.quantity}
+                                    value={item.quantity.toString()}
                                     onChange={e => handleItemChange(index, 'quantity', parseInt(e.target.value))}
                                     className="w-full bg-card"
                                     required
@@ -153,7 +155,7 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
                                 <Input
                                     type="number"
                                     min="0"
-                                    value={item.cost}
+                                    value={item.cost.toString()}
                                     onChange={e => handleItemChange(index, 'cost', parseFloat(e.target.value))}
                                     className="w-full bg-card"
                                     required
@@ -182,7 +184,11 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
                     Tổng tiền: {totalCost.toLocaleString('vi-VN')} VNĐ
                 </div>
                 
-                <Button type="submit" className="w-full bg-blue-500 text-white hover:bg-blue-600" disabled={inventory.length === 0 || initialSuppliers.length === 0 || itemsToImport.length === 0 || itemsToImport.some(item => !item.productId)}>
+                <Button 
+                    type="submit" 
+                    className="w-full bg-blue-500 text-white hover:bg-blue-600" 
+                    disabled={inventory.length === 0 || initialSuppliers.length === 0 || itemsToImport.length === 0 || itemsToImport.some(item => !item.productId)}
+                >
                     Xác nhận nhập hàng
                 </Button>
             </form>
@@ -191,5 +197,3 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
     </>
   );
 }
-
-    

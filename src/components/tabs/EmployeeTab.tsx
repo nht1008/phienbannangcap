@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -9,10 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 interface EmployeeTabProps {
   employees: Employee[];
-  setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
+  onAddEmployee: (newEmployeeData: Omit<Employee, 'id'>) => Promise<void>;
 }
 
-export function EmployeeTab({ employees, setEmployees }: EmployeeTabProps) {
+export function EmployeeTab({ employees, onAddEmployee }: EmployeeTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id'>>({ name: '', position: '', phone: '' });
 
@@ -21,13 +22,13 @@ export function EmployeeTab({ employees, setEmployees }: EmployeeTabProps) {
     setNewEmployee(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newEmp: Employee = {
-      id: employees.length > 0 ? Math.max(...employees.map(emp => emp.id)) + 1 : 1,
-      ...newEmployee
-    };
-    setEmployees([...employees, newEmp].sort((a,b) => a.id - b.id));
+    if (!newEmployee.name || !newEmployee.position || !newEmployee.phone) {
+      alert("Vui lòng điền đầy đủ thông tin nhân viên.");
+      return;
+    }
+    await onAddEmployee(newEmployee);
     setNewEmployee({ name: '', position: '', phone: '' });
     setIsAdding(false);
   };
@@ -64,13 +65,13 @@ export function EmployeeTab({ employees, setEmployees }: EmployeeTabProps) {
             <TableBody>
               {employees.map(emp => (
                 <TableRow key={emp.id}>
-                  <TableCell>{emp.id}</TableCell>
+                  <TableCell>{emp.id.substring(0,6)}...</TableCell> {/* Display shortened ID */}
                   <TableCell>{emp.name}</TableCell>
                   <TableCell>{emp.position}</TableCell>
                   <TableCell>{emp.phone}</TableCell>
                 </TableRow>
               ))}
-              {employees.length === 0 && (
+              {employees.length === 0 && !isAdding && (
                 <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground">Chưa có nhân viên nào.</TableCell>
                 </TableRow>

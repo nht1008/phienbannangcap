@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -9,14 +10,13 @@ import { cn } from '@/lib/utils';
 
 interface DebtTabProps {
   debts: Debt[];
-  setDebts: React.Dispatch<React.SetStateAction<Debt[]>>;
+  onUpdateDebtStatus: (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán') => Promise<void>;
 }
 
-export function DebtTab({ debts, setDebts }: DebtTabProps) {
-  const toggleStatus = (debtId: number) => {
-    setDebts(debts.map(debt =>
-      debt.id === debtId ? { ...debt, status: debt.status === 'Đã thanh toán' ? 'Chưa thanh toán' : 'Đã thanh toán' } : debt
-    ));
+export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
+  const toggleStatus = (debtId: string, currentStatus: 'Chưa thanh toán' | 'Đã thanh toán') => {
+    const newStatus = currentStatus === 'Đã thanh toán' ? 'Chưa thanh toán' : 'Đã thanh toán';
+    onUpdateDebtStatus(debtId, newStatus);
   };
 
   const totalUnpaid = useMemo(() =>
@@ -50,13 +50,13 @@ export function DebtTab({ debts, setDebts }: DebtTabProps) {
             <TableBody>
               {debts.map(debt => (
                 <TableRow key={debt.id}>
-                  <TableCell>{debt.id}</TableCell>
-                  <TableCell>{debt.supplier}</TableCell>
+                  <TableCell>{debt.id.substring(0,6)}...</TableCell>
+                  <TableCell>{debt.supplier || 'N/A'}</TableCell>
                   <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
                   <TableCell>{debt.amount.toLocaleString('vi-VN')}</TableCell>
                   <TableCell>
                     <Button
-                      onClick={() => toggleStatus(debt.id)}
+                      onClick={() => toggleStatus(debt.id, debt.status)}
                       variant="outline"
                       size="sm"
                       className={cn(

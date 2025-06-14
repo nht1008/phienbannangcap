@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -7,31 +8,33 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
+import { useToast } from "@/hooks/use-toast";
 
 interface SalesTabProps {
   inventory: Product[];
-  setInventory: React.Dispatch<React.SetStateAction<Product[]>>;
-  invoices: Invoice[];
-  setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>;
+  onCreateInvoice: (customerName: string, cart: CartItem[], total: number) => Promise<boolean>;
 }
 
-export function SalesTab({ inventory, setInventory, invoices, setInvoices }: SalesTabProps) {
+export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
-  const [notification, setNotification] = useState<string | null>(null);
-  const [notificationType, setNotificationType] = useState<'success' | 'error'>('error');
+  const { toast } = useToast(); // For local notifications if needed, main ones in page.tsx
 
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification(message);
-    setNotificationType(type);
+  const [localNotification, setLocalNotification] = useState<string | null>(null);
+  const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
+
+  const showLocalNotification = (message: string, type: 'success' | 'error') => {
+    setLocalNotification(message);
+    setLocalNotificationType(type);
   };
+
 
   const addToCart = (item: Product) => {
     const existingItem = cart.find(cartItem => cartItem.id === item.id);
     const stockItem = inventory.find(i => i.id === item.id);
 
-    if (!stockItem || stockItem.quantity === 0) {
-      showNotification(`Sản phẩm "${item.name}" đã hết hàng!`, 'error');
+    if (!stockItem || stockItem.quantity <= 0) {
+      showLocalNotification(`Sản phẩm "${item.name}" đã hết hàng!`, 'error');
       return;
     }
 
@@ -41,19 +44,20 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
           cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
         ));
       } else {
-        showNotification(`Không đủ số lượng "${item.name}" trong kho.`, 'error');
+        showLocalNotification(`Không đủ số lượng "${item.name}" trong kho (Còn: ${stockItem.quantity}).`, 'error');
       }
     } else {
       setCart([...cart, { ...item, quantityInCart: 1 }]);
     }
   };
 
-  const updateCartQuantity = (itemId: number, newQuantity: number) => {
+  const updateCartQuantity = (itemId: string, newQuantityStr: string) => {
+    const newQuantity = parseInt(newQuantityStr);
     const stockItem = inventory.find(i => i.id === itemId);
     if (!stockItem) return;
 
     if (newQuantity > stockItem.quantity) {
-      showNotification(`Số lượng tồn kho không đủ! Chỉ còn ${stockItem.quantity} ${stockItem.unit}.`, 'error');
+      showLocalNotification(`Số lượng tồn kho không đủ! Chỉ còn ${stockItem.quantity} ${stockItem.unit}.`, 'error');
       setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
       return;
     }
@@ -69,51 +73,37 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
     [cart]
   );
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
-      showNotification("Giỏ hàng trống!", 'error');
+      showLocalNotification("Giỏ hàng trống!", 'error');
       return;
     }
 
     if (!customerName.trim()) {
-      showNotification("Vui lòng nhập tên khách hàng!", 'error');
+      showLocalNotification("Vui lòng nhập tên khách hàng!", 'error');
       return;
     }
 
     for (const cartItem of cart) {
       const stockItem = inventory.find(i => i.id === cartItem.id);
       if (!stockItem || stockItem.quantity < cartItem.quantityInCart) {
-        showNotification(`Sản phẩm "${cartItem.name}" không đủ số lượng trong kho!`, 'error');
+        showLocalNotification(`Sản phẩm "${cartItem.name}" không đủ số lượng trong kho! (Còn: ${stockItem?.quantity ?? 0})`, 'error');
         return;
       }
     }
 
-    const newInvoice: Invoice = {
-      id: invoices.length > 0 ? Math.max(...invoices.map(inv => inv.id)) + 1 : 1,
-      customerName,
-      items: cart,
-      total,
-      date: new Date().toISOString(),
-    };
-    setInvoices([newInvoice, ...invoices]);
-
-    const newInventory = inventory.map(item => {
-      const cartItem = cart.find(ci => ci.id === item.id);
-      if (cartItem) {
-        return { ...item, quantity: item.quantity - cartItem.quantityInCart };
-      }
-      return item;
-    });
-    setInventory(newInventory);
-
-    setCart([]);
-    setCustomerName('');
-    showNotification('Thanh toán thành công!', 'success');
+    const success = await onCreateInvoice(customerName, cart, total);
+    if (success) {
+      setCart([]);
+      setCustomerName('');
+      // Notification is handled by page.tsx after Firebase operation
+    }
+    // Else, notification of failure is handled by page.tsx
   };
 
   return (
     <>
-      <NotificationDialog message={notification} type={notificationType} onClose={() => setNotification(null)} />
+      <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <h3 className="text-xl font-semibold mb-4 text-foreground">Sản phẩm có sẵn</h3>
@@ -122,12 +112,13 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
               <Card key={item.id} className="text-center hover:shadow-lg transition-shadow flex flex-col">
                 <CardContent className="p-4 flex-grow">
                   <Image 
-                    src={item.image} 
+                    src={item.image || `https://placehold.co/100x100.png`}
                     alt={item.name} 
                     width={100} 
                     height={100} 
                     className="w-24 h-24 mx-auto rounded-full object-cover mb-2"
                     data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100.png')}
                   />
                   <h4 className="font-semibold text-foreground">{item.name}</h4>
                   <p className="text-xs text-muted-foreground">{item.color} - {item.size}</p>
@@ -139,6 +130,7 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
                     onClick={() => addToCart(item)}
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
                     size="sm"
+                    disabled={item.quantity <= 0}
                   >
                     Thêm
                   </Button>
@@ -146,7 +138,7 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
               </Card>
             ))}
              {inventory.filter(item => item.quantity > 0).length === 0 && (
-                <p className="text-muted-foreground col-span-full">Không có sản phẩm nào có sẵn.</p>
+                <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
             )}
           </div>
         </div>
@@ -174,11 +166,11 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
                   </div>
                   <Input
                     type="number"
-                    value={item.quantityInCart}
-                    onChange={(e) => updateCartQuantity(item.id, parseInt(e.target.value))}
+                    value={item.quantityInCart.toString()}
+                    onChange={(e) => updateCartQuantity(item.id, e.target.value)}
                     className="w-16 p-1 text-center"
                     min="1"
-                    max={inventory.find(i => i.id === item.id)?.quantity ?? 1}
+                    max={(inventory.find(i => i.id === item.id)?.quantity ?? 1).toString()}
                   />
                 </div>
               ))
@@ -193,6 +185,7 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
             <Button
               onClick={handleCheckout}
               className="w-full bg-green-500 text-white hover:bg-green-600"
+              disabled={cart.length === 0}
             >
               Thanh toán
             </Button>

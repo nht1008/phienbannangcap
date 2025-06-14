@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -38,7 +39,7 @@ export function InvoiceTab({ invoices }: InvoiceTabProps) {
               <TableBody>
                 {invoices.map(invoice => (
                   <TableRow key={invoice.id}>
-                    <TableCell>{invoice.id}</TableCell>
+                    <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                     <TableCell>{invoice.customerName}</TableCell>
                     <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                     <TableCell>{invoice.total.toLocaleString('vi-VN')}</TableCell>
@@ -56,7 +57,7 @@ export function InvoiceTab({ invoices }: InvoiceTabProps) {
           <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoice.id}</DialogTitle>
+                <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoice.id.substring(0,6)}...</DialogTitle>
                 <DialogDescription>
                   <strong>Khách hàng:</strong> {selectedInvoice.customerName} <br />
                   <strong>Ngày:</strong> {new Date(selectedInvoice.date).toLocaleString('vi-VN')}
@@ -66,8 +67,8 @@ export function InvoiceTab({ invoices }: InvoiceTabProps) {
               <div>
                 <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
                 <ul className="space-y-1 max-h-60 overflow-y-auto">
-                  {selectedInvoice.items.map((item: CartItem) => (
-                    <li key={item.id} className="flex justify-between text-sm">
+                  {selectedInvoice.items.map((item: CartItem, index: number) => ( // Added index for key since item.id might not be unique if product added multiple times in old system
+                    <li key={`${item.id}-${index}`} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
                       <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
                     </li>

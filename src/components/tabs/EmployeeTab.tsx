@@ -60,15 +60,15 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmployee.name || !newEmployee.position || !newEmployee.phone || (isAdmin && !newEmployee.email)) {
-      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên (bao gồm email nếu Admin thêm mới).", variant: "destructive" });
+    if (!newEmployee.name || !newEmployee.position || !newEmployee.phone || !newEmployee.email) {
+      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên (bao gồm email).", variant: "destructive" });
       return;
     }
     if (employees.some(emp => emp.phone === newEmployee.phone)) {
         toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
     }
-    if (isAdmin && newEmployee.email && employees.some(emp => emp.email === newEmployee.email)) {
+    if (newEmployee.email && employees.some(emp => emp.email === newEmployee.email)) {
         toast({ title: "Lỗi", description: "Email đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
     }
@@ -85,28 +85,41 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!employeeToEdit || !editedEmployeeData.name || !editedEmployeeData.position || !editedEmployeeData.phone || (isAdmin && employeeToEdit.userId === currentUser?.uid && !editedEmployeeData.email && employeeToEdit.email !== currentUser?.email )) {
-      // For admin editing others, email should be present if it was intended to be.
-      // For user editing own record (via pencil), this path is less likely as name/email/position is via SetNameDialog.
-      // This check is a bit complex, main idea is all fields should be valid.
-      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên.", variant: "destructive" });
+    if (!employeeToEdit || !editedEmployeeData.name || !editedEmployeeData.position || !editedEmployeeData.phone ) {
+      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin nhân viên (Tên, Chức vụ, SĐT).", variant: "destructive" });
       return;
     }
+     // Email validation for admin editing other employees
+    if (isAdmin && employeeToEdit.email !== currentUser?.email && !editedEmployeeData.email) {
+      toast({ title: "Lỗi", description: "Email không được để trống khi Admin sửa thông tin nhân viên khác.", variant: "destructive" });
+      return;
+    }
+
     if (employees.some(emp => emp.id !== employeeToEdit.id && emp.phone === editedEmployeeData.phone)) {
         toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
     }
-    if (isAdmin && editedEmployeeData.email && employees.some(emp => emp.id !== employeeToEdit.id && emp.email === editedEmployeeData.email)) {
+    // Check for email uniqueness only if admin is editing an employee (not themselves) and email has changed
+    if (isAdmin && editedEmployeeData.email && employeeToEdit.email !== editedEmployeeData.email && employees.some(emp => emp.id !== employeeToEdit.id && emp.email === editedEmployeeData.email)) {
         toast({ title: "Lỗi", description: "Email đã tồn tại cho nhân viên khác.", variant: "destructive"});
         return;
     }
-    await onUpdateEmployee(employeeToEdit.id, editedEmployeeData);
+    
+    // If Admin is editing their own record, ensure email isn't changed through this form
+    let finalEditedData = { ...editedEmployeeData };
+    if (isAdmin && employeeToEdit.email === currentUser?.email) {
+        finalEditedData.email = currentUser.email; // Keep admin's own email fixed
+    }
+
+
+    await onUpdateEmployee(employeeToEdit.id, finalEditedData);
     setIsEditingEmployee(false);
     setEmployeeToEdit(null);
   };
 
   const openDeleteConfirmDialog = (employee: Employee) => {
-    if (employee.position === 'Chủ cửa hàng' && employee.userId === currentUser?.uid) {
+    // Admin cannot delete their own primary record
+    if (isAdmin && employee.email === 'nthe1008@gmail.com' && employee.userId === currentUser?.uid) {
         toast({ title: "Không thể xóa", description: "Không thể xóa tài khoản Chủ cửa hàng của chính bạn.", variant: "destructive" });
         return;
     }
@@ -130,7 +143,10 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
     onCancel?: () => void
   ) => {
     // Determine if the form is for the admin editing their own "Chủ cửa hàng" record
-    const isEditingOwnAdminRecord = isEditMode && employeeToEdit?.userId === currentUser?.uid && employeeToEdit?.position === 'Chủ cửa hàng';
+    const isEditingOwnAdminRecord = isEditMode && employeeToEdit?.email === currentUser?.email && employeeToEdit?.position === 'Chủ cửa hàng';
+    // Determine if the form is for a regular user editing their own record
+    const isEditingOwnRegularRecord = isEditMode && employeeToEdit?.userId === currentUser?.uid && !isAdmin;
+
 
     return (
      <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -142,7 +158,7 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             onChange={(e) => handleInputChange(e, formSetter)}
             required
             className="bg-card"
-            disabled={isEditingOwnAdminRecord} // Name of admin is from Auth
+            disabled={isEditingOwnAdminRecord || isEditingOwnRegularRecord} // Name is from Auth for self
         />
         <Input
             type="text"
@@ -152,7 +168,7 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             onChange={(e) => handleInputChange(e, formSetter)}
             required
             className="bg-card"
-            disabled={isEditingOwnAdminRecord} // Position of admin is fixed
+            disabled={isEditingOwnAdminRecord || isEditingOwnRegularRecord} // Position fixed for self
         />
         <Input
             type="tel"
@@ -162,16 +178,16 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
             onChange={(e) => handleInputChange(e, formSetter)}
             required
             className="bg-card"
-            // Phone is editable for everyone
+            // Phone is editable
         />
         <Input
             type="email"
             name="email"
-            placeholder="Email"
+            placeholder="Email (*)"
             value={formState.email || ''}
             onChange={(e) => handleInputChange(e, formSetter)}
             className="bg-card"
-            disabled={isEditingOwnAdminRecord || (isEditMode && employeeToEdit?.userId === currentUser?.uid && !isAdmin)} // Email of current user is from Auth, non-admin cannot change own email
+            disabled={isEditingOwnAdminRecord || isEditingOwnRegularRecord} // Email is from Auth for self
             required={!isEditMode && isAdmin} // Email required for admin adding new employee
         />
         <div className="md:col-span-2 flex justify-end gap-2">
@@ -224,28 +240,21 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
                     <TableCell>{formatPhoneNumber(emp.phone)}</TableCell>
                     <TableCell>{emp.email || 'N/A'}</TableCell>
                     <TableCell className="text-center space-x-2">
-                        { (isAdmin || emp.userId === currentUser?.uid) && /* Admin can edit anyone they manage, user can edit their own (phone mainly) */ (
+                        { (isAdmin || emp.userId === currentUser?.uid) && ( // Edit is available if admin OR if it's user's own record
                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)}>
                                 <Pencil className="h-4 w-4" />
                             </Button>
                         )}
-                        { isAdmin && emp.userId === currentUser?.uid && emp.position !== 'Chủ cửa hàng' && /* Admin can delete employees they added, but not their own Owner record */ (
+                        { isAdmin && emp.userId === currentUser?.uid && emp.email === 'nthe1008@gmail.com' && ( // Admin's own record delete button (disabled)
+                            <Button variant="destructive" size="icon" className="h-8 w-8" disabled>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
+                        { isAdmin && emp.userId === currentUser?.uid && emp.email !== 'nthe1008@gmail.com' && ( // Admin can delete other employees they manage
                              <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(emp)}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         )}
-                         { isAdmin && emp.userId === currentUser?.uid && emp.position === 'Chủ cửa hàng' && emp.email === 'nthe1008@gmail.com' && (
-                            <Button variant="destructive" size="icon" className="h-8 w-8" disabled>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                         )}
-                         { isAdmin && emp.userId === currentUser?.uid && emp.email !== 'nthe1008@gmail.com' && (
-                             <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(emp)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                         )}
-
-
                     </TableCell>
                   </TableRow>
                 ))}
@@ -265,7 +274,7 @@ export function EmployeeTab({ employees, currentUser, onAddEmployee, onUpdateEmp
               <DialogTitle>Chỉnh sửa thông tin nhân viên</DialogTitle>
               <DialogDescription>
                 Chỉnh sửa thông tin cho {employeeToEdit.name}.
-                {employeeToEdit.userId === currentUser?.uid && employeeToEdit.position === 'Chủ cửa hàng' && " Tên, email và chức vụ của Chủ cửa hàng được quản lý qua hệ thống."}
+                {(employeeToEdit.userId === currentUser?.uid && (employeeToEdit.position === 'Chủ cửa hàng' || !isAdmin)) && " Tên, email và chức vụ của bạn được quản lý qua hệ thống."}
               </DialogDescription>
             </DialogHeader>
             {renderEmployeeForm(editedEmployeeData, setEditedEmployeeData, handleUpdate, true, () => { setIsEditingEmployee(false); setEmployeeToEdit(null); })}

@@ -69,7 +69,7 @@ interface NavItem {
 const getCurrentMonthYearFilter = (): DateFilter => {
   const now = new Date();
   return {
-    day: 'all', // Day is not used in RevenueTab UI for filtering but kept for type consistency
+    day: 'all', 
     month: (now.getMonth() + 1).toString(),
     year: now.getFullYear().toString(),
   };
@@ -878,14 +878,14 @@ export default function FleurManagerPage() {
         </Sidebar>
 
         <SidebarInset>
-          <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
-            <div className="flex items-center mb-8 print:hidden">
+          <main className="flex-1 overflow-y-auto">
+            <div className="flex items-center mb-8 print:hidden p-6 lg:p-10 pb-0 lg:pb-0">
               <SidebarTrigger className="md:hidden mr-4">
                 <PanelLeft />
               </SidebarTrigger>
               <h2 className="text-4xl font-bold text-foreground font-headline">{activeTab}</h2>
             </div>
-            <div className="min-h-[calc(100vh-10rem)]">
+            <div className="min-h-[calc(100vh-10rem)] px-6 lg:px-10 pb-6 lg:pb-10 pt-0">
                {tabs[activeTab]}
             </div>
           </main>

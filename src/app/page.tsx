@@ -317,42 +317,107 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleProcessInvoiceCancellationOrReturn = async (invoiceId: string, operationType: 'delete' | 'return') => {
+  const handleProcessInvoiceCancellationOrReturn = async (
+    invoiceId: string,
+    operationType: 'delete' | 'return',
+    itemsToReturnArray?: Array<{ productId: string; name: string; quantityToReturn: number }>
+  ) => {
     try {
       const invoiceSnapshot = await get(child(ref(db), `invoices/${invoiceId}`));
       if (!invoiceSnapshot.exists()) {
         toast({ title: "Lỗi", description: "Không tìm thấy hóa đơn để xử lý.", variant: "destructive" });
         return false;
       }
-
-      const invoiceData = invoiceSnapshot.val() as Invoice;
+      const originalInvoice = invoiceSnapshot.val() as Invoice;
       const updates: { [key: string]: any } = {};
 
-      for (const cartItem of invoiceData.items) {
-        const productRef = child(ref(db), `inventory/${cartItem.id}`);
-        const productSnapshot = await get(productRef);
-        if (productSnapshot.exists()) {
-          const currentQuantity = productSnapshot.val().quantity;
-          updates[`inventory/${cartItem.id}/quantity`] = currentQuantity + cartItem.quantityInCart;
-        } else {
-          console.warn(`Sản phẩm ID ${cartItem.id} (tên: ${cartItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
+      if (operationType === 'delete' || (operationType === 'return' && (!itemsToReturnArray || itemsToReturnArray.length === 0))) {
+        // Full cancellation or return all items
+        for (const cartItem of originalInvoice.items) {
+          const productRef = child(ref(db), `inventory/${cartItem.id}`);
+          const productSnapshot = await get(productRef);
+          if (productSnapshot.exists()) {
+            updates[`inventory/${cartItem.id}/quantity`] = productSnapshot.val().quantity + cartItem.quantityInCart;
+          } else {
+            console.warn(`Sản phẩm ID ${cartItem.id} (tên: ${cartItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
+          }
         }
+        updates[`invoices/${invoiceId}`] = null; // Delete the invoice
+        await update(ref(db), updates);
+        const message = operationType === 'delete' ? "Hóa đơn đã được xóa và các sản phẩm (nếu còn) đã hoàn kho." : "Hoàn trả toàn bộ hóa đơn thành công, sản phẩm (nếu còn) đã hoàn kho.";
+        toast({ title: "Thành công", description: message, variant: "default" });
+        return true;
+
+      } else if (operationType === 'return' && itemsToReturnArray && itemsToReturnArray.length > 0) {
+        // Selective return
+        for (const itemToReturn of itemsToReturnArray) {
+          if (itemToReturn.quantityToReturn > 0) {
+            const productRef = child(ref(db), `inventory/${itemToReturn.productId}`);
+            const productSnapshot = await get(productRef);
+            if (productSnapshot.exists()) {
+              updates[`inventory/${itemToReturn.productId}/quantity`] = productSnapshot.val().quantity + itemToReturn.quantityToReturn;
+            } else {
+               console.warn(`Sản phẩm ID ${itemToReturn.productId} (tên: ${itemToReturn.name}) dự kiến hoàn trả từ hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
+            }
+          }
+        }
+
+        const newInvoiceItems: CartItem[] = [];
+        let newTotal = 0;
+
+        for (const originalItem of originalInvoice.items) {
+          const returnedItemInfo = itemsToReturnArray.find(rt => rt.productId === originalItem.id);
+          const quantityReturned = returnedItemInfo ? returnedItemInfo.quantityToReturn : 0;
+          const remainingQuantityInCart = originalItem.quantityInCart - quantityReturned;
+
+          if (remainingQuantityInCart > 0) {
+            newInvoiceItems.push({
+              ...originalItem,
+              quantityInCart: remainingQuantityInCart,
+            });
+            newTotal += originalItem.price * remainingQuantityInCart;
+          }
+        }
+        
+        // Adjust newTotal based on the original discount proportion if applicable
+        // This is a simple proration. More complex discount logic might be needed.
+        let originalSubTotal = 0;
+        for(const item of originalInvoice.items) {
+            originalSubTotal += item.price * item.quantityInCart;
+        }
+
+        let newDiscount = originalInvoice.discount || 0;
+        if (originalSubTotal > 0 && originalInvoice.discount && originalInvoice.discount > 0) {
+            const discountRatio = originalInvoice.discount / originalSubTotal;
+            let currentSubTotalOfNewItems = 0;
+             for(const item of newInvoiceItems) {
+                 currentSubTotalOfNewItems += item.price * item.quantityInCart;
+             }
+            newDiscount = Math.round(currentSubTotalOfNewItems * discountRatio);
+        }
+        
+        newTotal = newTotal - newDiscount;
+
+
+        if (newInvoiceItems.length === 0 || newTotal <= 0) {
+          updates[`invoices/${invoiceId}`] = null; // All items returned, delete invoice
+           await update(ref(db), updates);
+          toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn đã được xóa.", variant: "default" });
+        } else {
+          updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
+          updates[`invoices/${invoiceId}/total`] = newTotal;
+          updates[`invoices/${invoiceId}/discount`] = newDiscount; 
+          // Note: amountPaid is not adjusted here, assumes it's a sunk cost or handled externally
+          await update(ref(db), updates);
+          toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật.", variant: "default" });
+        }
+        return true;
       }
+      return false; // Should not reach here if logic is correct
 
-      updates[`invoices/${invoiceId}`] = null;
-
-      await update(ref(db), updates);
-
-      const successMessage = operationType === 'delete'
-        ? "Hóa đơn đã được xóa và các sản phẩm (nếu còn tồn tại) đã được hoàn kho."
-        : "Hoàn trả thành công, hóa đơn đã được xử lý và các sản phẩm (nếu còn tồn tại) đã được hoàn kho.";
-      toast({ title: "Thành công", description: successMessage, variant: "default" });
-      return true;
     } catch (error) {
       console.error(`Error processing invoice ${operationType} for ID ${invoiceId}:`, error);
-      const errorMessage = operationType === 'delete'
-        ? "Không thể xóa hóa đơn."
-        : "Không thể xử lý hoàn trả.";
+      const errorMessage = operationType === 'delete' ? "Không thể xóa hóa đơn." : "Không thể xử lý hoàn trả.";
       toast({ title: "Lỗi", description: `${errorMessage} Vui lòng thử lại. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
       return false;
     }

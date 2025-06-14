@@ -4,6 +4,8 @@
 import React, { useState } from 'react';
 import type { Invoice, CartItem } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Dialog, 
@@ -26,36 +28,104 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Undo2 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface InvoiceTabProps {
   invoices: Invoice[];
-  onProcessInvoiceCancellationOrReturn: (invoiceId: string, operationType: 'delete' | 'return') => Promise<boolean>;
+  onProcessInvoiceCancellationOrReturn: (
+    invoiceId: string, 
+    operationType: 'delete' | 'return',
+    itemsToReturn?: Array<{ productId: string; name: string; quantityToReturn: number }>
+  ) => Promise<boolean>;
 }
+
+type ReturnItemDetail = {
+  originalQuantityInCart: number;
+  quantityToReturn: string;
+  name: string;
+  color: string;
+  size: string;
+  unit: string;
+  price: number; 
+};
 
 export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: InvoiceTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
-  const [operationTarget, setOperationTarget] = useState<{ invoice: Invoice | null; type: 'delete' | 'return' } | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
-  const openConfirmDialog = (invoice: Invoice, type: 'delete' | 'return') => {
-    setOperationTarget({ invoice, type });
+  const [isReturnItemsDialogOpen, setIsReturnItemsDialogOpen] = useState(false);
+  const [currentInvoiceForReturnDialog, setCurrentInvoiceForReturnDialog] = useState<Invoice | null>(null);
+  const [returnItemsState, setReturnItemsState] = useState<Record<string, ReturnItemDetail>>({});
+
+
+  const openDeleteConfirmDialog = (invoice: Invoice) => {
+    setInvoiceToDelete(invoice);
   };
 
-  const handleConfirmOperation = async () => {
-    if (operationTarget && operationTarget.invoice) {
-      await onProcessInvoiceCancellationOrReturn(operationTarget.invoice.id, operationTarget.type);
-      setOperationTarget(null); 
+  const handleConfirmDelete = async () => {
+    if (invoiceToDelete) {
+      await onProcessInvoiceCancellationOrReturn(invoiceToDelete.id, 'delete');
+      setInvoiceToDelete(null); 
     }
   };
 
-  const invoiceIdDisplay = operationTarget?.invoice?.id ? operationTarget.invoice.id.substring(0,6) : '...';
+  const openReturnItemsDialog = (invoice: Invoice) => {
+    setCurrentInvoiceForReturnDialog(invoice);
+    const initialReturnItems: Record<string, ReturnItemDetail> = {};
+    invoice.items.forEach(item => {
+      initialReturnItems[item.id] = { // item.id is Product.id, unique within invoice.items
+        originalQuantityInCart: item.quantityInCart,
+        quantityToReturn: "0",
+        name: item.name,
+        color: item.color,
+        size: item.size,
+        unit: item.unit,
+        price: item.price,
+      };
+    });
+    setReturnItemsState(initialReturnItems);
+    setIsReturnItemsDialogOpen(true);
+  };
 
-  const dialogTitle = operationTarget?.type === 'delete' ? "Xác nhận xóa hóa đơn?" : "Xác nhận hoàn trả hóa đơn?";
-  
-  const dialogDescription = operationTarget?.type === 'delete'
-    ? `Bạn có chắc chắn muốn xóa hóa đơn #${invoiceIdDisplay}...? Các sản phẩm trong hóa đơn này sẽ được hoàn trả lại vào kho.`
-    : `Bạn có chắc chắn muốn xử lý hoàn trả cho hóa đơn #${invoiceIdDisplay}...? Các sản phẩm sẽ được hoàn trả lại vào kho và hóa đơn sẽ được coi như đã hủy.`;
-  
-  const actionButtonText = operationTarget?.type === 'delete' ? "Xóa hóa đơn" : "Xác nhận hoàn trả";
+  const handleReturnItemQuantityChange = (productId: string, value: string) => {
+    const itemDetail = returnItemsState[productId];
+    if (!itemDetail) return;
+
+    let numValue = parseInt(value);
+    if (isNaN(numValue) || numValue < 0) {
+      numValue = 0;
+    } else if (numValue > itemDetail.originalQuantityInCart) {
+      numValue = itemDetail.originalQuantityInCart;
+    }
+    
+    setReturnItemsState(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], quantityToReturn: numValue.toString() }
+    }));
+  };
+
+  const handleConfirmSelectiveReturn = async () => {
+    if (!currentInvoiceForReturnDialog) return;
+
+    const itemsToReturnForApi = Object.entries(returnItemsState)
+      .map(([productId, detail]) => ({
+        productId,
+        name: detail.name,
+        quantityToReturn: parseInt(detail.quantityToReturn) || 0,
+      }))
+      .filter(item => item.quantityToReturn > 0);
+
+    if (itemsToReturnForApi.length === 0) {
+      // Optionally show a toast that no items were selected for return
+      setIsReturnItemsDialogOpen(false);
+      return;
+    }
+    
+    await onProcessInvoiceCancellationOrReturn(currentInvoiceForReturnDialog.id, 'return', itemsToReturnForApi);
+    setIsReturnItemsDialogOpen(false);
+    setCurrentInvoiceForReturnDialog(null);
+    setReturnItemsState({});
+  };
 
 
   return (
@@ -91,10 +161,10 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                         <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                       </TableCell>
                       <TableCell className="text-center space-x-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:text-yellow-700" onClick={() => openConfirmDialog(invoice, 'return')}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:text-yellow-700" onClick={() => openReturnItemsDialog(invoice)}>
                           <Undo2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => openConfirmDialog(invoice, 'delete')}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => openDeleteConfirmDialog(invoice)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -116,9 +186,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                   </DialogDescription>
                 </DialogHeader>
                 <Separator className="my-4" />
-                <div>
+                <ScrollArea className="max-h-60">
                   <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
-                  <ul className="space-y-1 max-h-60 overflow-y-auto">
+                  <ul className="space-y-1 pr-3">
                     {selectedInvoiceDetails.items.map((item: CartItem, index: number) => (
                       <li key={`${item.id}-${index}`} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
@@ -126,9 +196,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
                       </li>
                     ))}
                   </ul>
-                </div>
+                </ScrollArea>
                 <Separator className="my-4" />
-                {selectedInvoiceDetails.discount && selectedInvoiceDetails.discount > 0 && (
+                {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                     <>
                         <div className="flex justify-between text-sm">
                             <span>Giảm giá:</span>
@@ -165,26 +235,70 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
         </CardContent>
       </Card>
 
-      {operationTarget?.invoice && (
-        <AlertDialog open={!!operationTarget} onOpenChange={(open) => !open && setOperationTarget(null)}>
+      {invoiceToDelete && (
+        <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => !open && setInvoiceToDelete(null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>{dialogTitle}</AlertDialogTitle>
+                <AlertDialogTitle>Xác nhận xóa hóa đơn?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {dialogDescription}
+                    Bạn có chắc chắn muốn xóa hóa đơn #{invoiceToDelete.id.substring(0,6)}...? Các sản phẩm trong hóa đơn này sẽ được hoàn trả lại vào kho.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setOperationTarget(null)}>Hủy</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Hủy</AlertDialogCancel>
                 <AlertDialogAction 
-                    onClick={handleConfirmOperation} 
-                    className={operationTarget.type === 'delete' ? "bg-destructive hover:bg-destructive/90" : "bg-yellow-500 hover:bg-yellow-600 text-white"}
+                    onClick={handleConfirmDelete} 
+                    className="bg-destructive hover:bg-destructive/90"
                 >
-                    {actionButtonText}
+                    Xóa hóa đơn
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+      )}
+
+      {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && (
+        <Dialog open={isReturnItemsDialogOpen} onOpenChange={setIsReturnItemsDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Hoàn trả sản phẩm cho HĐ #{currentInvoiceForReturnDialog.id.substring(0,6)}</DialogTitle>
+              <DialogDescription>Chọn sản phẩm và số lượng muốn hoàn trả. Các sản phẩm sẽ được cộng lại vào kho.</DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[60vh] p-1">
+              <div className="space-y-4 py-2 pr-3">
+                {Object.entries(returnItemsState).map(([productId, itemData]) => (
+                  <Card key={productId} className="p-3 bg-muted/30">
+                    <p className="font-semibold">{itemData.name} <span className="text-xs text-muted-foreground">({itemData.color}, {itemData.size})</span></p>
+                    <p className="text-sm text-muted-foreground">Đơn vị: {itemData.unit} - Giá: {itemData.price.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="text-sm text-muted-foreground">Đã mua: {itemData.originalQuantityInCart}</p>
+                    <div className="mt-2">
+                      <Label htmlFor={`return-qty-${productId}`} className="text-sm">Số lượng hoàn trả:</Label>
+                      <Input
+                        id={`return-qty-${productId}`}
+                        type="number"
+                        value={itemData.quantityToReturn}
+                        onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
+                        min="0"
+                        max={itemData.originalQuantityInCart.toString()}
+                        className="w-24 h-8 mt-1 bg-card"
+                      />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
+              <Button 
+                onClick={handleConfirmSelectiveReturn}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                disabled={Object.values(returnItemsState).every(item => (parseInt(item.quantityToReturn) || 0) === 0)}
+              >
+                Xác nhận hoàn trả
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

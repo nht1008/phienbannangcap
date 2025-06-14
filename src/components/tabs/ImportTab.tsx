@@ -147,7 +147,7 @@ export function ImportTab({ inventory, setInventory, debts, setDebts }: ImportTa
                 </Button>
 
                 <div className="text-right font-bold text-xl text-foreground">
-                    Tổng tiền: {totalCost.toLocaleString()} VNĐ
+                    Tổng tiền: {totalCost.toLocaleString('vi-VN')} VNĐ
                 </div>
                 
                 <Button type="submit" className="w-full bg-blue-500 text-white hover:bg-blue-600">

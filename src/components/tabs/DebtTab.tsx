@@ -31,7 +31,7 @@ export function DebtTab({ debts, setDebts }: DebtTabProps) {
       </CardHeader>
       <CardContent>
         <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 rounded-md text-red-800">
-          <p className="font-bold">Tổng công nợ chưa thanh toán: {totalUnpaid.toLocaleString()} VNĐ</p>
+          <p className="font-bold">Tổng công nợ chưa thanh toán: {totalUnpaid.toLocaleString('vi-VN')} VNĐ</p>
         </div>
         {debts.length === 0 ? (
             <p className="text-muted-foreground">Chưa có công nợ nào.</p>
@@ -53,7 +53,7 @@ export function DebtTab({ debts, setDebts }: DebtTabProps) {
                   <TableCell>{debt.id}</TableCell>
                   <TableCell>{debt.supplier}</TableCell>
                   <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
-                  <TableCell>{debt.amount.toLocaleString()}</TableCell>
+                  <TableCell>{debt.amount.toLocaleString('vi-VN')}</TableCell>
                   <TableCell>
                     <Button
                       onClick={() => toggleStatus(debt.id)}

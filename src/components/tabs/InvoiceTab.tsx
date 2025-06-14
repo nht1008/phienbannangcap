@@ -41,7 +41,7 @@ export function InvoiceTab({ invoices }: InvoiceTabProps) {
                     <TableCell>{invoice.id}</TableCell>
                     <TableCell>{invoice.customerName}</TableCell>
                     <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                    <TableCell>{invoice.total.toLocaleString()}</TableCell>
+                    <TableCell>{invoice.total.toLocaleString('vi-VN')}</TableCell>
                     <TableCell>
                       <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoice(invoice)}>Xem</Button>
                     </TableCell>
@@ -69,7 +69,7 @@ export function InvoiceTab({ invoices }: InvoiceTabProps) {
                   {selectedInvoice.items.map((item: CartItem) => (
                     <li key={item.id} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
-                      <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString()} VNĐ</span>
+                      <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
                     </li>
                   ))}
                 </ul>
@@ -77,7 +77,7 @@ export function InvoiceTab({ invoices }: InvoiceTabProps) {
               <Separator className="my-4" />
               <div className="flex justify-between font-bold text-xl text-foreground">
                 <span>Tổng cộng:</span>
-                <span>{selectedInvoice.total.toLocaleString()} VNĐ</span>
+                <span>{selectedInvoice.total.toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <DialogFooter>
                 <Button onClick={() => setSelectedInvoice(null)} variant="outline" className="w-full">Đóng</Button>

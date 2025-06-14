@@ -51,7 +51,7 @@ export function RevenueTab({ invoices }: RevenueTabProps) {
             <CardTitle className="text-blue-800">Tổng doanh thu</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-900">{totalRevenue.toLocaleString()} VNĐ</p>
+            <p className="text-3xl font-bold text-blue-900">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
         <Card className="bg-green-500/10 border-green-500">
@@ -80,7 +80,7 @@ export function RevenueTab({ invoices }: RevenueTabProps) {
               <YAxis tickFormatter={(value) => new Intl.NumberFormat('vi-VN').format(value)} tickLine={false} tickMargin={10} axisLine={false} />
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent formatter={(value) => `${Number(value).toLocaleString()} VNĐ`} />}
+                content={<ChartTooltipContent formatter={(value) => `${Number(value).toLocaleString('vi-VN')} VNĐ`} />}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar dataKey="doanhthu" fill="var(--color-doanhthu)" radius={4} />

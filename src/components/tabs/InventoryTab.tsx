@@ -94,7 +94,7 @@ export function InventoryTab({ inventory, setInventory }: InventoryTabProps) {
                   <TableCell>{item.size}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.price.toLocaleString()}</TableCell>
+                  <TableCell>{item.price.toLocaleString('vi-VN')}</TableCell>
                 </TableRow>
               ))}
               {inventory.length === 0 && (

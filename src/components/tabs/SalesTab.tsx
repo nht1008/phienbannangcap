@@ -131,7 +131,7 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
                   />
                   <h4 className="font-semibold text-foreground">{item.name}</h4>
                   <p className="text-xs text-muted-foreground">{item.color} - {item.size}</p>
-                  <p className="text-sm text-muted-foreground">{item.price.toLocaleString()} VNĐ / {item.unit}</p>
+                  <p className="text-sm text-muted-foreground">{item.price.toLocaleString('vi-VN')} VNĐ / {item.unit}</p>
                   <p className="text-xs text-muted-foreground">Còn lại: {item.quantity}</p>
                 </CardContent>
                 <CardFooter className="p-2">
@@ -170,7 +170,7 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
                 <div key={item.id} className="flex justify-between items-center">
                   <div>
                     <p className="font-semibold text-foreground">{item.name} <span className="text-xs text-muted-foreground">({item.color})</span></p>
-                    <p className="text-sm text-muted-foreground">{item.price.toLocaleString()} VNĐ</p>
+                    <p className="text-sm text-muted-foreground">{item.price.toLocaleString('vi-VN')} VNĐ</p>
                   </div>
                   <Input
                     type="number"
@@ -188,7 +188,7 @@ export function SalesTab({ inventory, setInventory, invoices, setInvoices }: Sal
              <hr className="w-full border-border my-2"/>
             <div className="flex justify-between font-bold text-lg w-full text-foreground">
               <span>Tổng cộng:</span>
-              <span>{total.toLocaleString()} VNĐ</span>
+              <span>{total.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Button
               onClick={handleCheckout}

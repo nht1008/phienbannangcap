@@ -26,17 +26,17 @@ body {
     --muted: 210 20% 92%; /* Light gray */
     --muted-foreground: 210 15% 45%; /* Medium-dark gray */
 
-    --accent: 190 70% 45%; /* Teal/Cyan accent - slightly desaturated from original plan */
+    --accent: 190 70% 45%; /* Teal/Cyan accent */
     --accent-foreground: 0 0% 100%; /* White text on accent */
 
-    --destructive: 0 70% 50%; /* Standard Red - slightly more saturated */
+    --destructive: 0 70% 50%; /* Standard Red */
     --destructive-foreground: 0 0% 100%; /* White text on destructive */
     
     --success: 140 60% 40%; /* A clear, slightly darker green */
-    --success-foreground: 0 0% 100%; /* White text on success */
+    --success-foreground: 140 80% 90%; /* Light Green text on success */
 
     --border: 210 20% 80%; /* Gray border */
-    --input: 210 30% 96%; /* Very light gray input background - match --background slightly */
+    --input: 210 30% 96%; /* Very light gray input background */
     --ring: 210 70% 50%; /* Ring color same as new primary */
 
     --chart-1: 210 70% 50%; /* Primary Blue */
@@ -83,8 +83,8 @@ body {
     --destructive: 0 65% 55%; 
     --destructive-foreground: 0 0% 98%;
     
-    --success: 140 60% 50%;
-    --success-foreground: 0 0% 100%;
+    --success: 140 60% 30%; /* Darker Green background for success in dark mode */
+    --success-foreground: 140 60% 75%; /* Lighter Green text for success in dark mode */
 
     --border: 210 15% 30%; 
     --input: 210 15% 22%; 

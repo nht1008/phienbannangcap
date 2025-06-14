@@ -62,7 +62,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, Flower2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -1007,9 +1007,7 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-             <h1 className="text-xl font-bold text-primary text-center w-full group-data-[state=expanded]:text-left group-data-[state=collapsed]:text-[0px] group-data-[state=collapsed]:opacity-0 transition-all duration-300 ease-in-out">
-                Cửa Hàng Hoa Công Nguyệt
-             </h1>
+             <Flower2 className="h-12 w-12 text-primary" />
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -1164,5 +1162,6 @@ export default function FleurManagerPage() {
     
 
     
+
 
 

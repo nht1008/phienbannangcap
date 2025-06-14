@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import type { Product } from '@/types';
+import type { Product, ProductOptionType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Image from 'next/image';
 import { PlusCircle, Trash2, Settings } from 'lucide-react';
 
-type ProductOptionType = 'colors' | 'sizes' | 'units';
-
 const EMPTY_COLOR_VALUE = "__EMPTY_COLOR__";
 const EMPTY_SIZE_VALUE = "__EMPTY_SIZE__";
 
 interface InventoryTabProps {
   inventory: Product[];
   onAddProduct: (newProductData: Omit<Product, 'id'>) => Promise<void>;
+  productNameOptions: string[];
   colorOptions: string[];
   sizeOptions: string[];
   unitOptions: string[];
@@ -30,6 +29,7 @@ interface InventoryTabProps {
 export function InventoryTab({ 
   inventory, 
   onAddProduct,
+  productNameOptions,
   colorOptions,
   sizeOptions,
   unitOptions,
@@ -50,7 +50,7 @@ export function InventoryTab({
     setNewItem(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: 'color' | 'size' | 'unit', value: string) => {
+  const handleSelectChange = (name: 'name' | 'color' | 'size' | 'unit', value: string) => {
     let actualValue = value;
     if (name === 'color' && value === EMPTY_COLOR_VALUE) {
       actualValue = '';
@@ -63,7 +63,7 @@ export function InventoryTab({
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.name || !newItem.unit || parseInt(newItem.quantity) < 0 || parseInt(newItem.price) < 0) {
-      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Đơn vị là bắt buộc, Số lượng và Giá phải >= 0).");
+      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên sản phẩm, Đơn vị là bắt buộc, Số lượng và Giá phải >= 0).");
       return;
     }
     const newProductData: Omit<Product, 'id'> = {
@@ -95,6 +95,7 @@ export function InventoryTab({
   };
 
   const getOptionsForType = (type: ProductOptionType | null): string[] => {
+    if (type === 'productNames') return productNameOptions;
     if (type === 'colors') return colorOptions;
     if (type === 'sizes') return sizeOptions;
     if (type === 'units') return unitOptions;
@@ -102,6 +103,7 @@ export function InventoryTab({
   };
   
   const getOptionDialogTitle = (type: ProductOptionType | null): string => {
+    if (type === 'productNames') return 'Quản lý Tên sản phẩm';
     if (type === 'colors') return 'Quản lý Màu sắc';
     if (type === 'sizes') return 'Quản lý Kích thước';
     if (type === 'units') return 'Quản lý Đơn vị';
@@ -114,6 +116,9 @@ export function InventoryTab({
         <div className="flex justify-between items-center">
           <CardTitle>Danh sách sản phẩm</CardTitle>
           <div className="flex gap-2 items-center">
+            <Button onClick={() => openOptionsDialog('productNames')} variant="outline">
+              <Settings className="mr-2 h-4 w-4" /> Tên SP
+            </Button>
             <Button onClick={() => openOptionsDialog('colors')} variant="outline">
               <Settings className="mr-2 h-4 w-4" /> Màu sắc
             </Button>
@@ -133,8 +138,21 @@ export function InventoryTab({
         {isAddingProduct && (
           <form onSubmit={handleAddItem} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
             <div>
-                <label className="text-sm text-foreground">Tên sản phẩm</label>
-                <Input type="text" name="name" placeholder="Hoa hồng" value={newItem.name} onChange={handleInputChange} required />
+                <label className="text-sm text-foreground">Tên sản phẩm (*)</label>
+                <Select value={newItem.name} onValueChange={(value) => handleSelectChange('name', value)} required>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn tên sản phẩm" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {productNameOptions.length === 0 ? (
+                             <SelectItem value="no-product-name" disabled>Vui lòng thêm tên SP</SelectItem>
+                        ) : (
+                            productNameOptions.map(option => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))
+                        )}
+                    </SelectContent>
+                </Select>
             </div>
             <div>
                 <label className="text-sm text-foreground">Màu sắc</label>
@@ -249,7 +267,7 @@ export function InventoryTab({
             <DialogHeader>
               <DialogTitle>{getOptionDialogTitle(currentOptionType)}</DialogTitle>
               <DialogDescription>
-                Thêm mới hoặc xóa các tùy chọn {currentOptionType === 'colors' ? 'màu sắc' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'}.
+                Thêm mới hoặc xóa các tùy chọn {currentOptionType === 'productNames' ? 'tên sản phẩm' : currentOptionType === 'colors' ? 'màu sắc' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'}.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleAddNewOption} className="flex items-center gap-2 mt-4">
@@ -257,7 +275,7 @@ export function InventoryTab({
                 type="text"
                 value={newOptionName}
                 onChange={(e) => setNewOptionName(e.target.value)}
-                placeholder={`Tên ${currentOptionType === 'colors' ? 'màu' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'} mới`}
+                placeholder={`Tên ${currentOptionType === 'productNames' ? 'sản phẩm' : currentOptionType === 'colors' ? 'màu' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'} mới`}
                 className="flex-grow"
               />
               <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Thêm</Button>
@@ -297,6 +315,4 @@ export function InventoryTab({
     </Card>
   );
 }
-    
-
     

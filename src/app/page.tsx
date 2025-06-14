@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect } from 'react';
-import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport } from '@/types';
+import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport, ProductOptionType } from '@/types';
 import { useRouter } from 'next/navigation'; 
 import { useAuth } from '@/contexts/AuthContext'; 
 
@@ -44,7 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên';
-type ProductOptionType = 'colors' | 'sizes' | 'units';
+
 
 interface NavItem {
   name: TabName;
@@ -62,6 +62,7 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const { toast } = useToast();
 
+  const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
@@ -151,13 +152,21 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Tải và lắng nghe dữ liệu Product Options (Colors, Sizes, Units)
+  // Tải và lắng nghe dữ liệu Product Options (ProductNames, Colors, Sizes, Units)
   useEffect(() => {
     if (!currentUser) return;
+    const productNamesRef = ref(db, 'productOptions/productNames');
     const colorsRef = ref(db, 'productOptions/colors');
     const sizesRef = ref(db, 'productOptions/sizes');
     const unitsRef = ref(db, 'productOptions/units');
 
+    const unsubProductNames = onValue(productNamesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setProductNameOptions(Object.keys(snapshot.val()));
+      } else {
+        setProductNameOptions([]);
+      }
+    });
     const unsubColors = onValue(colorsRef, (snapshot) => {
       if (snapshot.exists()) {
         setColorOptions(Object.keys(snapshot.val()));
@@ -181,6 +190,7 @@ export default function FleurManagerPage() {
     });
 
     return () => {
+      unsubProductNames();
       unsubColors();
       unsubSizes();
       unsubUnits();
@@ -332,7 +342,8 @@ export default function FleurManagerPage() {
     'Bán hàng': <SalesTab inventory={inventory} onCreateInvoice={handleCreateInvoice} />,
     'Kho hàng': <InventoryTab 
                     inventory={inventory} 
-                    onAddProduct={handleAddProduct} 
+                    onAddProduct={handleAddProduct}
+                    productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
                     sizeOptions={sizeOptions}
                     unitOptions={unitOptions}
@@ -344,7 +355,7 @@ export default function FleurManagerPage() {
     'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
-  }), [inventory, employeesData, invoicesData, debtsData, currentUser, colorOptions, sizeOptions, unitOptions]);
+  }), [inventory, employeesData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions]);
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
@@ -443,4 +454,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

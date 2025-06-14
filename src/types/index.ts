@@ -1,5 +1,6 @@
+
 export interface Product {
-  id: string; // Changed from number to string for Firebase keys
+  id: string; 
   name: string;
   quantity: number;
   price: number;
@@ -14,19 +15,19 @@ export interface CartItem extends Product {
 }
 
 export interface Employee {
-  id: string; // Changed from number to string
+  id: string; 
   name: string;
   position: string;
   phone: string;
 }
 
 export interface Supplier {
-  id: number; // Remains number as it's local for now
+  id: number; 
   name: string;
 }
 
 export interface Invoice {
-  id: string; // Changed from number to string
+  id: string; 
   customerName: string;
   items: CartItem[];
   total: number;
@@ -34,7 +35,7 @@ export interface Invoice {
 }
 
 export interface Debt {
-  id: string; // Changed from number to string
+  id: string; 
   supplier: string | undefined; 
   amount: number;
   date: string; // ISO date string
@@ -42,7 +43,10 @@ export interface Debt {
 }
 
 export interface ItemToImport {
-  productId: string; // Changed from string | number to string
+  productId: string; 
   quantity: number;
   cost: number;
 }
+
+export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
+

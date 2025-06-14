@@ -45,10 +45,10 @@ interface InventoryTabProps {
   onDeleteOption: (type: ProductOptionType, name: string) => Promise<void>;
 }
 
-type FormProduct = Omit<Product, 'id' | 'quantity' | 'price'> & { quantity: string; price: string };
+type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice'> & { quantity: string; price: string; costPrice: string };
 
 const initialFormProductState: FormProduct = {
-    name: '', quantity: '0', price: '0', image: '', color: '', size: '', unit: ''
+    name: '', quantity: '0', price: '0', costPrice: '0', image: '', color: '', size: '', unit: ''
 };
 
 export function InventoryTab({ 
@@ -81,21 +81,26 @@ export function InventoryTab({
     const defaultProductName = productNameOptions.length > 0 ? productNameOptions[0] : '';
     const defaultUnit = unitOptions.length > 0 ? unitOptions[0] : '';
     
-    if (!newItem.name && defaultProductName) {
-      setNewItem(prev => ({ ...prev, name: defaultProductName }));
+    const updateFormStateDefaults = (currentFormState: FormProduct) => {
+        let updatedState = { ...currentFormState };
+        if (!currentFormState.name && defaultProductName) {
+            updatedState.name = defaultProductName;
+        }
+        if (!currentFormState.unit && defaultUnit) {
+            updatedState.unit = defaultUnit;
+        }
+        return updatedState;
+    };
+
+    if (isAddingProduct) {
+        setNewItem(updateFormStateDefaults);
     }
-    if (!newItem.unit && defaultUnit) {
-      setNewItem(prev => ({ ...prev, unit: defaultUnit }));
-    }
-    
-    if (productToEdit && !editedItem.name && defaultProductName) {
-        setEditedItem(prev => ({...prev, name: defaultProductName }));
-    }
-    if (productToEdit && !editedItem.unit && defaultUnit) {
-        setEditedItem(prev => ({...prev, unit: defaultUnit }));
+    if (isEditingProduct && productToEdit) {
+        // When opening edit, original values are set. This ensures defaults if those were empty.
+        // However, productToEdit should already have name/unit. This is more for newItem.
     }
 
-  }, [productNameOptions, unitOptions, newItem.name, newItem.unit, productToEdit, editedItem.name, editedItem.unit]);
+  }, [productNameOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
@@ -113,14 +118,15 @@ export function InventoryTab({
   
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.unit || parseInt(newItem.quantity) < 0 || parseInt(newItem.price) < 0) {
-      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Đơn vị, Số lượng >= 0, Giá >= 0).");
+    if (!newItem.name || !newItem.unit || parseInt(newItem.quantity) < 0 || parseInt(newItem.costPrice) < 0 || parseInt(newItem.price) < 0) {
+      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
       return;
     }
     const newProductData: Omit<Product, 'id'> = {
       name: newItem.name,
       quantity: parseInt(newItem.quantity),
       price: parseInt(newItem.price),
+      costPrice: parseInt(newItem.costPrice) || 0,
       image: newItem.image || `https://placehold.co/100x100.png`,
       color: newItem.color,
       size: newItem.size,
@@ -141,17 +147,19 @@ export function InventoryTab({
       name: product.name,
       quantity: product.quantity.toString(),
       price: product.price.toString(),
+      costPrice: product.costPrice?.toString() || '0',
       image: product.image,
       color: product.color,
       size: product.size,
       unit: product.unit
     });
     setIsEditingProduct(true);
+    setIsAddingProduct(false); 
   };
 
   const handleUpdateExistingProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productToEdit || !editedItem.name || !editedItem.unit || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.price) < 0) {
+    if (!productToEdit || !editedItem.name || !editedItem.unit || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.costPrice) < 0 || parseInt(editedItem.price) < 0) {
       alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm.");
       return;
     }
@@ -159,6 +167,7 @@ export function InventoryTab({
       name: editedItem.name,
       quantity: parseInt(editedItem.quantity),
       price: parseInt(editedItem.price),
+      costPrice: parseInt(editedItem.costPrice) || 0,
       image: editedItem.image || `https://placehold.co/100x100.png`,
       color: editedItem.color,
       size: editedItem.size,
@@ -282,10 +291,14 @@ export function InventoryTab({
             <Input type="number" name="quantity" placeholder="50" value={formState.quantity} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div>
+            <label className="text-sm text-foreground">Giá gốc (VNĐ) (*)</label>
+            <Input type="number" name="costPrice" placeholder="5000" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+        </div>
+        <div>
             <label className="text-sm text-foreground">Giá bán (VNĐ) (*)</label>
             <Input type="number" name="price" placeholder="10000" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-2 md:col-span-3">
             <label className="text-sm text-foreground">URL Hình ảnh</label>
             <Input type="text" name="image" placeholder="https://placehold.co/100x100.png" value={formState.image} onChange={(e) => handleInputChange(e, formSetter)} className="bg-card"/>
         </div>
@@ -313,14 +326,27 @@ export function InventoryTab({
             <Button onClick={() => openOptionsDialog('units')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Đơn vị
             </Button>
-            <Button onClick={() => { setIsAddingProduct(!isAddingProduct); setIsEditingProduct(false); setNewItem({...initialFormProductState, name: productNameOptions[0] || '', unit: unitOptions[0] || '' }); }} variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90" size="sm">
+            <Button onClick={() => { 
+                const isCurrentlyAdding = !isAddingProduct;
+                setIsAddingProduct(isCurrentlyAdding); 
+                setIsEditingProduct(false); 
+                if (isCurrentlyAdding) {
+                    setNewItem({
+                        ...initialFormProductState, 
+                        name: productNameOptions.length > 0 ? productNameOptions[0] : '', 
+                        unit: unitOptions.length > 0 ? unitOptions[0] : ''
+                    });
+                }
+             }} variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90" size="sm">
               <PlusCircle className="mr-2 h-4 w-4" /> {isAddingProduct ? 'Hủy thêm mới' : 'Thêm sản phẩm'}
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        {isAddingProduct && !isEditingProduct && renderProductForm(newItem, setNewItem, handleAddItem, false)}
+        {isAddingProduct && renderProductForm(newItem, setNewItem, handleAddItem, false)}
+        {isEditingProduct && productToEdit && renderProductForm(editedItem, setEditedItem, handleUpdateExistingProduct, true)}
+
 
         <CardTitle className="mt-6 mb-4 text-center sm:text-left">Danh sách sản phẩm</CardTitle>
         <div className="overflow-x-auto">
@@ -332,6 +358,7 @@ export function InventoryTab({
                 <TableHead>Kích thước</TableHead>
                 <TableHead>Đơn vị</TableHead>
                 <TableHead className="text-right">Số lượng</TableHead>
+                <TableHead className="text-right">Giá gốc (VNĐ)</TableHead>
                 <TableHead className="text-right">Giá bán (VNĐ)</TableHead>
                 <TableHead className="text-center">Hành động</TableHead>
               </TableRow>
@@ -355,9 +382,10 @@ export function InventoryTab({
                   <TableCell>{item.size || 'N/A'}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell className="text-right">{(item.costPrice ?? 0).toLocaleString('vi-VN')}</TableCell>
                   <TableCell className="text-right">{item.price.toLocaleString('vi-VN')}</TableCell>
                   <TableCell className="text-center space-x-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => { openEditDialog(item); setIsAddingProduct(false); }}>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
                         <Pencil className="h-4 w-4" />
                     </Button>
                     <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(item)}>
@@ -368,7 +396,7 @@ export function InventoryTab({
               ))}
               {inventory.length === 0 && !isAddingProduct && !isEditingProduct && (
                 <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">Chưa có sản phẩm nào. Hãy thêm sản phẩm mới.</TableCell>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-10">Chưa có sản phẩm nào. Hãy thêm sản phẩm mới.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -376,18 +404,24 @@ export function InventoryTab({
         </div>
       </CardContent>
 
-      <Dialog open={isEditingProduct} onOpenChange={(open) => { if(!open) { setIsEditingProduct(false); setProductToEdit(null); }}}>
-        <DialogContent className="sm:max-w-4xl">
-            <DialogHeader>
-                <DialogTitle>Chỉnh sửa sản phẩm</DialogTitle>
-                <DialogDescription>Cập nhật thông tin cho sản phẩm: {productToEdit?.name}</DialogDescription>
-            </DialogHeader>
-            {productToEdit && renderProductForm(editedItem, setEditedItem, handleUpdateExistingProduct, true)}
-             <DialogFooter>
-                <Button variant="outline" onClick={() => { setIsEditingProduct(false); setProductToEdit(null); }}>Hủy</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isEditingProduct && productToEdit && (
+        <Dialog open={isEditingProduct} onOpenChange={(open) => { if(!open) { setIsEditingProduct(false); setProductToEdit(null); }}}>
+            <DialogContent className="sm:max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Chỉnh sửa sản phẩm</DialogTitle>
+                    <DialogDescription>Cập nhật thông tin cho sản phẩm: {productToEdit?.name}</DialogDescription>
+                </DialogHeader>
+                {/* Form is rendered directly in CardContent now when isEditingProduct is true */}
+                 <DialogFooter>
+                    <Button variant="outline" onClick={() => { setIsEditingProduct(false); setProductToEdit(null); }}>Hủy</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      )}
+      
+      {/* This separate rendering of edit form inside Dialog might be redundant if already in CardContent */}
+      {/* Consider removing this if the main renderProductForm in CardContent is sufficient for editing */}
+
 
       {productToDelete && (
         <AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>

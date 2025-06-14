@@ -3,7 +3,8 @@ export interface Product {
   id: string; 
   name: string;
   quantity: number;
-  price: number;
+  price: number; // Selling price
+  costPrice?: number; // Cost price / Original price
   image: string;
   color: string;
   size: string;
@@ -49,4 +50,3 @@ export interface ItemToImport {
 }
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
-

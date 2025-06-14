@@ -81,22 +81,22 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         const daysInSelectedMonth = getDaysInMonth(monthNum, yearNum);
 
         for (let day = 1; day <= daysInSelectedMonth; day++) {
-            const dayKey = day.toString().padStart(2, '0'); 
-            aggregatedData[dayKey] = { doanhthu: 0, giagoc: 0 };
+            const dayStr = day.toString().padStart(2, '0'); // Use only day for name "01", "02", etc.
+            aggregatedData[dayStr] = { doanhthu: 0, giagoc: 0 };
         }
 
         invoices.forEach(invoice => { 
             const dateObj = new Date(invoice.date);
             if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
-                const dayKey = dateObj.getDate().toString().padStart(2, '0');
+                const dayStr = dateObj.getDate().toString().padStart(2, '0');
                 
-                if (aggregatedData[dayKey] && (!invoice.debtAmount || invoice.debtAmount === 0)) { 
-                     aggregatedData[dayKey].doanhthu += invoice.total;
-                     aggregatedData[dayKey].giagoc += calculateInvoiceCost(invoice);
+                if (aggregatedData[dayStr] && (!invoice.debtAmount || invoice.debtAmount === 0)) { 
+                     aggregatedData[dayStr].doanhthu += invoice.total;
+                     aggregatedData[dayStr].giagoc += calculateInvoiceCost(invoice);
                 }
             }
         });
-
+        
         finalChartData = Object.entries(aggregatedData)
             .map(([name, data]) => ({ 
                 name, // name is just "DD"
@@ -104,11 +104,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             }))
-            .sort((a, b) => { 
-                const dayA = parseInt(a.name);
-                const dayB = parseInt(b.name);
-                return dayA - dayB;
-            });
+            .sort((a, b) => parseInt(a.name) - parseInt(b.name)); // Sort by day number
 
     } else if (filterMonth !== 'all' /* && filterYear === 'all' - This case is no longer distinct */) { 
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
@@ -357,16 +353,22 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 </TableHeader>
                 <TableBody>
                   {invoices.map(invoice => {
-                    const invoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
-                    const invoiceProfit = invoice.total - invoiceCost;
+                    const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
+                    const displayTotal = hasDebt ? 0 : invoice.total;
+                    
+                    const actualInvoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
+                    const displayInvoiceCost = hasDebt ? 0 : actualInvoiceCost;
+                    
+                    const displayInvoiceProfit = displayTotal - displayInvoiceCost;
+
                     return (
-                      <TableRow key={invoice.id} className={ (invoice.debtAmount && invoice.debtAmount > 0) ? 'bg-red-500/5 hover:bg-red-500/10' : ''}>
+                      <TableRow key={invoice.id} className={ hasDebt ? 'bg-red-500/5 hover:bg-red-500/10' : ''}>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right">{invoiceCost.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right">{invoiceProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{displayTotal.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{displayInvoiceCost.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{displayInvoiceProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right text-red-600">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
                           <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>

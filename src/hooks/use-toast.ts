@@ -143,8 +143,8 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-// Set default duration to 1000ms (1 second)
-function toast({ duration = 1000, ...props }: Toast) {
+// Set default duration to 2000ms (2 seconds)
+function toast({ duration = 2000, ...props }: Toast) {
   const id = genId()
 
   const update = (props: ToasterToast) =>

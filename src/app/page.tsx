@@ -3,7 +3,8 @@
 
 import React, { useState, useMemo, ReactNode, useEffect } from 'react';
 import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport } from '@/types';
-// import { initialInventory, initialEmployees } from '@/lib/initial-data'; // Không dùng initial data nữa
+import { useRouter } from 'next/navigation'; 
+import { useAuth } from '@/contexts/AuthContext'; 
 
 import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
@@ -36,9 +37,9 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react'; 
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, push, update, get, child, serverTimestamp } from "firebase/database";
+import { ref, onValue, set, push, update, get, child } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -50,6 +51,9 @@ interface NavItem {
 }
 
 export default function FleurManagerPage() {
+  const { currentUser, loading: authLoading, signOut } = useAuth(); 
+  const router = useRouter(); 
+
   const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
@@ -57,8 +61,17 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const { toast } = useToast();
 
-  // Fetch and listen to Inventory
+  // Kiểm tra trạng thái đăng nhập
   useEffect(() => {
+    if (!authLoading && !currentUser) {
+      router.push('/login');
+    }
+  }, [currentUser, authLoading, router]);
+
+
+  // Tải và lắng nghe dữ liệu Kho hàng
+  useEffect(() => {
+    if (!currentUser) return; // Không tải nếu chưa đăng nhập
     const inventoryRef = ref(db, 'inventory');
     const unsubscribe = onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
@@ -67,16 +80,17 @@ export default function FleurManagerPage() {
           id: key,
           ...data[key]
         }));
-        setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); // Sort by name for consistency
+        setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); 
       } else {
         setInventory([]);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]); // Thêm currentUser làm dependency
 
-  // Fetch and listen to Employees
+  // Tải và lắng nghe dữ liệu Nhân viên
   useEffect(() => {
+    if (!currentUser) return;
     const employeesRef = ref(db, 'employees');
     const unsubscribe = onValue(employeesRef, (snapshot) => {
       const data = snapshot.val();
@@ -91,10 +105,11 @@ export default function FleurManagerPage() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
-  // Fetch and listen to Invoices
+  // Tải và lắng nghe dữ liệu Hóa đơn
   useEffect(() => {
+    if (!currentUser) return;
     const invoicesRef = ref(db, 'invoices');
     const unsubscribe = onValue(invoicesRef, (snapshot) => {
       const data = snapshot.val();
@@ -109,10 +124,11 @@ export default function FleurManagerPage() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
-  // Fetch and listen to Debts
+  // Tải và lắng nghe dữ liệu Công nợ
   useEffect(() => {
+    if (!currentUser) return;
     const debtsRef = ref(db, 'debts');
     const unsubscribe = onValue(debtsRef, (snapshot) => {
       const data = snapshot.val();
@@ -127,7 +143,7 @@ export default function FleurManagerPage() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
 
   const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
@@ -163,10 +179,8 @@ export default function FleurManagerPage() {
       };
       await set(newInvoiceRef, newInvoice);
 
-      // Update inventory quantities
       const updates: { [key: string]: any } = {};
       for (const cartItem of cart) {
-        const productRef = ref(db, `inventory/${cartItem.id}`);
         const productSnapshot = await get(child(ref(db), `inventory/${cartItem.id}`));
         if (productSnapshot.exists()) {
           const currentQuantity = productSnapshot.val().quantity;
@@ -177,17 +191,16 @@ export default function FleurManagerPage() {
       }
       await update(ref(db), updates);
       toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
-      return true; // Indicate success
+      return true; 
     } catch (error) {
       console.error("Error creating invoice:", error);
       toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
-      return false; // Indicate failure
+      return false; 
     }
   };
 
   const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalCost: number) => {
     try {
-      // Create new debt
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
         supplier: supplierName,
@@ -197,20 +210,14 @@ export default function FleurManagerPage() {
       };
       await set(newDebtRef, newDebt);
   
-      // Update inventory quantities
       const updates: { [key: string]: any } = {};
       for (const importItem of itemsToImport) {
-        const productRef = ref(db, `inventory/${importItem.productId}`);
         const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
         if (productSnapshot.exists()) {
           const currentQuantity = productSnapshot.val().quantity;
           updates[`inventory/${importItem.productId}/quantity`] = currentQuantity + importItem.quantity;
         } else {
-           // This case implies adding a new product if not found, or an error.
-           // For now, let's assume product must exist.
-           // If you want to add new products here, the logic needs to be expanded.
           console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng cho sản phẩm này.`);
-          // Optionally, show a specific warning for this product.
         }
       }
       if (Object.keys(updates).length > 0) {
@@ -218,11 +225,11 @@ export default function FleurManagerPage() {
       }
       
       toast({ title: "Thành công", description: "Nhập hàng thành công, công nợ và kho đã cập nhật.", variant: "default" });
-      return true; // Indicate success
+      return true; 
     } catch (error) {
       console.error("Error importing products:", error);
       toast({ title: "Lỗi", description: "Không thể nhập hàng. Vui lòng thử lại.", variant: "destructive" });
-      return false; // Indicate failure
+      return false; 
     }
   };
 
@@ -255,14 +262,14 @@ export default function FleurManagerPage() {
     'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
-  }), [inventory, employeesData, invoicesData, debtsData]);
+  }), [inventory, employeesData, invoicesData, debtsData, currentUser]); // Thêm currentUser
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
     return (
       <SidebarMenuButton
         onClick={toggleSidebar}
-        className="w-full mt-auto"
+        className="w-full" 
       >
         {open ? <ChevronsLeft className="h-5 w-5" /> : <ChevronsRight className="h-5 w-5" />}
         <span>
@@ -271,6 +278,26 @@ export default function FleurManagerPage() {
       </SidebarMenuButton>
     );
   };
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/login'); // Chuyển hướng về trang login sau khi đăng xuất
+      toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  // Hiển thị loading hoặc null trong khi kiểm tra auth hoặc nếu chưa đăng nhập (sẽ bị chuyển hướng)
+  if (authLoading || !currentUser) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+            <p>Đang tải ứng dụng...</p>
+        </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -304,7 +331,16 @@ export default function FleurManagerPage() {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar">
+          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2"> {/* Thêm space-y-2 */}
+            <SidebarMenuButton
+                onClick={handleSignOut}
+                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                tooltip={{children: "Đăng xuất", side: "right", align: "center"}}
+                variant="ghost" 
+            >
+                <LogOut className="h-5 w-5" />
+                <span>Đăng xuất</span>
+            </SidebarMenuButton>
             <SidebarToggleButton />
           </SidebarFooter>
         </Sidebar>

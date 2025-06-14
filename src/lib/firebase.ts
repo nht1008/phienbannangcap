@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth"; // Thêm dòng này
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -10,11 +11,10 @@ const firebaseConfig = {
   apiKey: "AIzaSyCMjrgJ7un02OQJ6BjPhFHBi_fUIENO9bA",
   authDomain: "phienbannangcap-b3760.firebaseapp.com",
   projectId: "phienbannangcap-b3760",
-  storageBucket: "phienbannangcap-b3760.firebasestorage.app", // Sửa lại đuôi cho đúng
+  storageBucket: "phienbannangcap-b3760.firebasestorage.app",
   messagingSenderId: "998324321483",
   appId: "1:998324321483:web:9d699de4caa35132722f4e",
   measurementId: "G-WTD2CGMVMS",
-  // Thêm databaseURL cho Realtime Database
   databaseURL: "https://phienbannangcap-b3760-default-rtdb.firebaseio.com"
 };
 
@@ -27,5 +27,6 @@ if (!getApps().length) {
 }
 
 const db = getDatabase(app);
+const auth = getAuth(app); // Khởi tạo auth
 
-export { app as firebaseApp, db };
+export { app as firebaseApp, db, auth }; // Export auth

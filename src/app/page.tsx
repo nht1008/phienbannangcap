@@ -991,15 +991,6 @@ export default function FleurManagerPage() {
                 </SidebarMenuButton>
             )}
             <SidebarMenuButton
-                onClick={() => { /* Placeholder for lock action */ }}
-                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                tooltip={{children: "Khóa", side: "right", align: "center"}}
-                variant="ghost"
-            >
-                <Lock className="h-5 w-5" />
-                <span>Khóa</span>
-            </SidebarMenuButton>
-            <SidebarMenuButton
                 onClick={() => { /* Placeholder for settings action */ }}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 tooltip={{children: "Cài đặt", side: "right", align: "center"}}
@@ -1106,3 +1097,4 @@ export default function FleurManagerPage() {
     
 
     
+

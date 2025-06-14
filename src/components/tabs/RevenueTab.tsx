@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 
 interface RevenueTabProps {
@@ -361,13 +362,18 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     let displayInvoiceProfitForTable: number;
 
                     if (hasDebt) {
-                        displayTotalForTable = invoice.amountPaid || 0;
-                        displayInvoiceCostForTable = actualInvoiceCost; 
-                        displayInvoiceProfitForTable = displayTotalForTable - displayInvoiceCostForTable;
-                    } else {
+                        displayTotalForTable = invoice.amountPaid || 0; // Show what was initially paid if there's debt
+                        // Cost and profit related to this initial payment might be tricky if partial payment doesn't cover cost
+                        // For simplicity in this table, if there's debt, we show cost/profit as 0 for this line,
+                        // as the main revenue cards/chart don't count it.
+                        // Or, calculate profit based on amountPaid:
+                        displayInvoiceCostForTable = actualInvoiceCost; // Full cost of goods
+                        displayInvoiceProfitForTable = (invoice.amountPaid || 0) - actualInvoiceCost;
+
+                    } else { // No debt or debt cleared
                         displayTotalForTable = invoice.total;
                         displayInvoiceCostForTable = actualInvoiceCost;
-                        displayInvoiceProfitForTable = displayTotalForTable - displayInvoiceCostForTable;
+                        displayInvoiceProfitForTable = invoice.total - actualInvoiceCost;
                     }
 
                     return (
@@ -423,7 +429,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <Separator className="my-3" />
             {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                 <>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-red-600">
                         <span>Giảm giá:</span>
                         <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                     </div>
@@ -449,14 +455,22 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
              {selectedInvoiceDetails.amountPaid !== undefined && (
                  <>
                     <Separator className="my-3" />
-                    <div className="flex justify-between text-sm">
+                     <div className={cn(
+                          "flex justify-between text-sm", 
+                          selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 ? 'text-green-600' : ''
+                        )}>
                         <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
-                        <span>{selectedInvoiceDetails.amountPaid.toLocaleString('vi-VN')} VNĐ</span>
+                        <span>
+                            {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) 
+                              ? selectedInvoiceDetails.total 
+                              : (selectedInvoiceDetails.amountPaid ?? 0)
+                            ).toLocaleString('vi-VN')} VNĐ
+                        </span>
                     </div>
-                    {(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total) > 0 && (
+                    {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total > 0 && (
                          <div className="flex justify-between text-sm text-green-600">
                             <span>Tiền thừa:</span>
-                            <span>{(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
+                            <span>{((( !selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                         </div>
                     )}
                     {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
@@ -476,4 +490,3 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
-

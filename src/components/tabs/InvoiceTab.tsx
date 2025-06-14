@@ -237,32 +237,37 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map(invoice => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>{invoice.customerName}</TableCell>
-                      <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                      <TableCell className={cn(invoice.paymentMethod === 'Tiền mặt' ? 'text-green-600' : '')}>
-                        {(invoice.amountPaid ?? 0).toLocaleString('vi-VN')} VNĐ
-                      </TableCell>
-                      <TableCell className="text-red-600">
-                        {(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ
-                      </TableCell>
-                      <TableCell className="text-red-600">
-                        {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
-                      </TableCell>
-                      <TableCell className="text-center space-x-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:text-yellow-700" onClick={() => openReturnItemsDialog(invoice)}>
-                          <Undo2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => openDeleteConfirmDialog(invoice)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {invoices.map(invoice => {
+                    const isFullyPaid = !invoice.debtAmount || invoice.debtAmount === 0;
+                    const displayedAmount = isFullyPaid ? invoice.total : (invoice.amountPaid ?? 0);
+                    const isCashPayment = invoice.paymentMethod === 'Tiền mặt';
+                    return (
+                      <TableRow key={invoice.id}>
+                        <TableCell>{invoice.customerName}</TableCell>
+                        <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
+                        <TableCell className={cn(isCashPayment && displayedAmount > 0 ? 'text-green-600' : '')}>
+                          {displayedAmount.toLocaleString('vi-VN')} VNĐ
+                        </TableCell>
+                        <TableCell className="text-red-600">
+                          {(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ
+                        </TableCell>
+                        <TableCell className="text-red-600">
+                          {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                        </TableCell>
+                        <TableCell className="text-center space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:text-yellow-700" onClick={() => openReturnItemsDialog(invoice)}>
+                            <Undo2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => openDeleteConfirmDialog(invoice)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -293,9 +298,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <Separator className="my-4" />
                 {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                     <>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm text-red-600">
                             <span>Giảm giá:</span>
-                            <span className="text-red-600">-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
+                            <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
                     </>
                 )}
@@ -306,14 +311,22 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                  {selectedInvoiceDetails.amountPaid !== undefined && (
                      <>
                         <Separator className="my-2" />
-                        <div className={cn("flex justify-between text-sm", selectedInvoiceDetails.paymentMethod === 'Tiền mặt' ? 'text-green-600' : '')}>
+                        <div className={cn(
+                          "flex justify-between text-sm", 
+                          selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 ? 'text-green-600' : ''
+                        )}>
                             <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
-                            <span>{selectedInvoiceDetails.amountPaid.toLocaleString('vi-VN')} VNĐ</span>
+                            <span>
+                              {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) 
+                                ? selectedInvoiceDetails.total 
+                                : (selectedInvoiceDetails.amountPaid ?? 0)
+                              ).toLocaleString('vi-VN')} VNĐ
+                            </span>
                         </div>
-                        {(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total) > 0 && (
+                        {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total > 0 && (
                              <div className="flex justify-between text-sm text-green-600">
                                 <span>Tiền thừa:</span>
-                                <span>{(selectedInvoiceDetails.amountPaid - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
+                                <span>{((( !selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                             </div>
                         )}
                         {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
@@ -401,6 +414,3 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
-
-
-    

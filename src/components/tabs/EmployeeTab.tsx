@@ -113,11 +113,24 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
     if (!selectedEmployee) return 0;
     return filteredEmployeeDebts.reduce((sum, debt) => {
       if (debt.status === 'Đã thanh toán' && debt.lastUpdatedEmployeeId === selectedEmployee.id) {
-        return sum + debt.amount;
+        // Ensure the debt.date (creation date) is within the filter range
+        // This logic assumes debt.date is what should be filtered. If it's a "paid_date", that'd be different.
+        const debtDate = new Date(debt.date);
+        const filterYear = parseInt(activityFilter.year);
+        const filterMonth = activityFilter.month === 'all' ? null : parseInt(activityFilter.month);
+        const filterDay = activityFilter.day === 'all' ? null : parseInt(activityFilter.day);
+
+        const yearMatch = activityFilter.year === 'all' || debtDate.getFullYear() === filterYear;
+        const monthMatch = !filterMonth || (debtDate.getMonth() + 1) === filterMonth;
+        const dayMatch = !filterDay || debtDate.getDate() === filterDay;
+
+        if (yearMatch && monthMatch && dayMatch) {
+          return sum + debt.amount;
+        }
       }
       return sum;
     }, 0);
-  }, [filteredEmployeeDebts, selectedEmployee]);
+  }, [filteredEmployeeDebts, selectedEmployee, activityFilter]);
 
   const totalDiscountsByEmployee = useMemo(() => {
     return filteredEmployeeInvoices.reduce((sum, inv) => sum + (inv.discount || 0), 0);
@@ -250,13 +263,6 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                 >
                   Hôm nay
                 </Button>
-                <Button
-                  onClick={() => setActivityFilter(initialAllDateFilter)}
-                  variant="outline"
-                  className="h-9"
-                >
-                  Xóa bộ lọc
-                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -264,6 +270,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                 <Card className="bg-primary/10 border-primary">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-primary">Tổng tiền bán hàng</CardTitle>
+                    <CardDescription className="text-xs">(HĐ do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xl font-bold text-primary">{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
@@ -272,7 +279,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                 <Card className="bg-green-500/10 border-green-500">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-green-700">Tổng thu nợ</CardTitle>
-                     <CardDescription className="text-xs">(Nợ được NV này xử lý Đã TT)</CardDescription>
+                     <CardDescription className="text-xs">(Nợ được NV này xử lý "Đã TT", theo bộ lọc ngày tạo nợ)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xl font-bold text-green-700">{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
@@ -281,6 +288,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                 <Card className="bg-red-500/10 border-red-500">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-red-700">Tổng giảm giá</CardTitle>
+                     <CardDescription className="text-xs">(Trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-xl font-bold text-red-700">{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
@@ -332,7 +340,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                     <TableHeader>
                       <TableRow>
                         <TableHead>Khách hàng</TableHead>
-                        <TableHead>Ngày</TableHead>
+                        <TableHead>Ngày tạo nợ</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
                         <TableHead>Vai trò</TableHead>

@@ -32,9 +32,11 @@ import {
   SidebarMenu, 
   SidebarMenuItem, 
   SidebarMenuButton, 
-  SidebarInset 
+  SidebarInset,
+  SidebarFooter,
+  useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft } from 'lucide-react'; // Icon cho nút trigger
+import { PanelLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên';
 
@@ -70,6 +72,20 @@ export default function FleurManagerPage() {
     'Nhân viên': <EmployeeTab employees={employeesData} setEmployees={setEmployeesData} />,
   }), [inventory, employeesData, invoicesData, debtsData]);
 
+  const SidebarToggleButton = () => {
+    const { open, toggleSidebar } = useSidebar();
+    return (
+      <SidebarMenuButton
+        onClick={toggleSidebar}
+        className="w-full mt-auto"
+      >
+        {open ? <ChevronsLeft className="h-5 w-5" /> : <ChevronsRight className="h-5 w-5" />}
+        <span>
+          {open ? 'Thu gọn' : 'Mở rộng'}
+        </span>
+      </SidebarMenuButton>
+    );
+  };
 
   return (
     <SidebarProvider>
@@ -90,10 +106,10 @@ export default function FleurManagerPage() {
                     isActive={activeTab === item.name}
                     tooltip={{ children: item.name, side: "right", align: "center" }}
                     className={cn(
-                      'rounded-lg', // Giữ lại bo tròn từ thiết kế cũ
+                      'rounded-lg', 
                       activeTab === item.name
-                        ? 'bg-primary text-primary-foreground shadow-lg' // Style cho tab active
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground' // Style cho tab inactive
+                        ? 'bg-primary text-primary-foreground shadow-lg' 
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
                   >
                     <span className="w-6 h-6">{item.icon}</span>
@@ -103,6 +119,9 @@ export default function FleurManagerPage() {
               ))}
             </SidebarMenu>
           </SidebarContent>
+          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar">
+            <SidebarToggleButton />
+          </SidebarFooter>
         </Sidebar>
 
         <SidebarInset>

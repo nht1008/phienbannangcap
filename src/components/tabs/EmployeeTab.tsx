@@ -267,7 +267,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card className="bg-green-500/10 border-green-500">
+                <Card className="bg-green-600/10 border-green-600">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-green-700">Tổng tiền bán hàng</CardTitle>
                     <CardDescription className="text-xs">(HĐ do NV này tạo, theo bộ lọc)</CardDescription>
@@ -276,7 +276,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                     <p className="text-xl font-bold text-green-700">{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-green-500/10 border-green-500">
+                <Card className="bg-green-600/10 border-green-600">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-green-700">Tổng thu nợ</CardTitle>
                      <CardDescription className="text-xs">(Nợ được NV này xử lý "Đã TT", theo bộ lọc ngày tạo nợ)</CardDescription>

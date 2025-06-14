@@ -223,32 +223,32 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead>Đã thanh toán</TableHead>
-                    <TableHead className="text-red-600">Giảm giá</TableHead>
-                    <TableHead className="text-red-600">Tiền nợ</TableHead>
+                    <TableHead className="text-red-700">Giảm giá</TableHead>
+                    <TableHead className="text-red-700">Tiền nợ</TableHead>
                     <TableHead>Chi tiết</TableHead>
                     <TableHead className="text-center">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invoices.map(invoice => {
-                    const isFullyPaid = !invoice.debtAmount || invoice.debtAmount === 0;
-                    const displayedAmount = isFullyPaid ? invoice.total : (invoice.amountPaid ?? 0);
+                    const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
+                    const displayedAmount = hasDebt ? (invoice.amountPaid ?? 0) : invoice.total;
                     const isCashPayment = invoice.paymentMethod === 'Tiền mặt';
                     return (
                       <TableRow key={invoice.id}>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell className={cn(isCashPayment && displayedAmount > 0 ? 'text-green-600' : '')}>
+                        <TableCell className={cn(isCashPayment && displayedAmount > 0 ? 'text-green-700' : '')}>
                           {displayedAmount.toLocaleString('vi-VN')} VNĐ
                         </TableCell>
-                        <TableCell className="text-red-600">
+                        <TableCell className="text-red-700">
                           {(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ
                         </TableCell>
-                        <TableCell className="text-red-600">
+                        <TableCell className="text-red-700">
                           {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
                         </TableCell>
                         <TableCell>
-                          <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                          <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:text-yellow-700" onClick={() => openReturnItemsDialog(invoice)}>
@@ -291,7 +291,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <Separator className="my-4" />
                 {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                     <>
-                        <div className="flex justify-between text-sm text-red-600">
+                        <div className="flex justify-between text-sm text-red-700">
                             <span>Giảm giá:</span>
                             <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
@@ -306,7 +306,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                         <Separator className="my-2" />
                         <div className={cn(
                           "flex justify-between text-sm", 
-                          selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 ? 'text-green-600' : ''
+                           selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && 
+                           ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 
+                           ? 'text-green-700' : ''
                         )}>
                             <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                             <span>
@@ -317,13 +319,13 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                             </span>
                         </div>
                         {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total > 0 && (
-                             <div className="flex justify-between text-sm text-green-600">
+                             <div className="flex justify-between text-sm text-green-700">
                                 <span>Tiền thừa:</span>
                                 <span>{((( !selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                             </div>
                         )}
                         {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
-                             <div className="flex justify-between text-sm text-red-600">
+                             <div className="flex justify-between text-sm text-red-700">
                                 <span>Số tiền nợ:</span>
                                 <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                             </div>
@@ -407,3 +409,4 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
+

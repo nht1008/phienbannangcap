@@ -290,7 +290,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <p className="text-2xl font-bold text-chart-3">{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
-        <Card className="bg-green-500/10 border-green-500">
+        <Card className="bg-green-600/10 border-green-600">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-green-700">Tổng số hóa đơn</CardTitle>
             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
@@ -362,31 +362,27 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     let displayInvoiceProfitForTable: number;
 
                     if (hasDebt) {
-                        displayTotalForTable = invoice.amountPaid || 0; // Show what was initially paid if there's debt
-                        // Cost and profit related to this initial payment might be tricky if partial payment doesn't cover cost
-                        // For simplicity in this table, if there's debt, we show cost/profit as 0 for this line,
-                        // as the main revenue cards/chart don't count it.
-                        // Or, calculate profit based on amountPaid:
-                        displayInvoiceCostForTable = actualInvoiceCost; // Full cost of goods
+                        displayTotalForTable = invoice.amountPaid || 0; 
+                        displayInvoiceCostForTable = actualInvoiceCost; 
                         displayInvoiceProfitForTable = (invoice.amountPaid || 0) - actualInvoiceCost;
 
-                    } else { // No debt or debt cleared
+                    } else { 
                         displayTotalForTable = invoice.total;
                         displayInvoiceCostForTable = actualInvoiceCost;
                         displayInvoiceProfitForTable = invoice.total - actualInvoiceCost;
                     }
 
                     return (
-                      <TableRow key={invoice.id} className={ hasDebt ? 'bg-red-500/5 hover:bg-red-500/10' : ''}>
+                      <TableRow key={invoice.id} className={ hasDebt ? 'bg-destructive/5 hover:bg-destructive/10' : ''}>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                         <TableCell className="text-right">{displayTotalForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{displayInvoiceCostForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{displayInvoiceProfitForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right text-red-600">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right text-red-700">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
-                          <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                          <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -429,7 +425,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <Separator className="my-3" />
             {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                 <>
-                    <div className="flex justify-between text-sm text-red-600">
+                    <div className="flex justify-between text-sm text-red-700">
                         <span>Giảm giá:</span>
                         <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                     </div>
@@ -445,7 +441,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     {selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0).toLocaleString('vi-VN')} VNĐ
                 </span>
             </div>
-            <div className="flex justify-between text-sm font-semibold text-green-600">
+            <div className="flex justify-between text-sm font-semibold text-green-700">
                 <span>Lợi nhuận hóa đơn:</span>
                 <span>
                     {(selectedInvoiceDetails.total - selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0)).toLocaleString('vi-VN')} VNĐ
@@ -457,7 +453,9 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     <Separator className="my-3" />
                      <div className={cn(
                           "flex justify-between text-sm", 
-                          selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 ? 'text-green-600' : ''
+                           selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && 
+                           ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 
+                           ? 'text-green-700' : ''
                         )}>
                         <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                         <span>
@@ -468,13 +466,13 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                         </span>
                     </div>
                     {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total > 0 && (
-                         <div className="flex justify-between text-sm text-green-600">
+                         <div className="flex justify-between text-sm text-green-700">
                             <span>Tiền thừa:</span>
                             <span>{((( !selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                         </div>
                     )}
                     {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
-                         <div className="flex justify-between text-sm text-red-600">
+                         <div className="flex justify-between text-sm text-red-700">
                             <span>Số tiền nợ của HĐ này:</span>
                             <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
@@ -490,3 +488,4 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
+

@@ -17,42 +17,42 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    --primary: 330 85% 70%; /* Rose */
+    --primary: 330 85% 65%; /* Rose - slightly darker */
     --primary-foreground: 0 0% 100%; /* White for text on primary */
 
-    --secondary: 270 97% 90%; /* Lighter Lavender as secondary */
-    --secondary-foreground: 270 50% 20%; /* Darker purple for text on secondary */
+    --secondary: 270 97% 92%; /* Lighter Lavender - slightly lighter */
+    --secondary-foreground: 270 60% 15%; /* Darker purple - darker */
 
-    --muted: 338 50% 88%; /* Muted Pink */
-    --muted-foreground: 338 30% 45%; 
+    --muted: 338 50% 90%; /* Muted Pink - slightly lighter */
+    --muted-foreground: 338 35% 35%; /* Darker and more saturated */
 
-    --accent: 270 97% 85%; /* Lavender */
-    --accent-foreground: 270 50% 15%; /* Dark purple for text on accent */
+    --accent: 270 97% 80%; /* Lavender - slightly darker */
+    --accent-foreground: 270 60% 10%; /* Dark purple - darker */
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 75% 55%; /* Darker Red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 330 50% 80%; /* Border color derived from primary/background */
-    --input: 330 40% 88%; /* Input background */
-    --ring: 330 85% 70%; /* Ring color same as primary */
+    --border: 330 50% 75%; /* Border color - slightly darker */
+    --input: 330 40% 92%; /* Input background - slightly lighter */
+    --ring: 330 85% 65%; /* Ring color same as new primary */
 
-    --chart-1: 330 85% 70%; /* Rose */
-    --chart-2: 270 97% 85%; /* Lavender */
-    --chart-3: 300 70% 60%; /* A complementary purple/magenta */
-    --chart-4: 340 80% 75%; /* Another pink shade */
-    --chart-5: 250 70% 70%; /* A bluish purple */
+    --chart-1: 330 85% 65%; /* Rose - matches new primary */
+    --chart-2: 270 97% 80%; /* Lavender - matches new accent */
+    --chart-3: 300 75% 55%; /* Darker Magenta/Purple */
+    --chart-4: 340 85% 70%; /* Slightly darker Pink shade */
+    --chart-5: 250 75% 65%; /* Slightly darker Bluish Purple */
     
     --radius: 0.5rem;
 
-    /* Sidebar specific colors - can be same as main if not distinguished */
+    /* Sidebar specific colors */
     --sidebar-background: 0 0% 100%; /* White sidebar */
     --sidebar-foreground: 240 10% 3.9%; /* Dark text in sidebar */
-    --sidebar-primary: 330 85% 70%; /* Rose for active items in sidebar */
+    --sidebar-primary: 330 85% 65%; /* Rose for active items - matches new primary */
     --sidebar-primary-foreground: 0 0% 100%; /* White text on active sidebar items */
-    --sidebar-accent: 338 71% 90%; /* Light pink for hover in sidebar (slightly darker than page bg) */
-    --sidebar-accent-foreground: 330 85% 60%; /* Darker Rose for text on hover */
-    --sidebar-border: 330 50% 88%;
-    --sidebar-ring: 330 85% 70%;
+    --sidebar-accent: 338 71% 92%; /* Light pink for hover - slightly lighter */
+    --sidebar-accent-foreground: 330 85% 50%; /* Darker Rose for text on hover - darker */
+    --sidebar-border: 330 50% 80%; /* Darker sidebar border */
+    --sidebar-ring: 330 85% 65%; /* Matches new primary */
   }
 
   .dark {
@@ -66,39 +66,39 @@ body {
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 330 80% 65%; 
+    --primary: 330 80% 60%; /* Adjusted for dark mode contrast */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 270 90% 80%;
+    --secondary: 270 90% 75%; /* Adjusted */
     --secondary-foreground: 0 0% 100%;
 
     --muted: 240 3.7% 15.9%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted-foreground: 0 0% 70%; /* Slightly lighter for dark mode muted text */
 
-    --accent: 270 90% 80%;
+    --accent: 270 90% 75%; /* Adjusted */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 50%; /* Adjusted */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
+    --border: 240 3.7% 20%; /* Adjusted */
     --input: 240 3.7% 15.9%;
-    --ring: 330 80% 65%;
+    --ring: 330 80% 60%; /* Adjusted */
     
-    --chart-1: 330 80% 65%;
-    --chart-2: 270 90% 80%;
-    --chart-3: 300 65% 55%;
-    --chart-4: 340 75% 70%;
-    --chart-5: 250 65% 65%;
+    --chart-1: 330 80% 60%;
+    --chart-2: 270 90% 75%;
+    --chart-3: 300 65% 50%;
+    --chart-4: 340 75% 65%;
+    --chart-5: 250 65% 60%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 330 80% 65%;
+    --sidebar-primary: 330 80% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 330 80% 65%;
+    --sidebar-border: 240 3.7% 20%;
+    --sidebar-ring: 330 80% 60%;
   }
 }
 

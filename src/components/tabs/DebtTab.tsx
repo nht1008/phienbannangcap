@@ -157,13 +157,13 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                   <TableCell>
                     <Button
                       onClick={() => toggleStatus(debt.id, debt.status)}
-                      variant="outline"
+                      variant={debt.status === 'Chưa thanh toán' ? 'default' : 'destructive'}
                       size="sm"
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",
                         debt.status === 'Chưa thanh toán'
-                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300'
-                          : 'bg-red-200 text-red-800 border-red-400 hover:bg-red-300'
+                          ? 'bg-green-500 text-white hover:bg-green-600' // Stronger green
+                          : 'bg-red-500 text-white hover:bg-red-600' // Stronger red
                       )}
                     >
                       {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
@@ -181,3 +181,4 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
+

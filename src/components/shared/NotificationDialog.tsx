@@ -31,7 +31,7 @@ export function NotificationDialog({ message, type = "error", onClose }: Notific
       )}>
         <AlertDialogHeader>
           <AlertDialogTitle className={isSuccess ? "text-[hsl(var(--success))]" : "text-destructive"}>
-            {isSuccess ? "Thành công!" : "Thông báo"}
+            {isSuccess ? "Thành công!" : "Cảnh Báo"}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-lg text-foreground">
             {message}
@@ -52,3 +52,4 @@ export function NotificationDialog({ message, type = "error", onClose }: Notific
     </AlertDialog>
   );
 }
+

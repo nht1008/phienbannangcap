@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { HomeIcon } from '@/components/icons/HomeIcon'; // Sử dụng HomeIcon cho logo
+import { HomeIcon } from '@/components/icons/HomeIcon'; 
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,25 +18,25 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (currentUser && !loading) {
-      router.push('/'); // Chuyển hướng nếu đã đăng nhập
+      router.push('/'); 
     }
   }, [currentUser, loading, router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null); // Xóa lỗi trước đó
+    setError(null); 
     if (!email || !password) {
         setError({ code: "auth/missing-fields", message: "Vui lòng nhập email và mật khẩu." } as any);
         return;
     }
     const user = await signIn(email, password);
     if (user) {
-      router.push('/'); // Chuyển hướng sau khi đăng nhập thành công
+      router.push('/'); 
     }
-    // Lỗi sẽ được hiển thị qua state `error`
+    
   };
 
-  // Ngăn việc render form nếu người dùng đã đăng nhập (effect hook sẽ chuyển hướng)
+  
   if (currentUser) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
@@ -45,7 +45,7 @@ export default function LoginPage() {
     );
   }
   
-  // Hiển thị loading toàn trang trong khi kiểm tra auth ban đầu
+  
   if (loading && !error) {
      return (
         <div className="flex items-center justify-center min-h-screen bg-background">
@@ -60,9 +60,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-6 h-20 w-20 text-primary flex items-center justify-center rounded-full bg-primary/10">
-            <HomeIcon className="h-10 w-10" />
+            <HomeIcon className="h-12 w-12" />
           </div>
-          <CardDescription className="text-lg">Đăng nhập để quản lý cửa hàng</CardDescription>
+          <CardDescription className="text-2xl font-semibold">Đăng nhập</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">

@@ -50,9 +50,17 @@ interface AggregatedRevenueData {
   giagoc: number;
 }
 
+const getDaysInMonth = (month: number, year: number): number => { // month is 1-indexed
+    return new Date(year, month, 0).getDate();
+};
+
 export function RevenueTab({ invoices, filter: filterProp, onFilterChange, availableYears }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const { month: filterMonth, year: filterYear } = filterProp;
+
+  const invoicesWithoutDebt = useMemo(() => {
+    return invoices.filter(inv => !inv.debtAmount || inv.debtAmount === 0);
+  }, [invoices]);
 
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
@@ -64,13 +72,9 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    const getDaysInMonth = (month: number, year: number): number => { // month is 1-indexed
-        return new Date(year, month, 0).getDate();
-    };
-
     if (filterMonth !== 'all' && filterYear !== 'all') { 
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày.`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày. (Chỉ tính hóa đơn không có nợ)`;
         
         const yearNum = parseInt(filterYear);
         const monthNum = parseInt(filterMonth); 
@@ -86,7 +90,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
                 const dayKey = dateObj.getDate().toString().padStart(2, '0');
                 
-                if (aggregatedData[dayKey]) { 
+                if (aggregatedData[dayKey] && (!invoice.debtAmount || invoice.debtAmount === 0)) { 
                      aggregatedData[dayKey].doanhthu += invoice.total;
                      aggregatedData[dayKey].giagoc += calculateInvoiceCost(invoice);
                 }
@@ -106,60 +110,81 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 return dayA - dayB;
             });
 
-    } else if (filterMonth !== 'all' /* && filterYear === 'all' */) { 
-        newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, tất cả các năm)`;
-        newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm.`;
+    } else if (filterMonth !== 'all' /* && filterYear === 'all' - This case is no longer distinct */) { 
+        newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
+        newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm. (Chỉ tính hóa đơn không có nợ)`;
         
         invoices.forEach(invoice => { 
             const dateObj = new Date(invoice.date);
-            const dayOfMonth = dateObj.getDate().toString().padStart(2, '0'); 
-            
-            if (!aggregatedData[dayOfMonth]) {
-                aggregatedData[dayOfMonth] = { doanhthu: 0, giagoc: 0 };
+             if ((dateObj.getMonth() + 1) === parseInt(filterMonth)) { // Check if invoice is in the selected month
+                const dayOfMonth = dateObj.getDate().toString().padStart(2, '0'); 
+                const yearSuffix = filterYear === 'all' ? `/${dateObj.getFullYear().toString().slice(-2)}` : '';
+                const nameKey = `${dayOfMonth}${yearSuffix}`;
+
+
+                if (!aggregatedData[nameKey]) {
+                    aggregatedData[nameKey] = { doanhthu: 0, giagoc: 0 };
+                }
+                if(!invoice.debtAmount || invoice.debtAmount === 0) {
+                    aggregatedData[nameKey].doanhthu += invoice.total;
+                    aggregatedData[nameKey].giagoc += calculateInvoiceCost(invoice);
+                }
             }
-            aggregatedData[dayOfMonth].doanhthu += invoice.total;
-            aggregatedData[dayOfMonth].giagoc += calculateInvoiceCost(invoice);
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([day, data]) => ({ 
-                name: `${day}/${filterMonth}`, 
+            .map(([name, data]) => ({ 
+                name, 
                 doanhthu: data.doanhthu, 
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             })) 
-            .sort((a, b) => parseInt(a.name.split('/')[0]) - parseInt(b.name.split('/')[0]));
+            .sort((a, b) => { // Sort by day, then by year if applicable
+                const [dayA, yearA] = a.name.split('/').map(Number);
+                const [dayB, yearB] = b.name.split('/').map(Number);
+                if (dayA !== dayB) return dayA - dayB;
+                return (yearA || 0) - (yearB || 0);
+            });
             
     } else if (filterMonth === 'all' && filterYear !== 'all') { 
-        newChartTitle = `Phân tích ngày (Năm ${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày trong Năm ${filterYear}.`;
+        newChartTitle = `Phân tích theo tháng (Năm ${filterYear})`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng tháng trong Năm ${filterYear}. (Chỉ tính hóa đơn không có nợ)`;
+        const yearNum = parseInt(filterYear);
+        for (let m = 1; m <= 12; m++) {
+            const monthKey = m.toString().padStart(2, '0');
+            aggregatedData[monthKey] = { doanhthu: 0, giagoc: 0 };
+        }
+
         invoices.forEach(invoice => {
             const dateObj = new Date(invoice.date);
-            const dayMonthKey = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}`;
-            if (!aggregatedData[dayMonthKey]) {
-                aggregatedData[dayMonthKey] = { doanhthu: 0, giagoc: 0 };
+            if (dateObj.getFullYear() === yearNum) {
+                const monthKey = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                if (aggregatedData[monthKey] && (!invoice.debtAmount || invoice.debtAmount === 0)) {
+                    aggregatedData[monthKey].doanhthu += invoice.total;
+                    aggregatedData[monthKey].giagoc += calculateInvoiceCost(invoice);
+                }
             }
-            aggregatedData[dayMonthKey].doanhthu += invoice.total;
-            aggregatedData[dayMonthKey].giagoc += calculateInvoiceCost(invoice);
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
-            .sort((a,b) => { 
-                const [dayA, monthA] = a.name.split('/').map(Number);
-                const [dayB, monthB] = b.name.split('/').map(Number);
-                if (monthA !== monthB) return monthA - monthB;
-                return dayA - dayB;
-            });
+            .map(([name, data]) => ({ 
+                name: `T${name}`, // "T01", "T02", ...
+                doanhthu: data.doanhthu, 
+                giagoc: data.giagoc, 
+                loinhuan: data.doanhthu - data.giagoc 
+            }))
+            .sort((a,b) => parseInt(a.name.substring(1)) - parseInt(b.name.substring(1)));
             
     } else { // All Months & All Years (filterMonth === 'all' && filterYear === 'all')
         newChartTitle = "Phân tích theo năm";
-        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm.";
+        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Chỉ tính hóa đơn không có nợ)";
         invoices.forEach(invoice => {
             const yearKey = new Date(invoice.date).getFullYear().toString();
             if (!aggregatedData[yearKey]) {
                 aggregatedData[yearKey] = { doanhthu: 0, giagoc: 0 };
             }
-            aggregatedData[yearKey].doanhthu += invoice.total;
-            aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
+            if(!invoice.debtAmount || invoice.debtAmount === 0) {
+                aggregatedData[yearKey].doanhthu += invoice.total;
+                aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
+            }
         });
         finalChartData = Object.entries(aggregatedData)
             .map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
@@ -169,16 +194,21 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   }, [invoices, filterMonth, filterYear]);
 
 
-  const totalRevenue = useMemo(() => invoices.reduce((sum, inv) => sum + inv.total, 0), [invoices]);
+  const totalRevenue = useMemo(() => 
+    invoicesWithoutDebt.reduce((sum, inv) => sum + inv.total, 0), 
+    [invoicesWithoutDebt]
+  );
+
   const totalCostPriceForPeriod = useMemo(() =>
-    invoices.reduce((totalCost, invoice) => {
+    invoicesWithoutDebt.reduce((totalCost, invoice) => {
       const invoiceCost = invoice.items.reduce((itemSum, item) => itemSum + (item.costPrice ?? 0) * item.quantityInCart, 0);
       return totalCost + invoiceCost;
     }, 0),
-    [invoices]
+    [invoicesWithoutDebt]
   );
+
   const totalProfitForPeriod = useMemo(() => totalRevenue - totalCostPriceForPeriod, [totalRevenue, totalCostPriceForPeriod]);
-  const totalInvoicesCount = invoices.length;
+  const totalInvoicesCount = invoices.length; // This still counts all invoices for the period
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -231,7 +261,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             variant="outline"
             className="h-9"
         >
-            Hôm nay
+            Tháng này
         </Button>
       </div>
       
@@ -239,7 +269,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         <Card className="bg-primary/10 border-primary">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-primary">Tổng doanh thu</CardTitle>
-            <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
+            <CardDescription className="text-xs">(Đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
@@ -248,7 +278,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         <Card className="bg-chart-2/10 border-chart-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-chart-2">Tổng giá gốc</CardTitle>
-             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
+             <CardDescription className="text-xs">(Hàng đã bán, đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-chart-2">{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
@@ -257,7 +287,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         <Card className="bg-chart-3/10 border-chart-3">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-chart-3">Tổng lợi nhuận</CardTitle>
-             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
+             <CardDescription className="text-xs">(Từ doanh thu đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-chart-3">{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
@@ -305,7 +335,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-semibold">Chi tiết hóa đơn</CardTitle>
-          <CardDescription>(Theo bộ lọc)</CardDescription>
+          <CardDescription>(Tất cả hóa đơn theo bộ lọc)</CardDescription>
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (
@@ -318,9 +348,10 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
-                    <TableHead className="text-right">Tổng tiền</TableHead>
-                    <TableHead className="text-right">Tổng giá gốc</TableHead>
-                    <TableHead className="text-right">Lợi nhuận</TableHead>
+                    <TableHead className="text-right">Tổng tiền HĐ</TableHead>
+                    <TableHead className="text-right">Tổng giá gốc HĐ</TableHead>
+                    <TableHead className="text-right">Lợi nhuận HĐ</TableHead>
+                    <TableHead className="text-right">Tiền nợ</TableHead>
                     <TableHead className="text-center">Chi tiết</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -329,13 +360,14 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     const invoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
                     const invoiceProfit = invoice.total - invoiceCost;
                     return (
-                      <TableRow key={invoice.id}>
+                      <TableRow key={invoice.id} className={ (invoice.debtAmount && invoice.debtAmount > 0) ? 'bg-red-500/5 hover:bg-red-500/10' : ''}>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                         <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{invoiceCost.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{invoiceProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right text-red-600">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
                           <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                         </TableCell>
@@ -387,7 +419,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 </>
             )}
             <div className="flex justify-between font-bold text-lg text-foreground">
-              <span>Tổng thanh toán:</span>
+              <span>Tổng thanh toán HĐ:</span>
               <span>{selectedInvoiceDetails.total.toLocaleString('vi-VN')} VNĐ</span>
             </div>
              <div className="flex justify-between text-sm">
@@ -418,7 +450,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     )}
                     {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
                          <div className="flex justify-between text-sm text-red-600">
-                            <span>Số tiền nợ:</span>
+                            <span>Số tiền nợ của HĐ này:</span>
                             <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
                     )}

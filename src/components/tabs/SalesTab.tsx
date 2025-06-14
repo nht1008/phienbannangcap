@@ -25,7 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from '@/lib/utils';
+import { cn, formatPhoneNumber } from '@/lib/utils'; // Import formatPhoneNumber
 
 
 interface SalesTabProps {
@@ -288,7 +288,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
                       </CommandEmpty>
                       <CommandGroup>
                         {customers
-                          .filter(c => c.name.toLowerCase().includes(customerSearchText.toLowerCase()))
+                          .filter(c => c.name.toLowerCase().includes(customerSearchText.toLowerCase()) || (c.phone && c.phone.includes(customerSearchText)))
                           .map((customer) => (
                             <CommandItem
                               key={customer.id}
@@ -305,7 +305,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
                                   customerNameForInvoice === customer.name ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {customer.name} ({customer.phone || 'N/A'})
+                              {customer.name} ({formatPhoneNumber(customer.phone)}) {/* Apply formatting here */}
                             </CommandItem>
                           ))}
                       </CommandGroup>
@@ -396,4 +396,3 @@ export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProp
     </>
   );
 }
-

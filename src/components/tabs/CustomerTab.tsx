@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
+import { formatPhoneNumber } from '@/lib/utils'; // Import the formatter
 
 interface CustomerTabProps {
   customers: Customer[];
@@ -66,7 +67,7 @@ export function CustomerTab({ customers, onAddCustomer }: CustomerTabProps) {
               {customers.map(customer => (
                 <TableRow key={customer.id}>
                   <TableCell>{customer.name}</TableCell>
-                  <TableCell>{customer.phone}</TableCell>
+                  <TableCell>{formatPhoneNumber(customer.phone)}</TableCell> {/* Apply formatting here */}
                   <TableCell>{customer.address || 'N/A'}</TableCell>
                 </TableRow>
               ))}

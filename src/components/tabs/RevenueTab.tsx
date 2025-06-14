@@ -50,22 +50,22 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
         // Specific Month & Specific Year: Daily for that month/year
         newChartTitle = `Doanh thu ngày (Tháng ${filter.month}/${filter.year})`;
         newChartDescription = `Doanh thu hàng ngày cho Tháng ${filter.month}, Năm ${filter.year}.`;
-        invoices.forEach(invoice => { // 'invoices' prop is already filtered by month and year
+        invoices.forEach(invoice => {
             const dateObj = new Date(invoice.date);
-            const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit' }); // "01", "02"
+            const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit' }); 
             aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, doanhthu]) => ({ name: `${name}/${filter.month}`, doanhthu })) // Display as DD/MM for clarity
+            .map(([name, doanhthu]) => ({ name: `${name}/${filter.month}`, doanhthu })) 
             .sort((a, b) => parseInt(a.name.split('/')[0]) - parseInt(b.name.split('/')[0]));
 
     } else if (filter.month === 'all' && filter.year !== 'all') {
         // All Months & Specific Year: Daily for that entire year
         newChartTitle = `Doanh thu ngày (Năm ${filter.year})`;
         newChartDescription = `Doanh thu hàng ngày trong Năm ${filter.year}.`;
-        invoices.forEach(invoice => { // 'invoices' prop is already filtered by year
+        invoices.forEach(invoice => {
             const dateObj = new Date(invoice.date);
-            const dayMonthKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); // "01/01", "02/01"
+            const dayMonthKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); 
             aggregatedData[dayMonthKey] = (aggregatedData[dayMonthKey] || 0) + invoice.total;
         });
         finalChartData = Object.entries(aggregatedData)
@@ -81,20 +81,20 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
         // Specific Month & All Years: Daily for that month, aggregated across years
         newChartTitle = `Doanh thu ngày (Tháng ${filter.month}, tổng hợp các năm)`;
         newChartDescription = `Doanh thu hàng ngày cho Tháng ${filter.month}, tổng hợp qua tất cả các năm.`;
-        invoices.forEach(invoice => { // 'invoices' prop is already filtered by month
+        invoices.forEach(invoice => {
             const dateObj = new Date(invoice.date);
-            const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit' }); // "01", "02"
+            const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit' }); 
             aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, doanhthu]) => ({ name: `${name}/${filter.month}`, doanhthu })) // Display as DD/MM
+            .map(([name, doanhthu]) => ({ name: `${name}/${filter.month}`, doanhthu })) 
             .sort((a, b) => parseInt(a.name.split('/')[0]) - parseInt(b.name.split('/')[0]));
             
     } else { // All Months & All Years (filter.month === 'all' && filter.year === 'all')
         // Total per year
         newChartTitle = "Doanh thu theo năm";
         newChartDescription = "Tổng doanh thu mỗi năm.";
-        invoices.forEach(invoice => { // 'invoices' prop contains all invoices
+        invoices.forEach(invoice => {
             const yearKey = new Date(invoice.date).getFullYear().toString();
             aggregatedData[yearKey] = (aggregatedData[yearKey] || 0) + invoice.total;
         });
@@ -102,7 +102,7 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
             .map(([name, doanhthu]) => ({ name, doanhthu }))
             .sort((a,b) => parseInt(a.name) - parseInt(b.name));
     }
-    return { chartData: finalChartData, chartTitle, chartDescription };
+    return { chartData: finalChartData, chartTitle: newChartTitle, chartDescription: newChartDescription };
   }, [invoices, filter.month, filter.year]);
 
 

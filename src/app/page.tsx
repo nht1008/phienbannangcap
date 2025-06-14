@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types'; // Removed Employee
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 
@@ -14,7 +14,7 @@ import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon';
 import { DebtIcon } from '@/components/icons/DebtIcon';
 import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { CustomerIcon } from '@/components/icons/CustomerIcon';
-// Removed EmployeeIcon import
+import { EmployeeIcon } from '@/components/icons/EmployeeIcon'; // Giữ lại icon
 
 import { SalesTab } from '@/components/tabs/SalesTab';
 import { InventoryTab } from '@/components/tabs/InventoryTab';
@@ -23,7 +23,7 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { CustomerTab } from '@/components/tabs/CustomerTab';
-// Removed EmployeeTab import
+import { EmployeeTab } from '@/components/tabs/EmployeeTab'; // Giữ lại import tab
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, push, update, get, child, remove } from "firebase/database"; // Removed query, orderByChild, equalTo
+import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -55,7 +55,7 @@ interface SubmitItemToImport {
 }
 
 
-type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng'; // Removed 'Nhân viên'
+type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên';
 
 export interface DateFilter {
   day: string;
@@ -86,7 +86,7 @@ export default function FleurManagerPage() {
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
-  // Removed employeesData state
+  const [employeesData, setEmployeesData] = useState<any[]>([]); // Sẽ luôn là mảng rỗng
 
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -107,6 +107,7 @@ export default function FleurManagerPage() {
     if (authLoading || !currentUser) {
       return;
     }
+     // Chỉ kiểm tra displayName để quyết định hiển thị SetNameDialog
     if (!currentUser.displayName) {
         setIsSettingName(true);
     } else {
@@ -188,7 +189,6 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Removed useEffect for employees
 
   useEffect(() => {
     if (!currentUser) return;
@@ -356,8 +356,6 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
-
-  // Removed employee handler functions (handleAddEmployee, handleUpdateEmployee, handleDeleteEmployee)
 
   const handleCreateInvoice = useCallback(async (
     customerName: string,
@@ -550,8 +548,6 @@ export default function FleurManagerPage() {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newTotal;
           updates[`invoices/${invoiceId}/discount`] = newDiscount;
-          // Debt amount of original invoice is not changed on partial return.
-          // User must handle debt separately if they want to adjust it.
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi.", variant: "default" });
         }
@@ -687,7 +683,7 @@ export default function FleurManagerPage() {
     { name: 'Công nợ', icon: <DebtIcon /> },
     { name: 'Doanh thu', icon: <RevenueIcon /> },
     { name: 'Khách hàng', icon: <CustomerIcon /> },
-    // Removed 'Nhân viên'
+    { name: 'Nhân viên', icon: <EmployeeIcon /> },
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
@@ -738,9 +734,9 @@ export default function FleurManagerPage() {
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
                     />,
-    // Removed 'Nhân viên' tab content
+    'Nhân viên': <EmployeeTab employees={employeesData} currentUser={currentUser} />,
   }), [
-      inventory, customersData, invoicesData, debtsData, // Removed employeesData
+      inventory, customersData, invoicesData, debtsData, employeesData,
       currentUser,
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
@@ -751,7 +747,6 @@ export default function FleurManagerPage() {
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer,
-      // Removed employee handlers
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
   ]);
 
@@ -786,7 +781,6 @@ export default function FleurManagerPage() {
     try {
       await updateUserProfileName(name);
       toast({ title: "Thành công", description: "Tên của bạn đã được cập nhật." });
-      // No longer interacts with employee records
       setIsSettingName(false);
     } catch (error) {
       console.error("Error in onNameSet:", error);
@@ -887,3 +881,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

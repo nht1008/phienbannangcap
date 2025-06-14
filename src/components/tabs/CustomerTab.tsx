@@ -57,7 +57,6 @@ export function CustomerTab({ customers, onAddCustomer }: CustomerTabProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
                 <TableHead>Họ và tên</TableHead>
                 <TableHead>Số điện thoại</TableHead>
                 <TableHead>Địa chỉ</TableHead>
@@ -66,7 +65,6 @@ export function CustomerTab({ customers, onAddCustomer }: CustomerTabProps) {
             <TableBody>
               {customers.map(customer => (
                 <TableRow key={customer.id}>
-                  <TableCell>{customer.id.substring(0,6)}...</TableCell>
                   <TableCell>{customer.name}</TableCell>
                   <TableCell>{customer.phone}</TableCell>
                   <TableCell>{customer.address || 'N/A'}</TableCell>
@@ -74,7 +72,7 @@ export function CustomerTab({ customers, onAddCustomer }: CustomerTabProps) {
               ))}
               {customers.length === 0 && !isAdding && (
                 <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">Chưa có khách hàng nào.</TableCell>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground">Chưa có khách hàng nào.</TableCell>
                 </TableRow>
               )}
             </TableBody>

@@ -283,7 +283,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Đối tượng</TableHead>
+                        <TableHead>Khách hàng</TableHead>
                         <TableHead>Ngày</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>

@@ -159,13 +159,25 @@ export default function FleurManagerPage() {
     const unitsRef = ref(db, 'productOptions/units');
 
     const unsubColors = onValue(colorsRef, (snapshot) => {
-      setColorOptions(Object.keys(snapshot.val() || {}));
+      if (snapshot.exists()) {
+        setColorOptions(Object.keys(snapshot.val()));
+      } else {
+        setColorOptions([]);
+      }
     });
     const unsubSizes = onValue(sizesRef, (snapshot) => {
-      setSizeOptions(Object.keys(snapshot.val() || {}));
+      if (snapshot.exists()) {
+        setSizeOptions(Object.keys(snapshot.val()));
+      } else {
+        setSizeOptions([]);
+      }
     });
     const unsubUnits = onValue(unitsRef, (snapshot) => {
-      setUnitOptions(Object.keys(snapshot.val() || {}));
+      if (snapshot.exists()) {
+        setUnitOptions(Object.keys(snapshot.val()));
+      } else {
+        setUnitOptions([]);
+      }
     });
 
     return () => {
@@ -279,8 +291,17 @@ export default function FleurManagerPage() {
       return;
     }
     try {
-      await set(ref(db, `productOptions/${type}/${name}`), true);
-      toast({ title: "Thành công", description: `Tùy chọn ${name} đã được thêm.`, variant: "default" });
+      // Firebase keys cannot contain '.', '#', '$', '[', or ']'
+      const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_');
+      if (sanitizedName !== name.trim()) {
+        toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" });
+      }
+      if (!sanitizedName) {
+        toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" });
+        return;
+      }
+      await set(ref(db, `productOptions/${type}/${sanitizedName}`), true);
+      toast({ title: "Thành công", description: `Tùy chọn ${sanitizedName} đã được thêm.`, variant: "default" });
     } catch (error) {
       console.error(`Error adding product ${type} option:`, error);
       toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" });

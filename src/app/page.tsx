@@ -138,7 +138,7 @@ export default function FleurManagerPage() {
           id: key,
           ...data[key]
         }));
-        // Filter employees by currentUser.uid if it exists
+        
         if (currentUser.uid) {
             employeesArray = employeesArray.filter(emp => emp.userId === currentUser.uid);
         }
@@ -257,15 +257,16 @@ export default function FleurManagerPage() {
     filterObj: DateFilter
   ): T[] => {
     if (!data) return [];
+    const {day, month, year} = filterObj;
     return data.filter(item => {
       const itemDate = new Date(item.date);
       const itemDay = itemDate.getDate().toString();
       const itemMonth = (itemDate.getMonth() + 1).toString();
       const itemYear = itemDate.getFullYear().toString();
 
-      const dayMatch = filterObj.day === 'all' || filterObj.day === itemDay;
-      const monthMatch = filterObj.month === 'all' || filterObj.month === itemMonth;
-      const yearMatch = filterObj.year === 'all' || filterObj.year === itemYear;
+      const dayMatch = day === 'all' || day === itemDay;
+      const monthMatch = month === 'all' || month === itemMonth;
+      const yearMatch = year === 'all' || year === itemYear;
 
       return dayMatch && monthMatch && yearMatch;
     });
@@ -285,15 +286,18 @@ export default function FleurManagerPage() {
 
 
   const filteredInvoicesForRevenue = useMemo(() => {
-    return filterDataByDateRange(invoicesData, revenueFilter);
+     const {day, month, year} = revenueFilter;
+    return filterDataByDateRange(invoicesData, {day, month, year});
   }, [invoicesData, revenueFilter]);
 
   const filteredInvoicesForInvoiceTab = useMemo(() => {
-    return filterDataByDateRange(invoicesData, invoiceFilter);
+    const {day, month, year} = invoiceFilter;
+    return filterDataByDateRange(invoicesData, {day, month, year});
   }, [invoicesData, invoiceFilter]);
 
   const filteredDebtsForDebtTab = useMemo(() => {
-    const dateFilteredDebts = filterDataByDateRange(debtsData, debtFilter);
+    const {day, month, year} = debtFilter;
+    const dateFilteredDebts = filterDataByDateRange(debtsData, {day, month, year});
     return dateFilteredDebts.filter(debt => debt.status === 'Chưa thanh toán');
   }, [debtsData, debtFilter]);
 
@@ -358,10 +362,6 @@ export default function FleurManagerPage() {
         return;
     }
     try {
-      // Ensure userId is maintained or correctly set if needed, though typically it shouldn't change.
-      // For this update, we assume the userId is not part of `updatedEmployeeData` from the form.
-      // We might need to fetch the existing employee to preserve userId if it's not passed.
-      // However, the current structure passes Omit<Employee, 'id' | 'userId'>, so we need to add it back.
       await update(ref(db, `employees/${employeeId}`), { ...updatedEmployeeData, userId: currentUser.uid });
       toast({ title: "Thành công", description: "Thông tin nhân viên đã được cập nhật.", variant: "default" });
     } catch (error) {
@@ -800,7 +800,13 @@ export default function FleurManagerPage() {
       filteredInvoicesForRevenue, revenueFilter, 
       filteredInvoicesForInvoiceTab, invoiceFilter, 
       filteredDebtsForDebtTab, debtFilter,
-      availableInvoiceYears, availableDebtYears
+      availableInvoiceYears, availableDebtYears,
+      handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct,
+      handleAddProductOption, handleDeleteProductOption, handleImportProducts, 
+      handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
+      handleAddEmployee, handleUpdateEmployee, handleDeleteEmployee,
+      handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer,
+      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
   ]);
 
   const SidebarToggleButton = () => {
@@ -834,7 +840,6 @@ export default function FleurManagerPage() {
   }
 
   if (!currentUser) {
-     // Router.push in useEffect will handle redirection, this is a fallback.
     return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
   }
 
@@ -844,11 +849,17 @@ export default function FleurManagerPage() {
         onNameSet={async (name) => {
           try {
             await updateUserProfileName(name);
-            toast({title: "Thành công", description: "Tên hiển thị đã được cập nhật."});
-            // No need to setIsSettingName(false) here,
-            // The useEffect monitoring currentUser.displayName will handle it.
+            toast({title: "Thành công", description: "Tên hiển thị Auth đã được cập nhật."});
+
+            const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
+              name: name,
+              position: 'Chủ cửa hàng', 
+              phone: 'Chưa cập nhật', 
+            };
+            await handleAddEmployee(newEmployeeData); 
+            
           } catch (error) {
-            toast({title: "Lỗi", description: "Không thể cập nhật tên hiển thị.", variant: "destructive"});
+            toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo nhân viên.", variant: "destructive"});
           }
         }}
       />

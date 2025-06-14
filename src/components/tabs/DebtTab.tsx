@@ -143,9 +143,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                 <TableHead>Nhà cung cấp/Khách hàng</TableHead>
                 <TableHead>Ngày tạo</TableHead>
                 <TableHead>Số tiền</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Người tạo</TableHead>
-                <TableHead>Người cập nhật cuối</TableHead>
+                <TableHead className="text-center">Trạng thái</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -154,7 +152,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                   <TableCell>{debt.supplier || 'N/A'}</TableCell>
                   <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
                   <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Button
                       onClick={() => toggleStatus(debt.id, debt.status)}
                       variant={'default'}
@@ -169,8 +167,6 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
                     </Button>
                   </TableCell>
-                  <TableCell>{debt.createdEmployeeName || 'Không rõ'}</TableCell>
-                  <TableCell>{debt.lastUpdatedEmployeeName || 'Chưa có'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

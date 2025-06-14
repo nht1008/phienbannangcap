@@ -68,51 +68,45 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return new Date(year, month, 0).getDate();
     };
 
-    if (filterMonth !== 'all' && filterYear !== 'all') { // Specific month AND specific year
+    if (filterMonth !== 'all' && filterYear !== 'all') { 
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}.`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày.`;
         
         const yearNum = parseInt(filterYear);
-        const monthNum = parseInt(filterMonth); // filterMonth is 1-indexed string
+        const monthNum = parseInt(filterMonth); 
         const daysInSelectedMonth = getDaysInMonth(monthNum, yearNum);
 
-        // Pre-populate all days of the month
         for (let day = 1; day <= daysInSelectedMonth; day++) {
-            const dayStr = day.toString().padStart(2, '0');
-            const monthStr = monthNum.toString().padStart(2, '0');
-            const fullDateKey = `${dayStr}/${monthStr}`; // e.g., "01/06"
-            aggregatedData[fullDateKey] = { doanhthu: 0, giagoc: 0 };
+            const dayKey = day.toString().padStart(2, '0'); 
+            aggregatedData[dayKey] = { doanhthu: 0, giagoc: 0 };
         }
 
         invoices.forEach(invoice => { 
             const dateObj = new Date(invoice.date);
-            // Ensure invoice actually belongs to the selected month/year (already filtered by page.tsx)
             if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
-                const dayStr = dateObj.getDate().toString().padStart(2, '0');
-                const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-                const fullDateKey = `${dayStr}/${monthStr}`;
+                const dayKey = dateObj.getDate().toString().padStart(2, '0');
                 
-                if (aggregatedData[fullDateKey]) { // Should always exist due to pre-population
-                     aggregatedData[fullDateKey].doanhthu += invoice.total;
-                     aggregatedData[fullDateKey].giagoc += calculateInvoiceCost(invoice);
+                if (aggregatedData[dayKey]) { 
+                     aggregatedData[dayKey].doanhthu += invoice.total;
+                     aggregatedData[dayKey].giagoc += calculateInvoiceCost(invoice);
                 }
             }
         });
 
         finalChartData = Object.entries(aggregatedData)
             .map(([name, data]) => ({ 
-                name, // name is "DD/MM"
+                name, // name is just "DD"
                 doanhthu: data.doanhthu, 
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             }))
-            .sort((a, b) => { // Sort by day
-                const dayA = parseInt(a.name.split('/')[0]);
-                const dayB = parseInt(b.name.split('/')[0]);
+            .sort((a, b) => { 
+                const dayA = parseInt(a.name);
+                const dayB = parseInt(b.name);
                 return dayA - dayB;
             });
 
-    } else if (filterMonth !== 'all' /* && filterYear === 'all' */) { // Specific month, All years
+    } else if (filterMonth !== 'all' /* && filterYear === 'all' */) { 
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, tất cả các năm)`;
         newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm.`;
         
@@ -128,14 +122,14 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         });
         finalChartData = Object.entries(aggregatedData)
             .map(([day, data]) => ({ 
-                name: `${day}/${filterMonth}`, // Format as DD/MM
+                name: `${day}/${filterMonth}`, 
                 doanhthu: data.doanhthu, 
                 giagoc: data.giagoc, 
                 loinhuan: data.doanhthu - data.giagoc 
             })) 
             .sort((a, b) => parseInt(a.name.split('/')[0]) - parseInt(b.name.split('/')[0]));
             
-    } else if (filterMonth === 'all' && filterYear !== 'all') { // All months, Specific Year
+    } else if (filterMonth === 'all' && filterYear !== 'all') { 
         newChartTitle = `Phân tích ngày (Năm ${filterYear})`;
         newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày trong Năm ${filterYear}.`;
         invoices.forEach(invoice => {
@@ -439,3 +433,4 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
+

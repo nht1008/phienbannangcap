@@ -224,7 +224,6 @@ export default function FleurManagerPage() {
   const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
     try {
       const newProductRef = push(ref(db, 'inventory'));
-      // newProductData already contains price & costPrice as full VND values from InventoryTab
       await set(newProductRef, newProductData);
       toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" });
     } catch (error) {
@@ -235,7 +234,6 @@ export default function FleurManagerPage() {
 
   const handleUpdateProduct = async (productId: string, updatedProductData: Omit<Product, 'id'>) => {
     try {
-      // updatedProductData already contains price & costPrice as full VND values from InventoryTab
       await update(ref(db, `inventory/${productId}`), updatedProductData);
       toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" });
     } catch (error) {
@@ -276,24 +274,44 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleUpdateCustomer = async (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => {
+    try {
+      await update(ref(db, `customers/${customerId}`), updatedCustomerData);
+      toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" });
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    try {
+      await remove(ref(db, `customers/${customerId}`));
+      toast({ title: "Thành công", description: "Khách hàng đã được xóa.", variant: "default" });
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      toast({ title: "Lỗi", description: "Không thể xóa khách hàng. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
   const handleCreateInvoice = async (
     customerName: string,
-    cart: CartItem[], // item.price is actual VND
-    subtotal: number, // actual VND
+    cart: CartItem[], 
+    subtotal: number, 
     paymentMethod: string,
-    discount: number, // actual VND
-    amountPaid: number // actual VND
+    discount: number, 
+    amountPaid: number 
   ) => {
     try {
       const newInvoiceRef = push(ref(db, 'invoices'));
       const newInvoice: Omit<Invoice, 'id'> = {
         customerName,
-        items: cart.map(item => ({ ...item, price: item.price, costPrice: item.costPrice ?? 0 })), // Ensure price & costPrice are full VND values
-        total: subtotal - discount, // Final total in actual VND
+        items: cart.map(item => ({ ...item, price: item.price, costPrice: item.costPrice ?? 0 })), 
+        total: subtotal - discount, 
         date: new Date().toISOString(),
         paymentMethod,
-        discount, // actual VND
-        amountPaid, // actual VND
+        discount, 
+        amountPaid, 
       };
       await set(newInvoiceRef, newInvoice);
 
@@ -332,7 +350,6 @@ export default function FleurManagerPage() {
       const updates: { [key: string]: any } = {};
 
       if (operationType === 'delete' || (operationType === 'return' && (!itemsToReturnArray || itemsToReturnArray.length === 0))) {
-        // Full cancellation or return all items
         for (const cartItem of originalInvoice.items) {
           const productRef = child(ref(db), `inventory/${cartItem.id}`);
           const productSnapshot = await get(productRef);
@@ -342,14 +359,13 @@ export default function FleurManagerPage() {
             console.warn(`Sản phẩm ID ${cartItem.id} (tên: ${cartItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
           }
         }
-        updates[`invoices/${invoiceId}`] = null; // Delete the invoice
+        updates[`invoices/${invoiceId}`] = null; 
         await update(ref(db), updates);
         const message = operationType === 'delete' ? "Hóa đơn đã được xóa và các sản phẩm (nếu còn) đã hoàn kho." : "Hoàn trả toàn bộ hóa đơn thành công, sản phẩm (nếu còn) đã hoàn kho.";
         toast({ title: "Thành công", description: message, variant: "default" });
         return true;
 
       } else if (operationType === 'return' && itemsToReturnArray && itemsToReturnArray.length > 0) {
-        // Selective return
         for (const itemToReturn of itemsToReturnArray) {
           if (itemToReturn.quantityToReturn > 0) {
             const productRef = child(ref(db), `inventory/${itemToReturn.productId}`);
@@ -379,8 +395,6 @@ export default function FleurManagerPage() {
           }
         }
         
-        // Adjust newTotal based on the original discount proportion if applicable
-        // This is a simple proration. More complex discount logic might be needed.
         let originalSubTotal = 0;
         for(const item of originalInvoice.items) {
             originalSubTotal += item.price * item.quantityInCart;
@@ -400,20 +414,19 @@ export default function FleurManagerPage() {
 
 
         if (newInvoiceItems.length === 0 || newTotal <= 0) {
-          updates[`invoices/${invoiceId}`] = null; // All items returned, delete invoice
+          updates[`invoices/${invoiceId}`] = null; 
            await update(ref(db), updates);
           toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn đã được xóa.", variant: "default" });
         } else {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newTotal;
           updates[`invoices/${invoiceId}/discount`] = newDiscount; 
-          // Note: amountPaid is not adjusted here, assumes it's a sunk cost or handled externally
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật.", variant: "default" });
         }
         return true;
       }
-      return false; // Should not reach here if logic is correct
+      return false; 
 
     } catch (error) {
       console.error(`Error processing invoice ${operationType} for ID ${invoiceId}:`, error);
@@ -425,24 +438,23 @@ export default function FleurManagerPage() {
 
 
   const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalImportCost: number) => {
-    // totalImportCost is already in actual VND from ImportTab
     try {
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
         supplier: supplierName,
-        amount: totalImportCost, // actual VND
+        amount: totalImportCost, 
         date: new Date().toISOString(),
         status: 'Chưa thanh toán'
       };
       await set(newDebtRef, newDebt);
 
       const updates: { [key: string]: any } = {};
-      for (const importItem of itemsToImport) { // importItem.cost is in Nghin VND units
+      for (const importItem of itemsToImport) { 
         const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
         if (productSnapshot.exists()) {
           const currentProduct = productSnapshot.val();
           updates[`inventory/${importItem.productId}/quantity`] = currentProduct.quantity + importItem.quantity;
-          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; // Store costPrice as actual VND
+          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; 
         } else {
           console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng và giá vốn cho sản phẩm này.`);
         }
@@ -510,7 +522,7 @@ export default function FleurManagerPage() {
     { name: 'Công nợ', icon: <DebtIcon /> },
     { name: 'Doanh thu', icon: <RevenueIcon /> },
     { name: 'Nhân viên', icon: <EmployeeIcon /> },
-    { name: 'Khách hàng', icon: <CustomerIcon /> }, // Added 'Khách hàng'
+    { name: 'Khách hàng', icon: <CustomerIcon /> }, 
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
@@ -532,8 +544,13 @@ export default function FleurManagerPage() {
     'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
-    'Khách hàng': <CustomerTab customers={customersData} onAddCustomer={handleAddCustomer} />, // Added CustomerTab
-  }), [inventory, employeesData, customersData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions]);
+    'Khách hàng': <CustomerTab 
+                      customers={customersData} 
+                      onAddCustomer={handleAddCustomer}
+                      onUpdateCustomer={handleUpdateCustomer}
+                      onDeleteCustomer={handleDeleteCustomer}
+                    />,
+  }), [inventory, employeesData, customersData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions, handleUpdateCustomer, handleDeleteCustomer]);
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
@@ -632,3 +649,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

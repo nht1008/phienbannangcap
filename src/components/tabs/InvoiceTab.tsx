@@ -54,7 +54,7 @@ type ReturnItemDetail = {
   price: number; 
 };
 
-export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter, onFilterChange, availableYears }: InvoiceTabProps) {
+export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears }: InvoiceTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
@@ -62,6 +62,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
   const [currentInvoiceForReturnDialog, setCurrentInvoiceForReturnDialog] = useState<Invoice | null>(null);
   const [returnItemsState, setReturnItemsState] = useState<Record<string, ReturnItemDetail>>({});
 
+  const { day: currentDay, month: currentMonth, year: currentYear } = filterProp;
 
   const openDeleteConfirmDialog = (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
@@ -143,8 +144,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
             <div>
               <Label htmlFor="invoice-filter-day" className="text-sm">Ngày</Label>
               <Select
-                value={filter.day}
-                onValueChange={(value) => onFilterChange({ ...filter, day: value })}
+                value={currentDay}
+                onValueChange={(value) => onFilterChange({ day: value, month: currentMonth, year: currentYear })}
               >
                 <SelectTrigger id="invoice-filter-day" className="w-full sm:w-28 bg-card h-9">
                   <SelectValue placeholder="Ngày" />
@@ -162,8 +163,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
             <div>
               <Label htmlFor="invoice-filter-month" className="text-sm">Tháng</Label>
               <Select
-                value={filter.month}
-                onValueChange={(value) => onFilterChange({ ...filter, month: value })}
+                value={currentMonth}
+                onValueChange={(value) => onFilterChange({ day: currentDay, month: value, year: currentYear })}
               >
                 <SelectTrigger id="invoice-filter-month" className="w-full sm:w-32 bg-card h-9">
                   <SelectValue placeholder="Tháng" />
@@ -181,8 +182,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
             <div>
               <Label htmlFor="invoice-filter-year" className="text-sm">Năm</Label>
               <Select
-                value={filter.year}
-                onValueChange={(value) => onFilterChange({ ...filter, year: value })}
+                value={currentYear}
+                onValueChange={(value) => onFilterChange({ day: currentDay, month: currentMonth, year: value })}
               >
                 <SelectTrigger id="invoice-filter-year" className="w-full sm:w-32 bg-card h-9">
                   <SelectValue placeholder="Năm" />
@@ -378,4 +379,3 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
-

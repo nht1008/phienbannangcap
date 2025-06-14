@@ -19,14 +19,16 @@ interface DebtTabProps {
   availableYears: string[];
 }
 
-export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, availableYears }: DebtTabProps) {
+export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilterChange, availableYears }: DebtTabProps) {
+  const { day: currentDay, month: currentMonth, year: currentYear } = filterProp;
+
   const toggleStatus = (debtId: string, currentStatus: 'Chưa thanh toán' | 'Đã thanh toán') => {
     const newStatus = currentStatus === 'Đã thanh toán' ? 'Chưa thanh toán' : 'Đã thanh toán';
     onUpdateDebtStatus(debtId, newStatus);
   };
 
   const totalUnpaid = useMemo(() =>
-    debts.reduce((sum, d) => sum + d.amount, 0),
+    debts.reduce((sum, d) => sum + d.amount, 0), // Debts prop is already filtered for "Chưa thanh toán"
     [debts]
   );
 
@@ -40,8 +42,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, ava
           <div>
             <Label htmlFor="debt-filter-day" className="text-sm">Ngày</Label>
             <Select
-              value={filter.day}
-              onValueChange={(value) => onFilterChange({ ...filter, day: value })}
+              value={currentDay}
+              onValueChange={(value) => onFilterChange({ day: value, month: currentMonth, year: currentYear })}
             >
               <SelectTrigger id="debt-filter-day" className="w-full sm:w-28 bg-card h-9">
                 <SelectValue placeholder="Ngày" />
@@ -59,8 +61,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, ava
           <div>
             <Label htmlFor="debt-filter-month" className="text-sm">Tháng</Label>
             <Select
-              value={filter.month}
-              onValueChange={(value) => onFilterChange({ ...filter, month: value })}
+              value={currentMonth}
+              onValueChange={(value) => onFilterChange({ day: currentDay, month: value, year: currentYear })}
             >
               <SelectTrigger id="debt-filter-month" className="w-full sm:w-32 bg-card h-9">
                 <SelectValue placeholder="Tháng" />
@@ -78,8 +80,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, ava
           <div>
             <Label htmlFor="debt-filter-year" className="text-sm">Năm</Label>
             <Select
-              value={filter.year}
-              onValueChange={(value) => onFilterChange({ ...filter, year: value })}
+              value={currentYear}
+              onValueChange={(value) => onFilterChange({ day: currentDay, month: currentMonth, year: value })}
             >
               <SelectTrigger id="debt-filter-year" className="w-full sm:w-32 bg-card h-9">
                 <SelectValue placeholder="Năm" />
@@ -148,4 +150,3 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, ava
     </Card>
   );
 }
-

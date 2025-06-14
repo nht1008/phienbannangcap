@@ -391,7 +391,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                <Command>
+                <Command shouldFilter={false}>
                   <CommandInput
                     placeholder="Gõ tên, màu, size hoặc đơn vị..."
                     value={productSearchQuery}
@@ -704,13 +704,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command>
+                  <Command shouldFilter={false}>
                     <CommandInput
                       placeholder="Tìm khách hàng hoặc nhập tên mới..."
                       value={customerSearchText}
                       onValueChange={(value) => {
                         setCustomerSearchText(value);
-                        if (!customers.some(c => c.name.toLowerCase() === value.trim().toLowerCase()) && value.trim() !== "Khách lẻ") {
+                        if (!customers.some(c => normalizeStringForSearch(c.name) === normalizeStringForSearch(value.trim())) && value.trim().toLowerCase() !== "khách lẻ") {
                             setCustomerNameForInvoice(value.trim());
                         }
                       }}
@@ -760,7 +760,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                           ))}
                       </CommandGroup>
                       {customerSearchText.trim() &&
-                       !customers.some(c => c.name.toLowerCase() === customerSearchText.trim().toLowerCase()) &&
+                       !customers.some(c => normalizeStringForSearch(c.name) === normalizeStringForSearch(customerSearchText.trim())) &&
                        customerSearchText.trim().toLowerCase() !== 'khách lẻ' && (
                         <CommandItem
                           key="use-typed-value"
@@ -859,8 +859,3 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     </>
   );
 }
-
-
-
-
-

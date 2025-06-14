@@ -45,21 +45,14 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
     let newChartDescription = "Hiển thị doanh thu của cửa hàng (theo bộ lọc).";
     let aggregatedData: Record<string, number> = {};
 
-    if (filter.month !== 'all') {
-      // Display daily revenue for the selected month
-      newChartTitle = `Biểu đồ doanh thu theo ngày (${`Tháng ${filter.month}`}${filter.year !== 'all' ? `/${filter.year}` : ', Tất cả các năm'})`;
-      newChartDescription = `Doanh thu hàng ngày cho Tháng ${filter.month}${filter.year !== 'all' ? `, Năm ${filter.year}` : ' qua các năm'}.`;
+    if (filter.month !== 'all') { // User selected a specific month
+      newChartTitle = `Biểu đồ doanh thu theo ngày (Tháng ${filter.month}${filter.year !== 'all' ? `/${filter.year}` : ', Tất cả các năm'})`;
+      newChartDescription = `Doanh thu hàng ngày cho Tháng ${filter.month}${filter.year !== 'all' ? `, Năm ${filter.year}` : ' (tổng hợp qua các năm)'}.`;
       
       invoices.forEach(invoice => {
         const dateObj = new Date(invoice.date);
-        // Ensure invoice matches the selected month (and year if specified)
-        const monthMatch = (dateObj.getMonth() + 1).toString() === filter.month;
-        const yearMatch = filter.year === 'all' || dateObj.getFullYear().toString() === filter.year;
-
-        if (monthMatch && yearMatch) {
-          const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-          aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
-        }
+        const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); // e.g., "01/07"
+        aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
       });
       
       return {
@@ -68,34 +61,35 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
           .sort((a, b) => {
             const [dayA, monthA] = a.name.split('/').map(Number);
             const [dayB, monthB] = b.name.split('/').map(Number);
-            if (monthA !== monthB) return monthA - monthB; // Should be same month, but good practice
+            if (monthA !== monthB) return monthA - monthB; 
             return dayA - dayB;
           }),
         chartTitle: newChartTitle,
         chartDescription: newChartDescription,
       };
 
-    } else if (filter.year !== 'all') {
-      // Display monthly revenue for the selected year
-      newChartTitle = `Biểu đồ doanh thu theo tháng (Năm ${filter.year})`;
-      newChartDescription = `Tổng doanh thu mỗi tháng cho Năm ${filter.year}.`;
-      invoices.forEach(invoice => {
+    } else if (filter.year !== 'all') { // Month is 'all', but Year is specific. Show daily data for the whole year.
+      newChartTitle = `Biểu đồ doanh thu theo ngày (Năm ${filter.year})`;
+      newChartDescription = `Doanh thu hàng ngày trong Năm ${filter.year}.`;
+      invoices.forEach(invoice => { 
          const dateObj = new Date(invoice.date);
-         if (dateObj.getFullYear().toString() === filter.year) {
-            const monthKey = `Tháng ${dateObj.getMonth() + 1}`;
-            aggregatedData[monthKey] = (aggregatedData[monthKey] || 0) + invoice.total;
-         }
+         const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); // e.g. "01/01", "15/07"
+         aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
       });
       return {
         chartData: Object.entries(aggregatedData)
             .map(([name, doanhthu]) => ({ name, doanhthu }))
-            .sort((a,b) => parseInt(a.name.split(' ')[1]) - parseInt(b.name.split(' ')[1])),
+            .sort((a,b) => { 
+                const [dayA, monthA] = a.name.split('/').map(Number);
+                const [dayB, monthB] = b.name.split('/').map(Number);
+                if (monthA !== monthB) return monthA - monthB;
+                return dayA - dayB;
+            }),
         chartTitle: newChartTitle,
         chartDescription: newChartDescription,
       };
 
-    } else {
-      // Display yearly revenue (month is 'all', year is 'all')
+    } else { // Month is 'all', Year is 'all'
       newChartTitle = "Biểu đồ doanh thu theo năm";
       newChartDescription = "Tổng doanh thu mỗi năm.";
       invoices.forEach(invoice => {
@@ -119,12 +113,11 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
-        {/* Day filter removed */}
         <div>
           <Label htmlFor="revenue-filter-month" className="text-sm">Tháng</Label>
           <Select
             value={filter.month}
-            onValueChange={(value) => onFilterChange({ ...filter, month: value })}
+            onValueChange={(value) => onFilterChange({ ...filter, day: 'all', month: value })}
           >
             <SelectTrigger id="revenue-filter-month" className="w-full sm:w-32 bg-card h-9">
               <SelectValue placeholder="Tháng" />
@@ -143,7 +136,7 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
           <Label htmlFor="revenue-filter-year" className="text-sm">Năm</Label>
           <Select
             value={filter.year}
-            onValueChange={(value) => onFilterChange({ ...filter, year: value })}
+            onValueChange={(value) => onFilterChange({ ...filter, day: 'all', year: value })}
           >
             <SelectTrigger id="revenue-filter-year" className="w-full sm:w-32 bg-card h-9">
               <SelectValue placeholder="Năm" />

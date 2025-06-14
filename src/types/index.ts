@@ -33,6 +33,7 @@ export interface Invoice {
   items: CartItem[];
   total: number;
   date: string; // ISO date string
+  paymentMethod: string; // Added paymentMethod
 }
 
 export interface Debt {
@@ -50,3 +51,4 @@ export interface ItemToImport {
 }
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
+

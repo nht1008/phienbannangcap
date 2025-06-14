@@ -2,32 +2,34 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import type { Product, CartItem, Invoice } from '@/types';
+import type { Product, CartItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { useToast } from "@/hooks/use-toast";
 
 interface SalesTabProps {
   inventory: Product[];
-  onCreateInvoice: (customerName: string, cart: CartItem[], total: number) => Promise<boolean>;
+  onCreateInvoice: (customerName: string, cart: CartItem[], total: number, paymentMethod: string) => Promise<boolean>;
 }
+
+const paymentOptions = ['Tiền mặt', 'Chuyển khoản', 'Thẻ'];
 
 export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
-  // const [customerName, setCustomerName] = useState(''); // Đã xóa
-  const { toast } = useToast(); 
-
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
     setLocalNotificationType(type);
   };
-
 
   const addToCart = (item: Product) => {
     const existingItem = cart.find(cartItem => cartItem.id === item.id);
@@ -73,17 +75,11 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
     [cart]
   );
 
-  const handleCheckout = async () => {
+  const handleOpenPaymentDialog = () => {
     if (cart.length === 0) {
       showLocalNotification("Giỏ hàng trống!", 'error');
       return;
     }
-
-    // if (!customerName.trim()) { // Đã xóa kiểm tra customerName
-    //   showLocalNotification("Vui lòng nhập tên khách hàng!", 'error');
-    //   return;
-    // }
-
     for (const cartItem of cart) {
       const stockItem = inventory.find(i => i.id === cartItem.id);
       if (!stockItem || stockItem.quantity < cartItem.quantityInCart) {
@@ -91,12 +87,17 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
         return;
       }
     }
+    setIsPaymentDialogOpen(true);
+  };
 
-    const success = await onCreateInvoice("Khách lẻ", cart, total); // Mặc định "Khách lẻ"
+  const handleConfirmCheckout = async () => {
+    const success = await onCreateInvoice("Khách lẻ", cart, total, currentPaymentMethod);
     if (success) {
       setCart([]);
-      // setCustomerName(''); // Đã xóa
+      setIsPaymentDialogOpen(false);
+      setCurrentPaymentMethod(paymentOptions[0]); // Reset to default
     }
+    // If !success, onCreateInvoice already shows a toast.
   };
 
   return (
@@ -146,7 +147,6 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
             <CardTitle>Giỏ hàng</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Input cho customerName đã bị xóa */}
             {cart.length === 0 ? (
               <p className="text-muted-foreground">Giỏ hàng trống</p>
             ) : (
@@ -175,15 +175,42 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
               <span>{total.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Button
-              onClick={handleCheckout}
+              onClick={handleOpenPaymentDialog}
               className="w-full bg-green-500 text-white hover:bg-green-600"
               disabled={cart.length === 0}
             >
-              Thanh toán
+              Chọn phương thức thanh toán
             </Button>
           </CardFooter>
         </Card>
       </div>
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chọn phương thức thanh toán</DialogTitle>
+            <DialogDescription>
+              Vui lòng chọn phương thức khách hàng sử dụng để thanh toán.
+            </DialogDescription>
+          </DialogHeader>
+          <RadioGroup value={currentPaymentMethod} onValueChange={setCurrentPaymentMethod} className="my-4 space-y-2">
+            {paymentOptions.map((option) => (
+              <div key={option} className="flex items-center space-x-2">
+                <RadioGroupItem value={option} id={`payment-${option}`} />
+                <Label htmlFor={`payment-${option}`}>{option}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+          <DialogFooter className="sm:justify-between gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button type="button" onClick={handleConfirmCheckout} className="bg-green-500 hover:bg-green-600 text-white">
+              Xác nhận thanh toán
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

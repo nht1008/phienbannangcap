@@ -240,7 +240,7 @@ export default function FleurManagerPage() {
     }
   };
   
-  const handleCreateInvoice = async (customerName: string, cart: CartItem[], total: number) => {
+  const handleCreateInvoice = async (customerName: string, cart: CartItem[], total: number, paymentMethod: string) => {
     try {
       const newInvoiceRef = push(ref(db, 'invoices'));
       const newInvoice: Omit<Invoice, 'id'> = {
@@ -248,6 +248,7 @@ export default function FleurManagerPage() {
         items: cart,
         total,
         date: new Date().toISOString(),
+        paymentMethod,
       };
       await set(newInvoiceRef, newInvoice);
 
@@ -290,12 +291,10 @@ export default function FleurManagerPage() {
           updates[`inventory/${cartItem.id}/quantity`] = currentQuantity + cartItem.quantityInCart;
         } else {
           console.warn(`Sản phẩm ID ${cartItem.id} (tên: ${cartItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
-          // Optionally, inform user more directly if critical
-          // toast({ title: "Cảnh báo", description: `Sản phẩm ${cartItem.name} không còn trong kho, không thể hoàn kho.`, variant: "default" });
         }
       }
 
-      updates[`invoices/${invoiceId}`] = null; // Mark for deletion
+      updates[`invoices/${invoiceId}`] = null; 
 
       await update(ref(db), updates);
 
@@ -522,3 +521,4 @@ export default function FleurManagerPage() {
 
 
     
+

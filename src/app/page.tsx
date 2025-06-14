@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, ReactNode, useEffect } from 'react';
+import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
 import type { Product, Employee, Invoice, Debt, CartItem, ProductOptionType, Customer } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,7 +65,7 @@ export interface DateFilter {
 const getCurrentMonthYearFilter = (): DateFilter => {
   const now = new Date();
   return {
-    day: 'all', 
+    day: 'all',
     month: (now.getMonth() + 1).toString(),
     year: now.getFullYear().toString(),
   };
@@ -86,7 +86,7 @@ export default function FleurManagerPage() {
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
-  
+
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
@@ -103,19 +103,26 @@ export default function FleurManagerPage() {
   }, [currentUser, authLoading, router]);
 
   useEffect(() => {
-    if (!authLoading && currentUser) {
-      const userHasNoEmployeeRecordOrNoDisplayName = !currentUser.displayName || 
-        (employeesData && employeesData.filter(emp => emp.userId === currentUser.uid && emp.position === 'Chủ cửa hàng').length === 0);
-      
-      if (userHasNoEmployeeRecordOrNoDisplayName) {
-        setIsSettingName(true);
-      } else {
-        setIsSettingName(false);
-      }
-    } else if (!currentUser && !authLoading) {
-      setIsSettingName(false); 
+    if (authLoading) {
+        // Still waiting for authentication state to be determined
+        return;
     }
-  }, [currentUser, authLoading, employeesData]);
+
+    if (currentUser) {
+        // User is logged in
+        if (!currentUser.displayName) {
+            // User is logged in but has no display name set in Firebase Auth
+            setIsSettingName(true);
+        } else {
+            // User is logged in AND has a display name set in Firebase Auth
+            // As per the new requirement, do not show the dialog.
+            setIsSettingName(false);
+        }
+    } else {
+        // No user is logged in (or user has logged out)
+        setIsSettingName(false);
+    }
+  }, [currentUser, authLoading]);
 
 
   useEffect(() => {
@@ -146,11 +153,8 @@ export default function FleurManagerPage() {
           id: key,
           ...data[key]
         }));
-        
+
         if (currentUser.uid) {
-            // This filter is now to ensure that if we have multiple users in the 'employees' node,
-            // the `employeesData` state only contains employees relevant to the current user.
-            // The SetNameDialog logic will use this filtered list to check for an existing "Chủ cửa hàng".
             employeesArray = employeesArray.filter(emp => emp.userId === currentUser.uid);
         }
         setEmployeesData(employeesArray.sort((a,b) => a.name.localeCompare(b.name)));
@@ -310,36 +314,36 @@ export default function FleurManagerPage() {
   }, [debtsData, debtFilter]);
 
 
-  const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
+  const handleAddProduct = useCallback(async (newProductData: Omit<Product, 'id'>) => {
     try {
       const newProductRef = push(ref(db, 'inventory'));
       await set(newProductRef, {
         ...newProductData,
-        price: newProductData.price, 
-        costPrice: newProductData.costPrice, 
+        price: newProductData.price,
+        costPrice: newProductData.costPrice,
       });
       toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" });
     } catch (error) {
       console.error("Error adding product:", error);
       toast({ title: "Lỗi", description: "Không thể thêm sản phẩm. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleUpdateProduct = async (productId: string, updatedProductData: Omit<Product, 'id'>) => {
+  const handleUpdateProduct = useCallback(async (productId: string, updatedProductData: Omit<Product, 'id'>) => {
     try {
       await update(ref(db, `inventory/${productId}`), {
         ...updatedProductData,
-        price: updatedProductData.price, 
-        costPrice: updatedProductData.costPrice, 
+        price: updatedProductData.price,
+        costPrice: updatedProductData.costPrice,
       });
       toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" });
     } catch (error) {
       console.error("Error updating product:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật sản phẩm. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleDeleteProduct = async (productId: string) => {
+  const handleDeleteProduct = useCallback(async (productId: string) => {
     try {
       await remove(ref(db, `inventory/${productId}`));
       toast({ title: "Thành công", description: "Sản phẩm đã được xóa.", variant: "default" });
@@ -347,9 +351,9 @@ export default function FleurManagerPage() {
       console.error("Error deleting product:", error);
       toast({ title: "Lỗi", description: "Không thể xóa sản phẩm. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleAddEmployee = async (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+  const handleAddEmployee = useCallback(async (newEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
     if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để thêm nhân viên.", variant: "destructive" });
         return;
@@ -362,9 +366,9 @@ export default function FleurManagerPage() {
       console.error("Error adding employee:", error);
       toast({ title: "Lỗi", description: "Không thể thêm nhân viên. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [currentUser, toast]);
 
-  const handleUpdateEmployee = async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
+  const handleUpdateEmployee = useCallback(async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id' | 'userId'>) => {
      if (!currentUser || !currentUser.uid) {
         toast({ title: "Lỗi", description: "Không tìm thấy thông tin người dùng để cập nhật nhân viên.", variant: "destructive" });
         return;
@@ -376,9 +380,9 @@ export default function FleurManagerPage() {
       console.error("Error updating employee:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật thông tin nhân viên. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [currentUser, toast]);
 
-  const handleDeleteEmployee = async (employeeId: string) => {
+  const handleDeleteEmployee = useCallback(async (employeeId: string) => {
     try {
       await remove(ref(db, `employees/${employeeId}`));
       toast({ title: "Thành công", description: "Nhân viên đã được xóa.", variant: "default" });
@@ -386,9 +390,9 @@ export default function FleurManagerPage() {
       console.error("Error deleting employee:", error);
       toast({ title: "Lỗi", description: "Không thể xóa nhân viên. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleAddCustomer = async (newCustomerData: Omit<Customer, 'id'>) => {
+  const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id'>) => {
     try {
       const newCustomerRef = push(ref(db, 'customers'));
       await set(newCustomerRef, newCustomerData);
@@ -397,9 +401,9 @@ export default function FleurManagerPage() {
       console.error("Error adding customer:", error);
       toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleUpdateCustomer = async (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => {
+  const handleUpdateCustomer = useCallback(async (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => {
     try {
       await update(ref(db, `customers/${customerId}`), updatedCustomerData);
       toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" });
@@ -407,9 +411,9 @@ export default function FleurManagerPage() {
       console.error("Error updating customer:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleDeleteCustomer = async (customerId: string) => {
+  const handleDeleteCustomer = useCallback(async (customerId: string) => {
     try {
       await remove(ref(db, `customers/${customerId}`));
       toast({ title: "Thành công", description: "Khách hàng đã được xóa.", variant: "default" });
@@ -417,9 +421,9 @@ export default function FleurManagerPage() {
       console.error("Error deleting customer:", error);
       toast({ title: "Lỗi", description: "Không thể xóa khách hàng. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleCreateInvoice = async (
+  const handleCreateInvoice = useCallback(async (
     customerName: string,
     cart: CartItem[],
     subtotal: number,
@@ -470,7 +474,7 @@ export default function FleurManagerPage() {
       if (calculatedDebtAmount > 0) {
         const newDebtRef = push(ref(db, 'debts'));
         const newDebt: Omit<Debt, 'id'> = {
-          supplier: customerName, 
+          supplier: customerName,
           amount: calculatedDebtAmount,
           date: new Date().toISOString(),
           status: 'Chưa thanh toán',
@@ -492,7 +496,7 @@ export default function FleurManagerPage() {
       if (Object.keys(updates).length > 0) {
         await update(ref(db), updates);
       }
-      
+
       toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
       return true;
     } catch (error) {
@@ -500,9 +504,9 @@ export default function FleurManagerPage() {
       toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
       return false;
     }
-  };
+  }, [toast]);
 
-  const handleProcessInvoiceCancellationOrReturn = async (
+  const handleProcessInvoiceCancellationOrReturn = useCallback(async (
     invoiceId: string,
     operationType: 'delete' | 'return',
     itemsToReturnArray?: Array<{ productId: string; name: string; quantityToReturn: number }>
@@ -525,13 +529,13 @@ export default function FleurManagerPage() {
             for (const debtId in allDebts) {
               if (allDebts[debtId].invoiceId === invoiceId) {
                 updates[`debts/${debtId}`] = null;
-                break; 
+                break;
               }
             }
           }
         }
       };
-      
+
       if (operationType === 'delete' || (operationType === 'return' && (!itemsToReturnArray || itemsToReturnArray.length === 0))) {
         for (const cartItem of originalInvoice.items) {
           const productRef = child(ref(db), `inventory/${cartItem.id}`);
@@ -582,7 +586,7 @@ export default function FleurManagerPage() {
             newTotal += originalItem.price * remainingQuantityInCart;
           }
         }
-        
+
         let originalSubTotal = 0;
         for(const item of originalInvoice.items) {
             originalSubTotal += item.price * item.quantityInCart;
@@ -597,12 +601,12 @@ export default function FleurManagerPage() {
              }
             newDiscount = Math.round(currentSubTotalOfNewItems * discountRatio);
         }
-        
+
         newTotal = newTotal - newDiscount;
 
 
         if (newInvoiceItems.length === 0 || newTotal <= 0) {
-          updates[`invoices/${invoiceId}`] = null; 
+          updates[`invoices/${invoiceId}`] = null;
           await deleteAssociatedDebtIfNeeded();
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn và công nợ liên quan (nếu có) đã được xóa.", variant: "default" });
@@ -615,7 +619,7 @@ export default function FleurManagerPage() {
         }
         return true;
       }
-      return false; 
+      return false;
 
     } catch (error) {
       console.error(`Error processing invoice ${operationType} for ID ${invoiceId}:`, error);
@@ -623,11 +627,11 @@ export default function FleurManagerPage() {
       toast({ title: "Lỗi", description: `${errorMessage} Vui lòng thử lại. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
       return false;
     }
-  };
+  }, [toast]);
 
 
-  const handleImportProducts = async (
-    supplierName: string | undefined, 
+  const handleImportProducts = useCallback(async (
+    supplierName: string | undefined,
     itemsToProcess: SubmitItemToImport[],
     totalImportCostVND: number
   ) => {
@@ -663,9 +667,9 @@ export default function FleurManagerPage() {
       toast({ title: "Lỗi", description: "Không thể nhập hàng. Vui lòng thử lại.", variant: "destructive" });
       return false;
     }
-  };
+  }, [toast]);
 
-  const handleUpdateDebtStatus = async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', isUndoOperation: boolean = false) => {
+  const handleUpdateDebtStatus = useCallback(async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', isUndoOperation: boolean = false) => {
     try {
       const debtRef = ref(db, `debts/${debtId}`);
       const snapshot = await get(debtRef);
@@ -683,8 +687,8 @@ export default function FleurManagerPage() {
           description: "Trạng thái công nợ đã được cập nhật.",
           variant: "default",
           action: (
-            <ToastAction 
-              altText="Hoàn tác" 
+            <ToastAction
+              altText="Hoàn tác"
               onClick={() => handleUpdateDebtStatus(debtId, originalStatus, true)}
             >
               Hoàn tác
@@ -703,9 +707,9 @@ export default function FleurManagerPage() {
       console.error("Error updating debt status:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleAddProductOption = async (type: ProductOptionType, name: string) => {
+  const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => {
     if (!name.trim()) {
       toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" });
       return;
@@ -725,9 +729,9 @@ export default function FleurManagerPage() {
       console.error(`Error adding product ${type} option:`, error);
       toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const handleDeleteProductOption = async (type: ProductOptionType, name: string) => {
+  const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => {
     try {
       await remove(ref(db, `productOptions/${type}/${name}`));
       toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" });
@@ -735,7 +739,7 @@ export default function FleurManagerPage() {
       console.error(`Error deleting product ${type} option:`, error);
       toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" });
     }
-  };
+  }, [toast]);
 
   const navItems = [
     { name: 'Bán hàng', icon: <SellIcon /> },
@@ -745,7 +749,7 @@ export default function FleurManagerPage() {
     { name: 'Công nợ', icon: <DebtIcon /> },
     { name: 'Doanh thu', icon: <RevenueIcon /> },
     { name: 'Nhân viên', icon: <EmployeeIcon /> },
-    { name: 'Khách hàng', icon: <CustomerIcon /> }, 
+    { name: 'Khách hàng', icon: <CustomerIcon /> },
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
@@ -762,55 +766,55 @@ export default function FleurManagerPage() {
                     onAddOption={handleAddProductOption}
                     onDeleteOption={handleDeleteProductOption}
                   />,
-    'Nhập hàng': <ImportTab 
-                    inventory={inventory} 
-                    onImportProducts={handleImportProducts} 
+    'Nhập hàng': <ImportTab
+                    inventory={inventory}
+                    onImportProducts={handleImportProducts}
                     productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
                     sizeOptions={sizeOptions}
                     unitOptions={unitOptions}
                   />,
-    'Hóa đơn': <InvoiceTab 
-                  invoices={filteredInvoicesForInvoiceTab} 
+    'Hóa đơn': <InvoiceTab
+                  invoices={filteredInvoicesForInvoiceTab}
                   onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
                   filter={invoiceFilter}
                   onFilterChange={handleInvoiceFilterChange}
                   availableYears={availableInvoiceYears}
                 />,
-    'Công nợ': <DebtTab 
-                  debts={filteredDebtsForDebtTab} 
+    'Công nợ': <DebtTab
+                  debts={filteredDebtsForDebtTab}
                   onUpdateDebtStatus={handleUpdateDebtStatus}
                   filter={debtFilter}
                   onFilterChange={handleDebtFilterChange}
                   availableYears={availableDebtYears}
                 />,
-    'Doanh thu': <RevenueTab 
+    'Doanh thu': <RevenueTab
                   invoices={filteredInvoicesForRevenue}
                   filter={revenueFilter}
                   onFilterChange={handleRevenueFilterChange}
                   availableYears={availableInvoiceYears}
                 />,
-    'Nhân viên': <EmployeeTab 
-                    employees={employeesData} 
-                    onAddEmployee={handleAddEmployee} 
+    'Nhân viên': <EmployeeTab
+                    employees={employeesData}
+                    onAddEmployee={handleAddEmployee}
                     onUpdateEmployee={handleUpdateEmployee}
                     onDeleteEmployee={handleDeleteEmployee}
                   />,
-    'Khách hàng': <CustomerTab 
-                      customers={customersData} 
+    'Khách hàng': <CustomerTab
+                      customers={customersData}
                       onAddCustomer={handleAddCustomer}
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
                     />,
   }), [
-      inventory, employeesData, customersData, invoicesData, debtsData, currentUser, 
-      productNameOptions, colorOptions, sizeOptions, unitOptions, 
-      filteredInvoicesForRevenue, revenueFilter, 
-      filteredInvoicesForInvoiceTab, invoiceFilter, 
+      inventory, employeesData, customersData, invoicesData, debtsData,
+      productNameOptions, colorOptions, sizeOptions, unitOptions,
+      filteredInvoicesForRevenue, revenueFilter,
+      filteredInvoicesForInvoiceTab, invoiceFilter,
       filteredDebtsForDebtTab, debtFilter,
       availableInvoiceYears, availableDebtYears,
       handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct,
-      handleAddProductOption, handleDeleteProductOption, handleImportProducts, 
+      handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddEmployee, handleUpdateEmployee, handleDeleteEmployee,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer,
@@ -857,8 +861,8 @@ export default function FleurManagerPage() {
         onNameSet={async (name) => {
           try {
             await updateUserProfileName(name);
-            toast({title: "Thành công", description: "Tên hiển thị Auth đã được cập nhật."});
-            
+
+
             const existingOwnerEmployee = employeesData.find(
               (emp) => emp.userId === currentUser?.uid && emp.position === 'Chủ cửa hàng'
             );
@@ -867,19 +871,21 @@ export default function FleurManagerPage() {
               if (existingOwnerEmployee.name !== name) {
                 await handleUpdateEmployee(existingOwnerEmployee.id, {
                   name: name,
-                  position: existingOwnerEmployee.position, 
-                  phone: existingOwnerEmployee.phone, 
+                  position: existingOwnerEmployee.position,
+                  phone: existingOwnerEmployee.phone,
                 });
-                 toast({title: "Thành công", description: "Thông tin nhân viên chủ cửa hàng đã được cập nhật."});
+                 toast({title: "Thành công", description: "Tên của bạn và thông tin nhân viên chủ cửa hàng đã được cập nhật."});
+              } else {
+                 toast({title: "Thông báo", description: "Tên của bạn đã được lưu. Không có thay đổi về thông tin nhân viên."});
               }
             } else {
               const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
                 name: name,
-                position: 'Chủ cửa hàng', 
-                phone: 'Chưa cập nhật', 
+                position: 'Chủ cửa hàng',
+                phone: 'Chưa cập nhật',
               };
-              await handleAddEmployee(newEmployeeData); 
-              toast({title: "Thành công", description: "Nhân viên chủ cửa hàng mới đã được tạo."});
+              await handleAddEmployee(newEmployeeData);
+              toast({title: "Thành công", description: "Tên của bạn đã được lưu và nhân viên chủ cửa hàng mới đã được tạo."});
             }
           } catch (error) {
             toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo/cập nhật nhân viên.", variant: "destructive"});
@@ -888,7 +894,7 @@ export default function FleurManagerPage() {
       />
     );
   }
-  
+
 
   return (
     <SidebarProvider>
@@ -928,8 +934,8 @@ export default function FleurManagerPage() {
                     className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-default"
                     tooltip={{children: currentUser.displayName || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
-                    asChild={false} // Ensure it's a button, not a link
-                    onClick={(e) => e.preventDefault()} // Prevent any action on click
+                    asChild={false}
+                    onClick={(e) => e.preventDefault()}
                 >
                     <UserCircle className="h-5 w-5" />
                     <span>{currentUser.displayName || "Tài khoản"}</span>

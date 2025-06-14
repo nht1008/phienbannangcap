@@ -103,12 +103,19 @@ export default function FleurManagerPage() {
   }, [currentUser, authLoading, router]);
 
   useEffect(() => {
-    if (!authLoading && currentUser && !currentUser.displayName) {
-      setIsSettingName(true);
-    } else {
-      setIsSettingName(false);
+    if (!authLoading && currentUser) {
+      // Show SetNameDialog if Auth displayName is missing OR if no employee record for this user UID exists
+      const userHasNoEmployeeRecord = employeesData.length === 0;
+      if (!currentUser.displayName || userHasNoEmployeeRecord) {
+        setIsSettingName(true);
+      } else {
+        setIsSettingName(false);
+      }
+    } else if (!currentUser && !authLoading) {
+      setIsSettingName(false); 
     }
-  }, [currentUser, authLoading]);
+  }, [currentUser, authLoading, employeesData]);
+
 
   useEffect(() => {
     if (!currentUser) return;
@@ -254,10 +261,10 @@ export default function FleurManagerPage() {
 
   const filterDataByDateRange = <T extends { date: string }>(
     data: T[],
-    filterObj: DateFilter
+    filter: DateFilter
   ): T[] => {
     if (!data) return [];
-    const {day, month, year} = filterObj;
+    const {day, month, year} = filter;
     return data.filter(item => {
       const itemDate = new Date(item.date);
       const itemDay = itemDate.getDate().toString();
@@ -286,18 +293,15 @@ export default function FleurManagerPage() {
 
 
   const filteredInvoicesForRevenue = useMemo(() => {
-     const {day, month, year} = revenueFilter;
-    return filterDataByDateRange(invoicesData, {day, month, year});
+    return filterDataByDateRange(invoicesData, revenueFilter);
   }, [invoicesData, revenueFilter]);
 
   const filteredInvoicesForInvoiceTab = useMemo(() => {
-    const {day, month, year} = invoiceFilter;
-    return filterDataByDateRange(invoicesData, {day, month, year});
+    return filterDataByDateRange(invoicesData, invoiceFilter);
   }, [invoicesData, invoiceFilter]);
 
   const filteredDebtsForDebtTab = useMemo(() => {
-    const {day, month, year} = debtFilter;
-    const dateFilteredDebts = filterDataByDateRange(debtsData, {day, month, year});
+    const dateFilteredDebts = filterDataByDateRange(debtsData, debtFilter);
     return dateFilteredDebts.filter(debt => debt.status === 'Chưa thanh toán');
   }, [debtsData, debtFilter]);
 
@@ -729,7 +733,7 @@ export default function FleurManagerPage() {
     }
   };
 
-  const navItems: NavItem[] = [
+  const navItems = [
     { name: 'Bán hàng', icon: <SellIcon /> },
     { name: 'Kho hàng', icon: <WarehouseIcon /> },
     { name: 'Nhập hàng', icon: <ImportIcon /> },
@@ -850,16 +854,33 @@ export default function FleurManagerPage() {
           try {
             await updateUserProfileName(name);
             toast({title: "Thành công", description: "Tên hiển thị Auth đã được cập nhật."});
-
-            const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
-              name: name,
-              position: 'Chủ cửa hàng', 
-              phone: 'Chưa cập nhật', 
-            };
-            await handleAddEmployee(newEmployeeData); 
             
+            // Check if a "Chủ cửa hàng" employee record already exists for this user
+            const existingOwnerEmployee = employeesData.find(
+              (emp) => emp.userId === currentUser?.uid && emp.position === 'Chủ cửa hàng'
+            );
+
+            if (existingOwnerEmployee) {
+              // Update existing owner employee if name changed
+              if (existingOwnerEmployee.name !== name) {
+                await handleUpdateEmployee(existingOwnerEmployee.id, {
+                  name: name,
+                  position: existingOwnerEmployee.position, 
+                  phone: existingOwnerEmployee.phone, 
+                });
+                 toast({title: "Thành công", description: "Thông tin nhân viên chủ cửa hàng đã được cập nhật."});
+              }
+            } else {
+              // Add new owner employee
+              const newEmployeeData: Omit<Employee, 'id' | 'userId'> = {
+                name: name,
+                position: 'Chủ cửa hàng', 
+                phone: 'Chưa cập nhật', 
+              };
+              await handleAddEmployee(newEmployeeData); 
+            }
           } catch (error) {
-            toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo nhân viên.", variant: "destructive"});
+            toast({title: "Lỗi", description: "Không thể cập nhật tên hoặc tạo/cập nhật nhân viên.", variant: "destructive"});
           }
         }}
       />
@@ -882,7 +903,7 @@ export default function FleurManagerPage() {
               {navItems.map(item => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton
-                    onClick={() => setActiveTab(item.name)}
+                    onClick={() => setActiveTab(item.name as TabName)}
                     isActive={activeTab === item.name}
                     tooltip={{ children: item.name, side: "right", align: "center" }}
                     className={cn(
@@ -930,4 +951,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

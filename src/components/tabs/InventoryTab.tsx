@@ -77,15 +77,25 @@ export function InventoryTab({
   const [currentOptionType, setCurrentOptionType] = useState<ProductOptionType | null>(null);
   const [newOptionName, setNewOptionName] = useState('');
 
-  // Reset newItem form if productNameOptions changes and newItem.name is not in options
   useEffect(() => {
-    if (productNameOptions.length > 0 && newItem.name && !productNameOptions.includes(newItem.name)) {
-      setNewItem(prev => ({ ...prev, name: productNameOptions[0] || '' }));
-    } else if (productNameOptions.length === 0 && newItem.name) {
-       setNewItem(prev => ({...prev, name: ''}));
+    const defaultProductName = productNameOptions.length > 0 ? productNameOptions[0] : '';
+    const defaultUnit = unitOptions.length > 0 ? unitOptions[0] : '';
+    
+    if (!newItem.name && defaultProductName) {
+      setNewItem(prev => ({ ...prev, name: defaultProductName }));
     }
-    // Similar logic for unit, color, size if needed, or handle in select change
-  }, [productNameOptions, newItem.name]);
+    if (!newItem.unit && defaultUnit) {
+      setNewItem(prev => ({ ...prev, unit: defaultUnit }));
+    }
+    
+    if (productToEdit && !editedItem.name && defaultProductName) {
+        setEditedItem(prev => ({...prev, name: defaultProductName }));
+    }
+    if (productToEdit && !editedItem.unit && defaultUnit) {
+        setEditedItem(prev => ({...prev, unit: defaultUnit }));
+    }
+
+  }, [productNameOptions, unitOptions, newItem.name, newItem.unit, productToEdit, editedItem.name, editedItem.unit]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
@@ -117,7 +127,11 @@ export function InventoryTab({
       unit: newItem.unit,
     };
     await onAddProduct(newProductData);
-    setNewItem(initialFormProductState);
+    setNewItem({
+        ...initialFormProductState, 
+        name: productNameOptions.length > 0 ? productNameOptions[0] : '', 
+        unit: unitOptions.length > 0 ? unitOptions[0] : ''
+    });
     setIsAddingProduct(false);
   };
 
@@ -204,16 +218,16 @@ export function InventoryTab({
     handleSubmit: (e: React.FormEvent) => Promise<void>,
     isEditMode: boolean
     ) => (
-    <form onSubmit={handleSubmit} className="p-4 bg-muted/50 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+    <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
         <div>
             <label className="text-sm text-foreground">Tên sản phẩm (*)</label>
-            <Select value={formState.name} onValueChange={(value) => handleSelectChange('name', value, formSetter)} required>
+            <Select value={formState.name} onValueChange={(value) => handleSelectChange('name', value, formSetter)} required disabled={productNameOptions.length === 0 && !formState.name}>
                 <SelectTrigger className="w-full bg-card">
                     <SelectValue placeholder="Chọn tên sản phẩm" />
                 </SelectTrigger>
                 <SelectContent>
                     {productNameOptions.length === 0 ? (
-                         <SelectItem value="no-name-option" disabled>Vui lòng thêm tên SP</SelectItem>
+                         <SelectItem value="no-name-option" disabled>Vui lòng thêm Tên SP ở mục quản lý</SelectItem>
                     ) : (
                         productNameOptions.map(option => (
                             <SelectItem key={option} value={option}>{option}</SelectItem>
@@ -226,12 +240,12 @@ export function InventoryTab({
             <label className="text-sm text-foreground">Màu sắc</label>
             <Select value={formState.color === '' ? EMPTY_COLOR_VALUE : formState.color} onValueChange={(value) => handleSelectChange('color', value, formSetter)}>
                 <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Chọn màu sắc" />
+                    <SelectValue placeholder="Chọn màu sắc (tùy chọn)" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value={EMPTY_COLOR_VALUE}>Để trống</SelectItem>
                     {colorOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))}
-                    {colorOptions.length === 0 && formState.color !== '' && <SelectItem value="no-color-option" disabled>Không có tùy chọn</SelectItem>}
+                    {colorOptions.length === 0 && formState.color !== '' && <SelectItem value="no-color-option" disabled>Vui lòng thêm Màu ở mục quản lý</SelectItem>}
                 </SelectContent>
             </Select>
         </div>
@@ -239,24 +253,24 @@ export function InventoryTab({
             <label className="text-sm text-foreground">Kích thước</label>
             <Select value={formState.size === '' ? EMPTY_SIZE_VALUE : formState.size} onValueChange={(value) => handleSelectChange('size', value, formSetter)}>
                 <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Chọn kích thước" />
+                    <SelectValue placeholder="Chọn kích thước (tùy chọn)" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value={EMPTY_SIZE_VALUE}>Để trống</SelectItem>
                     {sizeOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))}
-                    {sizeOptions.length === 0 && formState.size !== '' && <SelectItem value="no-size-option" disabled>Không có tùy chọn</SelectItem>}
+                    {sizeOptions.length === 0 && formState.size !== '' && <SelectItem value="no-size-option" disabled>Vui lòng thêm Kích thước ở mục quản lý</SelectItem>}
                 </SelectContent>
             </Select>
         </div>
         <div>
             <label className="text-sm text-foreground">Đơn vị (*)</label>
-            <Select value={formState.unit} onValueChange={(value) => handleSelectChange('unit', value, formSetter)} required>
+            <Select value={formState.unit} onValueChange={(value) => handleSelectChange('unit', value, formSetter)} required disabled={unitOptions.length === 0 && !formState.unit}>
                 <SelectTrigger className="w-full bg-card">
                     <SelectValue placeholder="Chọn đơn vị" />
                 </SelectTrigger>
                 <SelectContent>
                     {unitOptions.length === 0 ? (
-                         <SelectItem value="no-unit-option" disabled>Vui lòng thêm đơn vị</SelectItem>
+                         <SelectItem value="no-unit-option" disabled>Vui lòng thêm Đơn vị ở mục quản lý</SelectItem>
                     ) : (
                         unitOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))
                     )}
@@ -275,7 +289,7 @@ export function InventoryTab({
             <label className="text-sm text-foreground">URL Hình ảnh</label>
             <Input type="text" name="image" placeholder="https://placehold.co/100x100.png" value={formState.image} onChange={(e) => handleInputChange(e, formSetter)} className="bg-card"/>
         </div>
-        <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 md:col-start-4">
+        <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 md:col-start-4" disabled={(!formState.name && productNameOptions.length === 0) || (!formState.unit && unitOptions.length === 0) }>
             {isEditMode ? 'Lưu thay đổi' : 'Lưu sản phẩm'}
         </Button>
     </form>
@@ -285,8 +299,7 @@ export function InventoryTab({
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Danh sách sản phẩm</CardTitle>
+        <div className="flex justify-end items-center">
           <div className="flex gap-2 items-center flex-wrap">
             <Button onClick={() => openOptionsDialog('productNames')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Tên SP
@@ -300,7 +313,7 @@ export function InventoryTab({
             <Button onClick={() => openOptionsDialog('units')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Đơn vị
             </Button>
-            <Button onClick={() => { setIsAddingProduct(!isAddingProduct); setIsEditingProduct(false); }} variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90" size="sm">
+            <Button onClick={() => { setIsAddingProduct(!isAddingProduct); setIsEditingProduct(false); setNewItem({...initialFormProductState, name: productNameOptions[0] || '', unit: unitOptions[0] || '' }); }} variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90" size="sm">
               <PlusCircle className="mr-2 h-4 w-4" /> {isAddingProduct ? 'Hủy thêm mới' : 'Thêm sản phẩm'}
             </Button>
           </div>
@@ -309,7 +322,8 @@ export function InventoryTab({
       <CardContent className="p-6">
         {isAddingProduct && !isEditingProduct && renderProductForm(newItem, setNewItem, handleAddItem, false)}
 
-        <div className="overflow-x-auto mt-6">
+        <CardTitle className="mt-6 mb-4 text-center sm:text-left">Danh sách sản phẩm</CardTitle>
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -362,7 +376,6 @@ export function InventoryTab({
         </div>
       </CardContent>
 
-      {/* Edit Product Dialog */}
       <Dialog open={isEditingProduct} onOpenChange={(open) => { if(!open) { setIsEditingProduct(false); setProductToEdit(null); }}}>
         <DialogContent className="sm:max-w-4xl">
             <DialogHeader>
@@ -376,14 +389,13 @@ export function InventoryTab({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       {productToDelete && (
         <AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                 <AlertDialogTitle>Xác nhận xóa sản phẩm?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Bạn có chắc chắn muốn xóa sản phẩm "{productToDelete.name}" không? Hành động này không thể hoàn tác.
+                    Bạn có chắc chắn muốn xóa sản phẩm "{productToDelete.name} ({productToDelete.color}, {productToDelete.size})" không? Hành động này không thể hoàn tác.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -394,7 +406,6 @@ export function InventoryTab({
         </AlertDialog>
       )}
 
-      {/* Options Management Dialog */}
       {currentOptionType && (
         <Dialog open={isOptionsDialogOpen} onOpenChange={setIsOptionsDialogOpen}>
           <DialogContent className="sm:max-w-md">
@@ -449,6 +460,4 @@ export function InventoryTab({
     </Card>
   );
 }
-    
-
     

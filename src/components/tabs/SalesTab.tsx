@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { cn, formatPhoneNumber } from '@/lib/utils';
+import { cn, formatPhoneNumber, normalizeStringForSearch } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 
 
@@ -401,9 +401,11 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                     <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
                     <CommandGroup>
                       {distinctInStockVariants
-                        .filter(variant =>
-                          variant.displayLabel.toLowerCase().includes(productSearchQuery.toLowerCase())
-                        )
+                        .filter(variant => {
+                          const normalizedLabel = normalizeStringForSearch(variant.displayLabel);
+                          const normalizedQuery = normalizeStringForSearch(productSearchQuery);
+                          return normalizedLabel.includes(normalizedQuery);
+                        })
                         .map((variant) => (
                           <CommandItem
                             key={variant.id}
@@ -736,7 +738,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                             Khách lẻ
                         </CommandItem>
                         {customers
-                          .filter(c => c.name.toLowerCase().includes(customerSearchText.toLowerCase()) || (c.phone && c.phone.includes(customerSearchText)))
+                          .filter(c => normalizeStringForSearch(c.name).includes(normalizeStringForSearch(customerSearchText)) || (c.phone && c.phone.includes(customerSearchText)))
                           .map((customer) => (
                             <CommandItem
                               key={customer.id}
@@ -857,6 +859,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     </>
   );
 }
+
 
 
 

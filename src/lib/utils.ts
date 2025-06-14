@@ -24,3 +24,13 @@ export function formatPhoneNumber(phoneStr: string | undefined | null): string {
   // Fallback for other formats or if cleaning resulted in an empty string
   return cleaned || phoneStr;
 }
+
+export function normalizeStringForSearch(str: string | undefined | null): string {
+  if (!str) {
+    return '';
+  }
+  return str
+    .toLowerCase()
+    .normalize('NFD') // Decompose combined diacritic characters (e.g., "à" to "a" + "ˋ")
+    .replace(/[\u0300-\u036f]/g, ''); // Remove diacritic marks
+}

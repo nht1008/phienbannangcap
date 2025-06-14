@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Product, CartItem, Customer } from '@/types';
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -26,6 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatPhoneNumber } from '@/lib/utils'; 
 
 
@@ -48,6 +49,18 @@ interface SalesTabProps {
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
 
+interface VariantSelection {
+  color: string;
+  size: string;
+  unit: string;
+}
+
+interface AvailableVariants {
+  colors: string[];
+  sizes: string[];
+  units: string[];
+}
+
 export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [localNotification, setLocalNotification] = useState<string | null>(null);
@@ -64,6 +77,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
 
+  const [selectedProductNameForVariants, setSelectedProductNameForVariants] = useState<string | null>(null);
+  const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', size: '', unit: '' });
+  const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
+  const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], sizes: [], units: [] });
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
@@ -75,7 +92,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     const stockItem = inventory.find(i => i.id === item.id);
 
     if (!stockItem || stockItem.quantity <= 0) {
-      showLocalNotification(`Sản phẩm "${item.name}" đã hết hàng!`, 'error');
+      showLocalNotification(`Sản phẩm "${item.name} (${item.color}, ${item.size}, ${item.unit})" đã hết hàng!`, 'error');
       return;
     }
 
@@ -85,7 +102,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
           cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
         ));
       } else {
-        showLocalNotification(`Không đủ số lượng "${item.name}" trong kho (Còn: ${stockItem.quantity}).`, 'error');
+        showLocalNotification(`Không đủ số lượng "${item.name} (${item.color}, ${item.size}, ${item.unit})" trong kho (Còn: ${stockItem.quantity}).`, 'error');
       }
     } else {
       setCart([...cart, { ...item, quantityInCart: 1 }]);
@@ -121,7 +138,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   const parsedAmountPaidNghin = parseFloat(amountPaidStr) || 0;
   const actualAmountPaidVND = parsedAmountPaidNghin * 1000;
   const changeVND = actualAmountPaidVND - finalTotalAfterDiscount;
-
 
   const handleOpenPaymentDialog = () => {
     if (cart.length === 0) {
@@ -191,6 +207,126 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     }
   };
 
+  const productsWithSameName = useMemo(() => {
+    const nameMap = new Map<string, Product[]>();
+    inventory.filter(p => p.quantity > 0).forEach(product => {
+      if (!nameMap.has(product.name)) {
+        nameMap.set(product.name, []);
+      }
+      nameMap.get(product.name)!.push(product);
+    });
+    return Array.from(nameMap.entries()).map(([name, products]) => ({
+      name,
+      firstVariant: products[0], // For display on card
+      totalStock: products.reduce((sum, p) => sum + p.quantity, 0)
+    }));
+  }, [inventory]);
+
+  const openVariantSelector = useCallback((productName: string) => {
+    const variantsOfProduct = inventory.filter(p => p.name === productName && p.quantity > 0);
+    if (variantsOfProduct.length === 0) {
+      showLocalNotification(`Sản phẩm "${productName}" hiện đã hết hàng.`, 'error');
+      return;
+    }
+
+    const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
+    // Initially, sizes and units are empty until a color is selected
+    setAvailableVariants({ colors, sizes: [], units: [] });
+    setSelectedProductNameForVariants(productName);
+    setVariantSelection({ color: colors[0] || '', size: '', unit: '' }); // Pre-select first color
+    setIsVariantSelectorOpen(true);
+  }, [inventory]);
+
+  useEffect(() => {
+    if (selectedProductNameForVariants && variantSelection.color) {
+      const variantsMatchingNameAndColor = inventory.filter(p => 
+        p.name === selectedProductNameForVariants && 
+        p.color === variantSelection.color &&
+        p.quantity > 0
+      );
+      const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
+      setAvailableVariants(prev => ({ ...prev, sizes }));
+      
+      // If only one size, auto-select it. Otherwise, reset size selection.
+      const newSize = sizes.length === 1 ? sizes[0] : '';
+      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' })); // Reset unit when color/size changes
+    } else if (selectedProductNameForVariants) { // Color not selected or cleared
+        setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
+        setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
+    }
+  }, [selectedProductNameForVariants, variantSelection.color, inventory]);
+
+  useEffect(() => {
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
+      const variantsMatchingNameColorSize = inventory.filter(p => 
+        p.name === selectedProductNameForVariants &&
+        p.color === variantSelection.color &&
+        p.size === variantSelection.size &&
+        p.quantity > 0
+      );
+      const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
+      setAvailableVariants(prev => ({ ...prev, units }));
+
+      // If only one unit, auto-select it.
+      const newUnit = units.length === 1 ? units[0] : '';
+      setVariantSelection(prev => ({ ...prev, unit: newUnit }));
+    } else if (selectedProductNameForVariants) { // Size not selected or cleared
+        setAvailableVariants(prev => ({ ...prev, units: [] }));
+        setVariantSelection(prev => ({ ...prev, unit: '' }));
+    }
+  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory]);
+
+
+  const handleVariantSelectionChange = (field: keyof VariantSelection, value: string) => {
+    setVariantSelection(prev => {
+      const newState = { ...prev, [field]: value };
+      if (field === 'color') { // Reset size and unit if color changes
+        newState.size = '';
+        newState.unit = '';
+      } else if (field === 'size') { // Reset unit if size changes
+        newState.unit = '';
+      }
+      return newState;
+    });
+  };
+
+  const handleAddVariantToCart = () => {
+    if (!selectedProductNameForVariants || !variantSelection.color || !variantSelection.size || !variantSelection.unit) {
+      showLocalNotification('Vui lòng chọn đầy đủ màu sắc, kích thước và đơn vị.', 'error');
+      return;
+    }
+    const productToAdd = inventory.find(p => 
+      p.name === selectedProductNameForVariants &&
+      p.color === variantSelection.color &&
+      p.size === variantSelection.size &&
+      p.unit === variantSelection.unit &&
+      p.quantity > 0
+    );
+
+    if (productToAdd) {
+      addToCart(productToAdd);
+      setIsVariantSelectorOpen(false);
+      setSelectedProductNameForVariants(null);
+      setVariantSelection({ color: '', size: '', unit: '' });
+    } else {
+      showLocalNotification('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.', 'error');
+    }
+  };
+
+  const selectedVariantDetails = useMemo(() => {
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.size && variantSelection.unit) {
+      return inventory.find(p => 
+        p.name === selectedProductNameForVariants &&
+        p.color === variantSelection.color &&
+        p.size === variantSelection.size &&
+        p.unit === variantSelection.unit &&
+        p.quantity > 0
+      );
+    }
+    return null;
+  }, [inventory, selectedProductNameForVariants, variantSelection]);
+
+
   return (
     <>
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
@@ -221,25 +357,24 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                   <CommandList>
                     <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
                     <CommandGroup>
-                      {inventory
-                        .filter(item => 
-                          item.quantity > 0 && 
-                          item.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+                      {productsWithSameName
+                        .filter(group => 
+                          group.name.toLowerCase().includes(productSearchQuery.toLowerCase())
                         )
-                        .map((product) => (
+                        .map((productGroup) => (
                           <CommandItem
-                            key={product.id}
-                            value={`${product.name} ${product.color} ${product.size}`} // Unique value for cmdk
+                            key={productGroup.name}
+                            value={productGroup.name}
                             onSelect={() => {
-                              addToCart(product);
+                              openVariantSelector(productGroup.name);
                               setProductSearchQuery("");
                               setIsProductSearchOpen(false);
                             }}
                           >
                             <div className="flex flex-col w-full">
-                              <span className="font-medium">{product.name} <span className="text-xs text-muted-foreground">({product.color}, {product.size}, {product.unit})</span></span>
+                              <span className="font-medium">{productGroup.name}</span>
                               <span className="text-xs text-muted-foreground">
-                                Giá: {product.price.toLocaleString('vi-VN')} VNĐ - Tồn: {product.quantity}
+                                Tổng tồn: {productGroup.totalStock}
                               </span>
                             </div>
                           </CommandItem>
@@ -253,36 +388,34 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
           
           <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            {inventory.filter(item => item.quantity > 0).map(item => (
-              <Card key={item.id} className="text-center hover:shadow-lg transition-shadow flex flex-col">
+            {productsWithSameName.map(group => (
+              <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
                 <CardContent className="p-4 flex-grow">
                   <Image 
-                    src={item.image || `https://placehold.co/100x100.png`}
-                    alt={item.name} 
+                    src={group.firstVariant.image || `https://placehold.co/100x100.png`}
+                    alt={group.name} 
                     width={100} 
                     height={100} 
                     className="w-24 h-24 mx-auto rounded-full object-cover mb-2"
-                    data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                    data-ai-hint={`${group.name.split(' ')[0]} flower`}
                     onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100.png')}
                   />
-                  <h4 className="font-semibold text-foreground">{item.name}</h4>
-                  <p className="text-xs text-muted-foreground">{item.color} - {item.size}</p>
-                  <p className="text-sm text-muted-foreground">{item.price.toLocaleString('vi-VN')} VNĐ / {item.unit}</p>
-                  <p className="text-xs text-muted-foreground">Còn lại: {item.quantity}</p>
+                  <h4 className="font-semibold text-foreground">{group.name}</h4>
+                   <p className="text-xs text-muted-foreground">Tổng còn lại: {group.totalStock}</p>
                 </CardContent>
                 <CardFooter className="p-2">
                   <Button
-                    onClick={() => addToCart(item)}
+                    onClick={() => openVariantSelector(group.name)}
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
                     size="sm"
-                    disabled={item.quantity <= 0}
+                    disabled={group.totalStock <= 0}
                   >
                     Thêm
                   </Button>
                 </CardFooter>
               </Card>
             ))}
-             {inventory.filter(item => item.quantity > 0).length === 0 && !productSearchQuery && (
+             {productsWithSameName.length === 0 && (
                 <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
             )}
           </div>
@@ -299,7 +432,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               cart.map(item => (
                 <div key={item.id} className="flex justify-between items-center">
                   <div>
-                    <p className="font-semibold text-foreground">{item.name} <span className="text-xs text-muted-foreground">({item.color})</span></p>
+                    <p className="font-semibold text-foreground">{item.name} <span className="text-xs text-muted-foreground">({item.color}, {item.size}, {item.unit})</span></p>
                     <p className="text-sm text-muted-foreground">{item.price.toLocaleString('vi-VN')} VNĐ</p>
                   </div>
                   <Input
@@ -476,6 +609,93 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               disabled={finalTotalAfterDiscount < 0}
             >
               Xác nhận thanh toán
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Variant Selector Dialog */}
+      <Dialog open={isVariantSelectorOpen} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setSelectedProductNameForVariants(null);
+          setVariantSelection({ color: '', size: '', unit: '' });
+        }
+        setIsVariantSelectorOpen(isOpen);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chọn thuộc tính cho: {selectedProductNameForVariants}</DialogTitle>
+            <DialogDescription>
+              Vui lòng chọn màu sắc, kích thước và đơn vị.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="variant-color">Màu sắc</Label>
+              <Select 
+                value={variantSelection.color} 
+                onValueChange={(value) => handleVariantSelectionChange('color', value)}
+                disabled={availableVariants.colors.length === 0}
+              >
+                <SelectTrigger id="variant-color" className="bg-card">
+                  <SelectValue placeholder="Chọn màu sắc" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.colors.map(color => (
+                    <SelectItem key={color} value={color}>{color}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="variant-size">Kích thước</Label>
+              <Select 
+                value={variantSelection.size} 
+                onValueChange={(value) => handleVariantSelectionChange('size', value)}
+                disabled={!variantSelection.color || availableVariants.sizes.length === 0}
+              >
+                <SelectTrigger id="variant-size" className="bg-card">
+                  <SelectValue placeholder="Chọn kích thước" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.sizes.map(size => (
+                    <SelectItem key={size} value={size}>{size}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="variant-unit">Đơn vị</Label>
+              <Select 
+                value={variantSelection.unit} 
+                onValueChange={(value) => handleVariantSelectionChange('unit', value)}
+                disabled={!variantSelection.color || !variantSelection.size || availableVariants.units.length === 0}
+              >
+                <SelectTrigger id="variant-unit" className="bg-card">
+                  <SelectValue placeholder="Chọn đơn vị" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.units.map(unit => (
+                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedVariantDetails && (
+              <Card className="p-3 bg-muted/50 text-sm">
+                <p><strong>Giá bán:</strong> {selectedVariantDetails.price.toLocaleString('vi-VN')} VNĐ</p>
+                <p><strong>Tồn kho:</strong> {selectedVariantDetails.quantity}</p>
+              </Card>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
+            <Button 
+              onClick={handleAddVariantToCart}
+              disabled={!variantSelection.color || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Thêm vào giỏ
             </Button>
           </DialogFooter>
         </DialogContent>

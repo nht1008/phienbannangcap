@@ -65,16 +65,10 @@ export function CustomerTab({ customers, onAddCustomer }: CustomerTabProps) {
             </TableHeader>
             <TableBody>
               {customers.map(customer => (
-                <TableRow key={customer.id}>
-                  <TableCell>{customer.name}</TableCell>
-                  <TableCell>{formatPhoneNumber(customer.phone)}</TableCell> {/* Apply formatting here */}
-                  <TableCell>{customer.address || 'N/A'}</TableCell>
-                </TableRow>
+                <TableRow key={customer.id}><TableCell>{customer.name}</TableCell><TableCell>{formatPhoneNumber(customer.phone)}</TableCell><TableCell>{customer.address || 'N/A'}</TableCell></TableRow>
               ))}
               {customers.length === 0 && !isAdding && (
-                <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">Chưa có khách hàng nào.</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Chưa có khách hàng nào.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, ReactNode } from 'react';
@@ -8,7 +9,7 @@ import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
 import { SellIcon } from '@/components/icons/SellIcon';
 import { ImportIcon } from '@/components/icons/ImportIcon';
-import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon'; // Renamed to avoid conflict
+import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon';
 import { DebtIcon } from '@/components/icons/DebtIcon';
 import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { EmployeeIcon } from '@/components/icons/EmployeeIcon';
@@ -21,6 +22,19 @@ import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { cn } from '@/lib/utils';
+
+import { 
+  SidebarProvider, 
+  Sidebar, 
+  SidebarTrigger, 
+  SidebarHeader, 
+  SidebarContent, 
+  SidebarMenu, 
+  SidebarMenuItem, 
+  SidebarMenuButton, 
+  SidebarInset 
+} from '@/components/ui/sidebar';
+import { PanelLeft } from 'lucide-react'; // Icon cho nút trigger
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên';
 
@@ -58,38 +72,53 @@ export default function FleurManagerPage() {
 
 
   return (
-    <div className="flex h-screen bg-background font-body">
-      <aside className="w-64 bg-card shadow-lg flex flex-col print:hidden">
-        <div className="flex items-center justify-center h-20 shadow-md bg-primary/5 border-b border-primary/20">
-          <HomeIcon className="text-primary" />
-          <h1 className="text-2xl font-bold text-primary ml-3 font-headline">Fleur Manager</h1>
-        </div>
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {navItems.map(item => (
-            <button
-              key={item.name}
-              onClick={() => setActiveTab(item.name)}
-              className={cn(
-                "flex items-center w-full px-4 py-3 text-left rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50",
-                activeTab === item.name
-                  ? 'bg-primary text-primary-foreground shadow-lg'
-                  : 'text-foreground hover:bg-primary/10 hover:text-primary'
-              )}
-              aria-current={activeTab === item.name ? "page" : undefined}
-            >
-              <span className="w-6 h-6">{item.icon}</span>
-              <span className="ml-4 text-base font-medium">{item.name}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
+    <SidebarProvider>
+      <div className="flex h-screen bg-background font-body">
+        <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
+          <SidebarHeader className="h-20 p-0 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20">
+            <HomeIcon className="text-primary" />
+            <h1 className="text-2xl font-bold text-primary ml-3 font-headline group-data-[state=collapsed]:hidden">
+              Fleur Manager
+            </h1>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu>
+              {navItems.map(item => (
+                <SidebarMenuItem key={item.name}>
+                  <SidebarMenuButton
+                    onClick={() => setActiveTab(item.name)}
+                    isActive={activeTab === item.name}
+                    tooltip={{ children: item.name, side: "right", align: "center" }}
+                    className={cn(
+                      'rounded-lg', // Giữ lại bo tròn từ thiết kế cũ
+                      activeTab === item.name
+                        ? 'bg-primary text-primary-foreground shadow-lg' // Style cho tab active
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground' // Style cho tab inactive
+                    )}
+                  >
+                    <span className="w-6 h-6">{item.icon}</span>
+                    <span>{item.name}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
 
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
-        <h2 className="text-4xl font-bold text-foreground mb-8 font-headline">{activeTab}</h2>
-        <div className="bg-card p-6 rounded-xl shadow-xl min-h-[calc(100vh-10rem)]"> {/* Adjust min-height as needed */}
-           {tabs[activeTab]}
-        </div>
-      </main>
-    </div>
+        <SidebarInset>
+          <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
+            <div className="flex items-center mb-8 print:hidden">
+              <SidebarTrigger className="md:hidden mr-4">
+                <PanelLeft />
+              </SidebarTrigger>
+              <h2 className="text-4xl font-bold text-foreground font-headline">{activeTab}</h2>
+            </div>
+            <div className="bg-card p-6 rounded-xl shadow-xl min-h-[calc(100vh-10rem)]">
+               {tabs[activeTab]}
+            </div>
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 }

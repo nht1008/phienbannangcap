@@ -27,7 +27,7 @@ export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quản lý công nợ</CardTitle>
+        <CardTitle className="text-4xl font-bold">Quản lý công nợ</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 rounded-md text-red-800">

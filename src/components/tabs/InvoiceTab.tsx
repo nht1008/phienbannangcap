@@ -132,7 +132,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách hóa đơn</CardTitle>
+          <CardTitle className="text-4xl font-bold">Danh sách hóa đơn</CardTitle>
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (

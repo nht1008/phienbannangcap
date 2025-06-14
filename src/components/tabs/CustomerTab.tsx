@@ -149,7 +149,7 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-              <CardTitle>Danh sách khách hàng</CardTitle>
+              <CardTitle className="text-4xl font-bold">Danh sách khách hàng</CardTitle>
               <Button 
                 onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }} 
                 variant="default" 
@@ -189,7 +189,7 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
                   </TableRow>
                 ))}
                 {customers.length === 0 && !isAdding && !isEditing && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

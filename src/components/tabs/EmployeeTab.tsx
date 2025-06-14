@@ -37,7 +37,7 @@ export function EmployeeTab({ employees, onAddEmployee }: EmployeeTabProps) {
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-            <CardTitle>Danh sách nhân viên</CardTitle>
+            <CardTitle className="text-4xl font-bold">Danh sách nhân viên</CardTitle>
             <Button onClick={() => setIsAdding(!isAdding)} variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {isAdding ? 'Hủy' : 'Thêm nhân viên'}
             </Button>

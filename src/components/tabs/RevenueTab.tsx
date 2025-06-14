@@ -47,7 +47,7 @@ export function RevenueTab({ invoices }: RevenueTabProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="bg-blue-500/10 border-blue-500">
           <CardHeader>
-            <CardTitle className="text-blue-800">Tổng doanh thu</CardTitle>
+            <CardTitle className="text-4xl font-bold text-blue-800">Tổng doanh thu</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-900">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
@@ -55,7 +55,7 @@ export function RevenueTab({ invoices }: RevenueTabProps) {
         </Card>
         <Card className="bg-green-500/10 border-green-500">
           <CardHeader>
-            <CardTitle className="text-green-800">Tổng số hóa đơn</CardTitle>
+            <CardTitle className="text-4xl font-bold text-green-800">Tổng số hóa đơn</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-900">{totalInvoices}</p>
@@ -65,7 +65,7 @@ export function RevenueTab({ invoices }: RevenueTabProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Biểu đồ doanh thu theo ngày</CardTitle>
+          <CardTitle className="text-4xl font-bold">Biểu đồ doanh thu theo ngày</CardTitle>
           <CardDescription>Hiển thị doanh thu hàng ngày của cửa hàng.</CardDescription>
         </CardHeader>
         <CardContent>

@@ -526,7 +526,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
-                        <p className={cn("font-bold text-lg", (item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
+                        <p className={cn("font-bold text-xl", (item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
                             {itemFinalTotal.toLocaleString('vi-VN')} VNĐ
                         </p>
                     </div>
@@ -556,7 +556,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
-            <div className="flex justify-between font-bold text-xl w-full text-foreground">
+            <div className="flex justify-between font-bold text-2xl w-full text-foreground">
               <span>Tổng cộng:</span>
               <span>{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
@@ -790,13 +790,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             </div>
 
             <div className="flex justify-between items-center text-red-500">
-              <Label className="text-red-500">Thành tiền (sau tất cả GG):</Label>
+              <Label className="text-red-500 text-lg">Thành tiền (sau tất cả GG):</Label>
               <span className="font-semibold text-2xl">{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Separator/>
 
             <div className="space-y-1">
-              <Label htmlFor="amountPaid">Số tiền khách trả (Nghìn VND)</Label>
+              <Label htmlFor="amountPaid" className="text-lg">Số tiền khách trả (Nghìn VND)</Label>
               <Input
                 id="amountPaid"
                 type="number"
@@ -809,12 +809,12 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
 
             <div className="flex justify-between items-center">
-              <Label>Tiền thừa:</Label>
+              <Label className="text-lg">Tiền thừa:</Label>
               <span className="font-semibold text-2xl">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterAllDiscounts ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
             </div>
             {finalTotalAfterAllDiscounts > actualAmountPaidVND && customerNameForInvoice.toLowerCase() !== 'khách lẻ' && currentPaymentMethod !== 'Chuyển khoản' && (
                  <div className="flex justify-between items-center text-red-600">
-                    <Label className="text-red-600">Còn nợ:</Label>
+                    <Label className="text-red-600 text-lg">Còn nợ:</Label>
                     <span className="font-semibold text-2xl">{(finalTotalAfterAllDiscounts - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
                 </div>
             )}

@@ -130,7 +130,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
           </Button>
         </div>
 
-        <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 rounded-md text-red-800">
+        <div className="mb-6 p-4 bg-destructive/10 border-l-4 border-destructive rounded-md text-[hsl(var(--destructive))]">
           <p className="font-bold">Tổng công nợ chưa thanh toán (theo bộ lọc): {totalUnpaid.toLocaleString('vi-VN')} VNĐ</p>
         </div>
         {debts.length === 0 ? (
@@ -157,13 +157,13 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                   <TableCell>
                     <Button
                       onClick={() => toggleStatus(debt.id, debt.status)}
-                      variant={debt.status === 'Chưa thanh toán' ? 'default' : 'destructive'}
+                      variant={'default'}
                       size="sm"
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",
                         debt.status === 'Chưa thanh toán'
-                          ? 'bg-green-500 text-white hover:bg-green-600' // Stronger green
-                          : 'bg-red-500 text-white hover:bg-red-600' // Stronger red
+                          ? 'bg-success text-success-foreground hover:bg-success/90'
+                          : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                       )}
                     >
                       {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
@@ -181,4 +181,3 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
-

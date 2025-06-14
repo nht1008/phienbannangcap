@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -26,10 +27,10 @@ export function NotificationDialog({ message, type = "error", onClose }: Notific
     <AlertDialog open={!!message} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent className={cn(
         "border-t-4",
-        isSuccess ? "border-green-500" : "border-red-500"
+        isSuccess ? "border-[hsl(var(--success))]" : "border-destructive"
       )}>
         <AlertDialogHeader>
-          <AlertDialogTitle className={isSuccess ? "text-green-600" : "text-red-600"}>
+          <AlertDialogTitle className={isSuccess ? "text-[hsl(var(--success))]" : "text-destructive"}>
             {isSuccess ? "Thành công!" : "Thông báo"}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-lg text-foreground">
@@ -41,7 +42,7 @@ export function NotificationDialog({ message, type = "error", onClose }: Notific
             onClick={onClose}
             className={cn(
               "w-full",
-              isSuccess ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"
+              isSuccess ? "bg-success text-success-foreground hover:bg-success/90" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
             )}
           >
             Đã hiểu

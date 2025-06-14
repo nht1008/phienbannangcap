@@ -42,7 +42,7 @@ const chartConfig = {
   },
   loinhuan: {
     label: "Lợi nhuận",
-    color: "hsl(var(--chart-3))",
+    color: "hsl(var(--success))", // Changed to success for profit
   },
 } satisfies ChartConfig;
 
@@ -272,31 +272,31 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <p className="text-2xl font-bold text-primary">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
-        <Card className="bg-chart-2/10 border-chart-2">
+        <Card className="bg-chart-2/10 border-[hsl(var(--chart-2))]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-2xl font-bold text-chart-2">Tổng giá gốc</CardTitle>
+            <CardTitle className="text-2xl font-bold text-[hsl(var(--chart-2))]">Tổng giá gốc</CardTitle>
              <CardDescription className="text-xs">(Hàng đã bán, đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-chart-2">{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
+            <p className="text-2xl font-bold text-[hsl(var(--chart-2))]">{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
-        <Card className="bg-chart-3/10 border-chart-3">
+        <Card className="bg-success/10 border-[hsl(var(--success))]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-2xl font-bold text-chart-3">Tổng lợi nhuận</CardTitle>
+            <CardTitle className="text-2xl font-bold text-[hsl(var(--success))]">Tổng lợi nhuận</CardTitle>
              <CardDescription className="text-xs">(Từ doanh thu đã thu, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-chart-3">{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
+            <p className="text-2xl font-bold text-[hsl(var(--success))]">{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
-        <Card className="bg-green-600/10 border-green-600">
+        <Card className="bg-success/10 border-[hsl(var(--success))]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-2xl font-bold text-green-700">Tổng số hóa đơn</CardTitle>
+            <CardTitle className="text-2xl font-bold text-[hsl(var(--success))]">Tổng số hóa đơn</CardTitle>
             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-700">{totalInvoicesCount}</p>
+            <p className="text-2xl font-bold text-[hsl(var(--success))]">{totalInvoicesCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -348,7 +348,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     <TableHead className="text-right">Tổng tiền HĐ</TableHead>
                     <TableHead className="text-right">Tổng giá gốc HĐ</TableHead>
                     <TableHead className="text-right">Lợi nhuận HĐ</TableHead>
-                    <TableHead className="text-right">Tiền nợ</TableHead>
+                    <TableHead className="text-right text-[hsl(var(--destructive))]">Tiền nợ</TableHead>
                     <TableHead className="text-center">Chi tiết</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -380,9 +380,9 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                         <TableCell className="text-right">{displayTotalForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{displayInvoiceCostForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{displayInvoiceProfitForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right text-red-700">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right text-[hsl(var(--destructive))]">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
-                          <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                          <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -425,7 +425,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <Separator className="my-3" />
             {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                 <>
-                    <div className="flex justify-between text-sm text-red-700">
+                    <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
                         <span>Giảm giá:</span>
                         <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                     </div>
@@ -441,7 +441,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                     {selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0).toLocaleString('vi-VN')} VNĐ
                 </span>
             </div>
-            <div className="flex justify-between text-sm font-semibold text-green-700">
+            <div className="flex justify-between text-sm font-semibold text-[hsl(var(--success))]">
                 <span>Lợi nhuận hóa đơn:</span>
                 <span>
                     {(selectedInvoiceDetails.total - selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0)).toLocaleString('vi-VN')} VNĐ
@@ -455,7 +455,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                           "flex justify-between text-sm", 
                            selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && 
                            ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 
-                           ? 'text-green-700' : ''
+                           ? 'text-[hsl(var(--success))]' : 'text-foreground'
                         )}>
                         <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                         <span>
@@ -466,13 +466,13 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                         </span>
                     </div>
                     {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total > 0 && (
-                         <div className="flex justify-between text-sm text-green-700">
+                         <div className="flex justify-between text-sm text-[hsl(var(--success))]">
                             <span>Tiền thừa:</span>
                             <span>{((( !selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                         </div>
                     )}
                     {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
-                         <div className="flex justify-between text-sm text-red-700">
+                         <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
                             <span>Số tiền nợ của HĐ này:</span>
                             <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
@@ -488,4 +488,3 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
-

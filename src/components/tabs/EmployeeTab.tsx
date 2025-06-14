@@ -106,15 +106,19 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
   }, [employeeBaseInvoices, employeeBaseDebts, selectedEmployee]);
 
   const totalSalesByEmployee = useMemo(() => {
-    return filteredEmployeeInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    return filteredEmployeeInvoices.reduce((sum, inv) => {
+        // Only count sales from invoices that are fully paid (no debtAmount or debtAmount is 0)
+        if (!inv.debtAmount || inv.debtAmount === 0) {
+            return sum + inv.total;
+        }
+        return sum;
+    }, 0);
   }, [filteredEmployeeInvoices]);
 
   const totalDebtCollectedByEmployee = useMemo(() => {
     if (!selectedEmployee) return 0;
     return filteredEmployeeDebts.reduce((sum, debt) => {
       if (debt.status === 'Đã thanh toán' && debt.lastUpdatedEmployeeId === selectedEmployee.id) {
-        // Ensure the debt.date (creation date) is within the filter range
-        // This logic assumes debt.date is what should be filtered. If it's a "paid_date", that'd be different.
         const debtDate = new Date(debt.date);
         const filterYear = parseInt(activityFilter.year);
         const filterMonth = activityFilter.month === 'all' ? null : parseInt(activityFilter.month);
@@ -267,31 +271,31 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card className="bg-green-600/10 border-green-600">
+                <Card className="bg-success/10 border-[hsl(var(--success))]">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-green-700">Tổng tiền bán hàng</CardTitle>
-                    <CardDescription className="text-xs">(HĐ do NV này tạo, theo bộ lọc)</CardDescription>
+                    <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng tiền bán hàng</CardTitle>
+                    <CardDescription className="text-xs">(HĐ đã thu, do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold text-green-700">{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="text-xl font-bold text-[hsl(var(--success))]">{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-green-600/10 border-green-600">
+                <Card className="bg-success/10 border-[hsl(var(--success))]">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-green-700">Tổng thu nợ</CardTitle>
+                    <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng thu nợ</CardTitle>
                      <CardDescription className="text-xs">(Nợ được NV này xử lý "Đã TT", theo bộ lọc ngày tạo nợ)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold text-green-700">{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="text-xl font-bold text-[hsl(var(--success))]">{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-red-700/10 border-red-700">
+                <Card className="bg-destructive/10 border-destructive">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-red-800">Tổng giảm giá</CardTitle>
+                    <CardTitle className="text-lg font-semibold text-[hsl(var(--destructive))]">Tổng giảm giá</CardTitle>
                      <CardDescription className="text-xs">(Trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-xl font-bold text-red-800">{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="text-xl font-bold text-[hsl(var(--destructive))]">{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
               </div>
@@ -355,18 +359,18 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
                           <TableCell>{debt.status}</TableCell>
                           <TableCell>
                             {debt.createdEmployeeId === selectedEmployee.id && debt.lastUpdatedEmployeeId !== selectedEmployee.id && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
                             )}
                             {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId !== selectedEmployee.id && (
-                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
+                                 <span className="text-xs bg-success/10 text-[hsl(var(--success))] px-2 py-0.5 rounded-full">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
                             )}
                             {/* Case where created and last updated by the same selected employee */}
                             {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId === selectedEmployee.id && (
-                                 <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Tạo & Cập nhật</span>
+                                 <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">Tạo & Cập nhật</span>
                             )}
                              {/* Case where created by selected employee, but last updated by someone else (or not updated yet) */}
                              {debt.createdEmployeeId === selectedEmployee.id && debt.lastUpdatedEmployeeId !== selectedEmployee.id && !debt.lastUpdatedEmployeeId && (
-                                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -383,4 +387,3 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
     </Card>
   );
 }
-

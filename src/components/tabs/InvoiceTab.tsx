@@ -223,8 +223,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead>Đã thanh toán</TableHead>
-                    <TableHead className="text-red-700">Giảm giá</TableHead>
-                    <TableHead className="text-red-700">Tiền nợ</TableHead>
+                    <TableHead className="text-[hsl(var(--destructive))]">Giảm giá</TableHead>
+                    <TableHead className="text-[hsl(var(--destructive))]">Tiền nợ</TableHead>
                     <TableHead>Chi tiết</TableHead>
                     <TableHead className="text-center">Hành động</TableHead>
                   </TableRow>
@@ -232,29 +232,29 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <TableBody>
                   {invoices.map(invoice => {
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
-                    const displayedAmount = hasDebt ? (invoice.amountPaid ?? 0) : invoice.total;
+                    const displayedAmount = (!hasDebt ? invoice.total : (invoice.amountPaid ?? 0));
                     const isCashPayment = invoice.paymentMethod === 'Tiền mặt';
                     return (
                       <TableRow key={invoice.id}>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell className={cn(isCashPayment && displayedAmount > 0 ? 'text-green-700' : '')}>
+                        <TableCell className={cn(isCashPayment && displayedAmount > 0 ? 'text-[hsl(var(--success))]' : '')}>
                           {displayedAmount.toLocaleString('vi-VN')} VNĐ
                         </TableCell>
-                        <TableCell className="text-red-700">
+                        <TableCell className="text-[hsl(var(--destructive))]">
                           {(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ
                         </TableCell>
-                        <TableCell className="text-red-700">
+                        <TableCell className="text-[hsl(var(--destructive))]">
                           {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
                         </TableCell>
                         <TableCell>
-                          <Button variant="link" className="p-0 h-auto text-blue-600 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                          <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:text-yellow-700" onClick={() => openReturnItemsDialog(invoice)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)}>
                             <Undo2 className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => openDeleteConfirmDialog(invoice)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -291,7 +291,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <Separator className="my-4" />
                 {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
                     <>
-                        <div className="flex justify-between text-sm text-red-700">
+                        <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
                             <span>Giảm giá:</span>
                             <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
@@ -308,7 +308,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           "flex justify-between text-sm", 
                            selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && 
                            ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 
-                           ? 'text-green-700' : ''
+                           ? 'text-[hsl(var(--success))]' : 'text-foreground'
                         )}>
                             <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                             <span>
@@ -319,13 +319,13 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                             </span>
                         </div>
                         {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total > 0 && (
-                             <div className="flex justify-between text-sm text-green-700">
+                             <div className="flex justify-between text-sm text-[hsl(var(--success))]">
                                 <span>Tiền thừa:</span>
                                 <span>{((( !selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) - selectedInvoiceDetails.total).toLocaleString('vi-VN')} VNĐ</span>
                             </div>
                         )}
                         {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
-                             <div className="flex justify-between text-sm text-red-700">
+                             <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
                                 <span>Số tiền nợ:</span>
                                 <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                             </div>
@@ -354,7 +354,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Hủy</AlertDialogCancel>
                 <AlertDialogAction
                     onClick={handleConfirmDelete}
-                    className="bg-destructive hover:bg-destructive/90"
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 >
                     Xóa hóa đơn
                 </AlertDialogAction>
@@ -397,7 +397,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
               <Button
                 onClick={handleConfirmSelectiveReturn}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                className="bg-accent hover:bg-accent/90 text-accent-foreground"
                 disabled={Object.values(returnItemsState).every(item => (parseInt(item.quantityToReturn) || 0) === 0)}
               >
                 Xác nhận hoàn trả
@@ -409,4 +409,3 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
-

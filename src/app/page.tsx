@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, InvoiceCartItem } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
@@ -85,7 +85,7 @@ export default function FleurManagerPage() {
   const { toast } = useToast();
 
   const [isSettingName, setIsSettingName] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
+  const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
@@ -389,18 +389,27 @@ export default function FleurManagerPage() {
 
   const handleCreateInvoice = useCallback(async (
     customerName: string,
-    cart: CartItem[],
-    subtotal: number,
+    cart: CartItem[], // Cart items from SalesTab, may include itemDiscount
+    subtotalAfterItemDiscounts: number, // Subtotal *after* item-specific discounts
     paymentMethod: string,
-    discount: number,
-    amountPaid: number,
+    overallInvoiceDiscount: number, // Additional overall discount in VND
+    amountPaid: number, // Actual VND paid by customer
     isGuestCustomer: boolean,
     employeeId: string,
     employeeName: string
   ) => {
     try {
-      const finalTotal = subtotal - discount;
+      const finalTotal = subtotalAfterItemDiscounts - overallInvoiceDiscount;
       let calculatedDebtAmount = 0;
+
+      if (finalTotal < 0) {
+        toast({
+          title: "Lỗi tính toán",
+          description: "Tổng tiền sau giảm giá không thể âm. Vui lòng kiểm tra lại giảm giá.",
+          variant: "destructive",
+        });
+        return false;
+      }
 
       if (finalTotal > amountPaid) {
         calculatedDebtAmount = finalTotal - amountPaid;
@@ -420,18 +429,27 @@ export default function FleurManagerPage() {
       if (!invoiceId) {
         throw new Error("Không thể tạo ID cho hóa đơn mới.");
       }
+      
+      const invoiceItems: InvoiceCartItem[] = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantityInCart: item.quantityInCart,
+        price: item.price, // Original unit price
+        costPrice: item.costPrice ?? 0,
+        image: item.image,
+        color: item.color,
+        size: item.size,
+        unit: item.unit,
+        itemDiscount: item.itemDiscount || 0, // Item-specific discount
+      }));
 
       const newInvoiceData: Omit<Invoice, 'id'> = {
         customerName,
-        items: cart.map(item => ({
-          ...item,
-          price: item.price,
-          costPrice: item.costPrice ?? 0
-        })),
-        total: finalTotal,
+        items: invoiceItems,
+        total: finalTotal, // Total after *all* discounts
         date: new Date().toISOString(),
         paymentMethod,
-        discount,
+        discount: overallInvoiceDiscount, // Overall invoice discount
         amountPaid,
         employeeId,
         employeeName: employeeName || 'Không rõ',
@@ -507,13 +525,13 @@ export default function FleurManagerPage() {
       };
 
       if (operationType === 'delete' || (operationType === 'return' && (!itemsToReturnArray || itemsToReturnArray.length === 0))) {
-        for (const cartItem of originalInvoice.items) {
-          const productRef = child(ref(db), `inventory/${cartItem.id}`);
+        for (const invoiceItem of originalInvoice.items) { // Changed from cartItem to invoiceItem
+          const productRef = child(ref(db), `inventory/${invoiceItem.id}`); // Assuming InvoiceCartItem has 'id' for product
           const productSnapshot = await get(productRef);
           if (productSnapshot.exists()) {
-            updates[`inventory/${cartItem.id}/quantity`] = productSnapshot.val().quantity + cartItem.quantityInCart;
+            updates[`inventory/${invoiceItem.id}/quantity`] = productSnapshot.val().quantity + invoiceItem.quantityInCart;
           } else {
-            console.warn(`Sản phẩm ID ${cartItem.id} (tên: ${cartItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
+            console.warn(`Sản phẩm ID ${invoiceItem.id} (tên: ${invoiceItem.name}) trong hóa đơn ${invoiceId} không còn tồn tại trong kho. Không thể hoàn kho cho sản phẩm này.`);
           }
         }
         updates[`invoices/${invoiceId}`] = null;
@@ -540,8 +558,8 @@ export default function FleurManagerPage() {
           }
         }
 
-        const newInvoiceItems: CartItem[] = [];
-        let newTotal = 0;
+        const newInvoiceItems: InvoiceCartItem[] = [];
+        let newSubtotalAfterItemDiscounts = 0;
 
         for (const originalItem of originalInvoice.items) {
           const returnedItemInfo = itemsToReturnArray.find(rt => rt.productId === originalItem.id);
@@ -549,43 +567,44 @@ export default function FleurManagerPage() {
           const remainingQuantityInCart = originalItem.quantityInCart - quantityReturned;
 
           if (remainingQuantityInCart > 0) {
-            newInvoiceItems.push({
+            const newItem: InvoiceCartItem = {
               ...originalItem,
               quantityInCart: remainingQuantityInCart,
-            });
-            newTotal += originalItem.price * remainingQuantityInCart;
+              // itemDiscount remains the same per unit if applicable, or recalculate if it was a fixed amount
+            };
+            newInvoiceItems.push(newItem);
+            newSubtotalAfterItemDiscounts += (newItem.price * remainingQuantityInCart) - (newItem.itemDiscount || 0);
           }
         }
+        
+        // Recalculate overall invoice discount proportionally if it exists
+        let newOverallInvoiceDiscount = originalInvoice.discount || 0;
+        const originalSubtotalBeforeOverallDiscount = originalInvoice.items.reduce(
+            (sum, item) => sum + (item.price * item.quantityInCart) - (item.itemDiscount || 0), 0
+        );
 
-        let originalSubTotal = 0;
-        for(const item of originalInvoice.items) {
-            originalSubTotal += item.price * item.quantityInCart;
+        if (originalSubtotalBeforeOverallDiscount > 0 && originalInvoice.discount && originalInvoice.discount > 0) {
+            const discountRatio = originalInvoice.discount / originalSubtotalBeforeOverallDiscount;
+            newOverallInvoiceDiscount = Math.round(newSubtotalAfterItemDiscounts * discountRatio);
         }
-
-        let newDiscount = originalInvoice.discount || 0;
-        if (originalSubTotal > 0 && originalInvoice.discount && originalInvoice.discount > 0) {
-            const discountRatio = originalInvoice.discount / originalSubTotal;
-            let currentSubTotalOfNewItems = 0;
-             for(const item of newInvoiceItems) {
-                 currentSubTotalOfNewItems += item.price * item.quantityInCart;
-             }
-            newDiscount = Math.round(currentSubTotalOfNewItems * discountRatio);
-        }
-
-        newTotal = newTotal - newDiscount;
+        
+        const newFinalTotal = newSubtotalAfterItemDiscounts - newOverallInvoiceDiscount;
 
 
-        if (newInvoiceItems.length === 0 || newTotal <= 0) {
+        if (newInvoiceItems.length === 0 || newFinalTotal <= 0) {
           updates[`invoices/${invoiceId}`] = null;
-          await deleteAssociatedDebtIfNeeded();
+          await deleteAssociatedDebtIfNeeded(); // Also delete debt if invoice becomes zero/empty
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn và công nợ liên quan (nếu có) đã được xóa.", variant: "default" });
         } else {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
-          updates[`invoices/${invoiceId}/total`] = newTotal;
-          updates[`invoices/${invoiceId}/discount`] = newDiscount;
+          updates[`invoices/${invoiceId}/total`] = newFinalTotal;
+          updates[`invoices/${invoiceId}/discount`] = newOverallInvoiceDiscount; // Updated overall discount
+          // Note: Debt amount on original invoice is typically NOT changed on partial returns.
+          // The debt remains, and the customer owes the original debt amount.
+          // If a refund is given that affects debt, it should be handled separately or by company policy.
           await update(ref(db), updates);
-          toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi.", variant: "default" });
+          toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi trừ khi được xử lý riêng.", variant: "default" });
         }
         return true;
       }
@@ -660,13 +679,13 @@ export default function FleurManagerPage() {
       const originalDebt = snapshot.val() as Debt;
       const originalStatus = originalDebt.status;
   
-      const updates: { [key: string]: any } = {}; // Renamed from debtUpdates to updates
-      updates[`debts/${debtId}/status`] = newStatus; // Use 'updates'
+      const updates: { [key: string]: any } = {};
+      updates[`debts/${debtId}/status`] = newStatus; 
       if (!isUndoOperation) {
         updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
         updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       } else {
-        updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
+        updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; // Still record who undid
         updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       }
   
@@ -674,17 +693,28 @@ export default function FleurManagerPage() {
         const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`);
         const invoiceSnapshot = await get(invoiceRef);
         if (invoiceSnapshot.exists()) {
+          const currentInvoice = invoiceSnapshot.val() as Invoice;
           if (newStatus === 'Đã thanh toán' && !isUndoOperation) {
+            // When debt is paid, the debtAmount on invoice becomes 0
             updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0;
+            // Amount paid on invoice should reflect the full payment now
+            // This assumes the debt payment covers the remaining invoice total
+            updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total; 
           } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) {
+             // When undoing payment, revert debtAmount on invoice
              updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount;
+             // Revert amountPaid on invoice. This is tricky if there were partial payments before.
+             // For simplicity, assuming it reverts to the state before this specific debt was marked paid.
+             // If invoice.total was T, and debt D was paid, amountPaid became T.
+             // Now, amountPaid becomes T - D.
+             updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total - originalDebt.amount;
           }
         } else {
           console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`);
         }
       }
   
-      await update(ref(db), updates); // Use 'updates' here as well
+      await update(ref(db), updates);
   
       if (!isUndoOperation) {
         toast({
@@ -971,5 +1001,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-
-

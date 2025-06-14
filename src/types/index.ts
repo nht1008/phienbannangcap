@@ -13,6 +13,7 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantityInCart: number;
+  itemDiscount?: number; // Discount for this specific item in VND, applied to the total for this line item (price * quantityInCart)
 }
 
 export interface Customer {
@@ -27,17 +28,31 @@ export interface Supplier {
   name: string;
 }
 
+// This is the structure of items as stored within an Invoice
+export interface InvoiceCartItem {
+  id: string;
+  name: string;
+  quantityInCart: number;
+  price: number; // Original selling price per unit
+  costPrice?: number;
+  image: string;
+  color: string;
+  size: string;
+  unit: string;
+  itemDiscount?: number; // Discount applied to this line item in VND
+}
+
 export interface Invoice {
   id: string;
   customerName: string;
-  items: CartItem[];
-  total: number; // Final amount after discount
+  items: InvoiceCartItem[]; // Uses the specialized InvoiceCartItem
+  total: number; // Final amount after all item and overall discounts
   date: string; // ISO date string
   paymentMethod: string;
-  discount?: number; // Discount amount
+  discount?: number; // Overall invoice discount (additional to item discounts)
   amountPaid?: number; // Amount paid by customer
   debtAmount?: number; // Amount of debt created from this invoice
-  employeeId: string; // UID of the employee who created the invoice
+  employeeId: string; // UID of the employee who created theinvoice
   employeeName?: string; // Name of the employee
 }
 
@@ -72,4 +87,3 @@ export interface Employee {
   position: 'Chủ cửa hàng' | 'Nhân viên';
   phone?: string;
 }
-

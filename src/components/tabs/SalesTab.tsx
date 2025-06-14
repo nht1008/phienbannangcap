@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Percent } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -37,10 +37,10 @@ interface SalesTabProps {
   onCreateInvoice: (
     customerName: string,
     cart: CartItem[],
-    subtotal: number, // actual VND
+    subtotalAfterItemDiscounts: number,
     paymentMethod: string,
-    discount: number, // actual VND
-    amountPaid: number, // actual VND
+    overallInvoiceDiscount: number,
+    amountPaid: number,
     isGuestCustomer: boolean,
     employeeId: string,
     employeeName: string
@@ -72,7 +72,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   const [customerSearchText, setCustomerSearchText] = useState("");
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
-  const [discountStr, setDiscountStr] = useState('');
+  const [overallDiscountStr, setOverallDiscountStr] = useState('');
   const [amountPaidStr, setAmountPaidStr] = useState('');
 
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -106,13 +106,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         showLocalNotification(`Không đủ số lượng "${item.name} (${item.color}, ${item.size}, ${item.unit})" trong kho (Còn: ${stockItem.quantity}).`, 'error');
       }
     } else {
-      setCart([...cart, { ...item, quantityInCart: 1 }]);
+      setCart([...cart, { ...item, quantityInCart: 1, itemDiscount: 0 }]);
     }
   };
 
   const updateCartQuantity = (itemId: string, newQuantityStr: string) => {
     const newQuantity = parseInt(newQuantityStr);
-    if (isNaN(newQuantity)) return; // Prevent updates if not a number
+    if (isNaN(newQuantity)) return;
 
     const stockItem = inventory.find(i => i.id === itemId);
     if (!stockItem) return;
@@ -127,19 +127,43 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     }
   };
 
+  const handleItemDiscountChange = (itemId: string, discountNghinStr: string) => {
+    const discountNghin = parseFloat(discountNghinStr);
+    const discountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
 
-  const subtotal = useMemo(() =>
-    cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0),
+    setCart(prevCart => prevCart.map(item => {
+      if (item.id === itemId) {
+        const itemOriginalTotal = item.price * item.quantityInCart;
+        if (discountVND < 0) {
+          showLocalNotification("Số tiền giảm giá cho sản phẩm không thể âm.", "error");
+          return { ...item, itemDiscount: 0 };
+        }
+        if (discountVND > itemOriginalTotal) {
+          showLocalNotification(`Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${itemOriginalTotal.toLocaleString('vi-VN')} VNĐ).`, "error");
+          return { ...item, itemDiscount: itemOriginalTotal };
+        }
+        return { ...item, itemDiscount: discountVND };
+      }
+      return item;
+    }));
+  };
+
+  const subtotalAfterItemDiscounts = useMemo(() =>
+    cart.reduce((sum, item) => {
+      const itemTotal = item.price * item.quantityInCart;
+      const discount = item.itemDiscount || 0;
+      return sum + (itemTotal - discount);
+    }, 0),
     [cart]
   );
 
-  const parsedDiscountNghin = parseFloat(discountStr) || 0;
-  const actualDiscountVND = parsedDiscountNghin * 1000;
-  const finalTotalAfterDiscount = subtotal - actualDiscountVND;
+  const parsedOverallDiscountNghin = parseFloat(overallDiscountStr) || 0;
+  const actualOverallInvoiceDiscountVND = parsedOverallDiscountNghin * 1000;
+  const finalTotalAfterAllDiscounts = subtotalAfterItemDiscounts - actualOverallInvoiceDiscountVND;
 
   const parsedAmountPaidNghin = parseFloat(amountPaidStr) || 0;
   const actualAmountPaidVND = parsedAmountPaidNghin * 1000;
-  const changeVND = actualAmountPaidVND - finalTotalAfterDiscount;
+  const changeVND = actualAmountPaidVND - finalTotalAfterAllDiscounts;
 
   const handleOpenPaymentDialog = () => {
     if (cart.length === 0) {
@@ -152,11 +176,15 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         showLocalNotification(`Sản phẩm "${cartItem.name}" không đủ số lượng trong kho! (Còn: ${stockItem?.quantity ?? 0})`, 'error');
         return;
       }
+      if ((cartItem.itemDiscount || 0) > (cartItem.price * cartItem.quantityInCart)) {
+        showLocalNotification(`Giảm giá cho sản phẩm "${cartItem.name}" không hợp lệ.`, 'error');
+        return;
+      }
     }
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
-    setDiscountStr('');
-    setAmountPaidStr((finalTotalAfterDiscount / 1000).toString()); // Pre-fill amount paid with total after discount
+    setOverallDiscountStr('');
+    setAmountPaidStr((finalTotalAfterAllDiscounts / 1000).toString());
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
@@ -169,20 +197,20 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
 
-    if (actualDiscountVND < 0) {
-        showLocalNotification("Số tiền giảm giá không thể âm.", "error");
+    if (actualOverallInvoiceDiscountVND < 0) {
+        showLocalNotification("Số tiền giảm giá chung không thể âm.", "error");
         return;
     }
     if (actualAmountPaidVND < 0) {
         showLocalNotification("Số tiền khách trả không thể âm.", "error");
         return;
     }
-    if (finalTotalAfterDiscount < 0) {
-        showLocalNotification("Số tiền giảm giá không thể lớn hơn tổng tiền hàng.", "error");
+    if (finalTotalAfterAllDiscounts < 0) {
+        showLocalNotification("Tổng giảm giá không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.", "error");
         return;
     }
 
-    if (finalTotalAfterDiscount > actualAmountPaidVND) {
+    if (finalTotalAfterAllDiscounts > actualAmountPaidVND) {
       if (isGuest || currentPaymentMethod === 'Chuyển khoản') {
         showLocalNotification(
           "Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.",
@@ -195,9 +223,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     const success = await onCreateInvoice(
         finalCustomerName,
         cart,
-        subtotal,
+        subtotalAfterItemDiscounts,
         currentPaymentMethod,
-        actualDiscountVND,
+        actualOverallInvoiceDiscountVND,
         actualAmountPaidVND,
         isGuest,
         currentUser.uid,
@@ -219,7 +247,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     });
     return Array.from(nameMap.entries()).map(([name, products]) => ({
       name,
-      firstVariant: products[0], // Used for image and potentially other shared info
+      firstVariant: products[0],
       totalStock: products.reduce((sum, p) => sum + p.quantity, 0)
     }));
   }, [inventory]);
@@ -230,16 +258,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       showLocalNotification(`Sản phẩm "${productName}" hiện đã hết hàng.`, 'error');
       return;
     }
-
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
-    setAvailableVariants({ colors, sizes: [], units: [] }); // Reset sizes and units when color changes
+    setAvailableVariants({ colors, sizes: [], units: [] });
     setSelectedProductNameForVariants(productName);
-    // Set initial color, which will trigger useEffects for size and unit
     setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
-  }, [inventory, showLocalNotification]);
+  }, [inventory]);
 
-  // Effect to update available sizes when color changes
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
       const variantsMatchingNameAndColor = inventory.filter(p =>
@@ -249,17 +274,14 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       );
       const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
       setAvailableVariants(prev => ({ ...prev, sizes }));
-
-      // Auto-select size if only one, or if previous selection is still valid
       const newSize = sizes.length === 1 ? sizes[0] : (sizes.includes(variantSelection.size) ? variantSelection.size : '');
-      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' })); // Reset unit when size changes
-    } else if (selectedProductNameForVariants) { // If color is deselected or not set
+      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' }));
+    } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
         setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
     }
   }, [selectedProductNameForVariants, variantSelection.color, inventory]);
 
-  // Effect to update available units when size changes
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
       const variantsMatchingNameColorSize = inventory.filter(p =>
@@ -270,25 +292,22 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       );
       const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
       setAvailableVariants(prev => ({ ...prev, units }));
-
-      // Auto-select unit if only one, or if previous selection is still valid
       const newUnit = units.length === 1 ? units[0] : (units.includes(variantSelection.unit) ? variantSelection.unit : '');
       setVariantSelection(prev => ({ ...prev, unit: newUnit }));
-    } else if (selectedProductNameForVariants) { // If size is deselected or not set
+    } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, units: [] }));
         setVariantSelection(prev => ({ ...prev, unit: '' }));
     }
   }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory]);
 
-
   const handleVariantSelectionChange = (field: keyof VariantSelection, value: string) => {
     setVariantSelection(prev => {
       const newState = { ...prev, [field]: value };
       if (field === 'color') {
-        newState.size = ''; // Reset size if color changes
-        newState.unit = ''; // Reset unit if color changes
+        newState.size = '';
+        newState.unit = '';
       } else if (field === 'size') {
-        newState.unit = ''; // Reset unit if size changes
+        newState.unit = '';
       }
       return newState;
     });
@@ -306,12 +325,11 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       p.unit === variantSelection.unit &&
       p.quantity > 0
     );
-
     if (productToAdd) {
       addToCart(productToAdd);
       setIsVariantSelectorOpen(false);
-      setSelectedProductNameForVariants(null); // Reset after adding
-      setVariantSelection({ color: '', size: '', unit: '' }); // Reset selection
+      setSelectedProductNameForVariants(null);
+      setVariantSelection({ color: '', size: '', unit: '' });
     } else {
       showLocalNotification('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.', 'error');
     }
@@ -336,7 +354,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-6">
         <div className="lg:col-span-2">
-
           <div className="mb-6 p-4 bg-muted/30 rounded-lg">
             <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
             <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
@@ -402,7 +419,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                     height={100}
                     className="w-24 h-24 mx-auto rounded-full object-cover mb-2 aspect-square"
                     data-ai-hint={`${group.name.split(' ')[0]} flower`}
-                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100.png')}
+                    onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
                   />
                   <h4 className="font-semibold text-foreground">{group.name}</h4>
                    <p className="text-xs text-muted-foreground">Tổng còn lại: {group.totalStock}</p>
@@ -436,7 +453,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             {cart.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">Giỏ hàng trống</p>
             ) : (
-              cart.map(item => (
+              cart.map(item => {
+                const itemOriginalTotal = item.price * item.quantityInCart;
+                const itemFinalTotal = itemOriginalTotal - (item.itemDiscount || 0);
+                return (
                 <Card key={item.id} className="p-3.5 bg-muted/30 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-start gap-3.5">
                         <Image
@@ -446,10 +466,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                             height={60}
                             className="w-16 h-16 rounded-md object-cover aspect-square border"
                             data-ai-hint={`${item.name.split(' ')[0]} flower`}
-                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/60x60.png')}
+                            onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/60x60.png')}
                         />
                         <div className="flex-grow">
-                            <p className="font-bold text-foreground text-base leading-tight mb-0.5">{item.name}</p>
+                            <p className="font-bold text-foreground text-lg leading-tight mb-0.5">{item.name}</p>
                             <p className="text-xs text-muted-foreground">{item.color}, {item.size}, {item.unit}</p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 Đơn giá: <span className="font-semibold text-foreground/90">{item.price.toLocaleString('vi-VN')} VNĐ</span>
@@ -496,18 +516,38 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
-                        <p className="font-bold text-lg text-primary">
-                            {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
+                        <p className={cn("font-bold text-lg", (item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
+                            {itemFinalTotal.toLocaleString('vi-VN')} VNĐ
                         </p>
                     </div>
+                    {(item.itemDiscount || 0) > 0 && (
+                        <p className="text-xs text-destructive text-right mt-1">
+                            (Đã giảm: {(item.itemDiscount || 0).toLocaleString('vi-VN')} VNĐ từ {itemOriginalTotal.toLocaleString('vi-VN')} VNĐ)
+                        </p>
+                    )}
+                     <div className="mt-2 flex items-center gap-2">
+                        <Label htmlFor={`item-discount-${item.id}`} className="text-sm whitespace-nowrap flex items-center">
+                           <Percent className="h-3 w-3 mr-1 text-destructive"/> GG SP (Nghìn VND):
+                        </Label>
+                        <Input
+                            id={`item-discount-${item.id}`}
+                            type="number"
+                            value={item.itemDiscount ? (item.itemDiscount / 1000).toString() : ""}
+                            onChange={(e) => handleItemDiscountChange(item.id, e.target.value)}
+                            min="0"
+                            step="0.1"
+                            className="h-8 w-full bg-card text-sm p-2"
+                            placeholder="Nhập giảm giá"
+                        />
+                    </div>
                 </Card>
-              ))
+              )})}
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
             <div className="flex justify-between font-bold text-xl w-full text-foreground">
               <span>Tổng cộng:</span>
-              <span>{subtotal.toLocaleString('vi-VN')} VNĐ</span>
+              <span>{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Button
               onClick={handleOpenPaymentDialog}
@@ -624,8 +664,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             </div>
 
             <div className="flex justify-between items-center">
-              <Label>Tổng tiền hàng:</Label>
-              <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} VNĐ</span>
+              <Label>Tổng tiền hàng (sau GG SP):</Label>
+              <span className="font-semibold">{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
 
             <div>
@@ -641,20 +681,20 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             </div>
 
              <div className="space-y-1">
-              <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
+              <Label htmlFor="overallDiscount">Giảm giá thêm (Nghìn VND)</Label>
               <Input
-                id="discount"
+                id="overallDiscount"
                 type="number"
-                value={discountStr}
-                onChange={(e) => setDiscountStr(e.target.value)}
+                value={overallDiscountStr}
+                onChange={(e) => setOverallDiscountStr(e.target.value)}
                 min="0"
                 className="bg-card"
               />
             </div>
 
             <div className="flex justify-between items-center text-red-500">
-              <Label className="text-red-500">Sau giảm giá:</Label>
-              <span className="font-semibold">{finalTotalAfterDiscount.toLocaleString('vi-VN')} VNĐ</span>
+              <Label className="text-red-500">Thành tiền (sau tất cả GG):</Label>
+              <span className="font-semibold">{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Separator/>
 
@@ -673,12 +713,12 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
             <div className="flex justify-between items-center">
               <Label>Tiền thừa:</Label>
-              <span className="font-semibold">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterDiscount ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
+              <span className="font-semibold">{changeVND >= 0 && actualAmountPaidVND > 0 && actualAmountPaidVND >= finalTotalAfterAllDiscounts ? changeVND.toLocaleString('vi-VN') : '0'} VNĐ</span>
             </div>
-            {finalTotalAfterDiscount > actualAmountPaidVND && customerNameForInvoice.toLowerCase() !== 'khách lẻ' && currentPaymentMethod !== 'Chuyển khoản' && (
+            {finalTotalAfterAllDiscounts > actualAmountPaidVND && customerNameForInvoice.toLowerCase() !== 'khách lẻ' && currentPaymentMethod !== 'Chuyển khoản' && (
                  <div className="flex justify-between items-center text-red-600">
                     <Label className="text-red-600">Còn nợ:</Label>
-                    <span className="font-semibold">{(finalTotalAfterDiscount - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
+                    <span className="font-semibold">{(finalTotalAfterAllDiscounts - actualAmountPaidVND).toLocaleString('vi-VN')} VNĐ</span>
                 </div>
             )}
           </div>
@@ -691,7 +731,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               type="button"
               onClick={handleConfirmCheckout}
               className="bg-green-500 hover:bg-green-600 text-white"
-              disabled={finalTotalAfterDiscount < 0}
+              disabled={finalTotalAfterAllDiscounts < 0}
             >
               Xác nhận thanh toán
             </Button>
@@ -699,7 +739,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         </DialogContent>
       </Dialog>
 
-      {/* Variant Selector Dialog */}
       <Dialog open={isVariantSelectorOpen} onOpenChange={(isOpen) => {
         if (!isOpen) {
           setSelectedProductNameForVariants(null);
@@ -789,3 +828,4 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   );
 }
 
+    

@@ -15,14 +15,7 @@ export interface CartItem extends Product {
   quantityInCart: number; 
 }
 
-export interface Employee {
-  id: string; 
-  name: string;
-  position: string;
-  phone: string;
-  userId: string; 
-  email?: string; 
-}
+// Employee interface removed as the feature is being removed
 
 export interface Customer {
   id: string;

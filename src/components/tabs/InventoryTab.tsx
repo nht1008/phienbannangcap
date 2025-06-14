@@ -95,10 +95,20 @@ export function InventoryTab({
     if (isAddingProduct) {
         setNewItem(updateFormStateDefaults);
     }
+     // When editing, ensure the form is populated with productToEdit data
     if (isEditingProduct && productToEdit) {
-        // When opening edit, original values are set. This ensures defaults if those were empty.
-        // However, productToEdit should already have name/unit. This is more for newItem.
+        setEditedItem({
+            name: productToEdit.name,
+            quantity: productToEdit.quantity.toString(),
+            price: productToEdit.price.toString(),
+            costPrice: productToEdit.costPrice?.toString() || '0',
+            image: productToEdit.image,
+            color: productToEdit.color,
+            size: productToEdit.size,
+            unit: productToEdit.unit
+        });
     }
+
 
   }, [productNameOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit]);
 
@@ -143,16 +153,7 @@ export function InventoryTab({
 
   const openEditDialog = (product: Product) => {
     setProductToEdit(product);
-    setEditedItem({
-      name: product.name,
-      quantity: product.quantity.toString(),
-      price: product.price.toString(),
-      costPrice: product.costPrice?.toString() || '0',
-      image: product.image,
-      color: product.color,
-      size: product.size,
-      unit: product.unit
-    });
+    // The useEffect will handle setting editedItem based on productToEdit
     setIsEditingProduct(true);
     setIsAddingProduct(false); 
   };
@@ -291,20 +292,32 @@ export function InventoryTab({
             <Input type="number" name="quantity" placeholder="50" value={formState.quantity} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div>
-            <label className="text-sm text-foreground">Giá gốc (VNĐ) (*)</label>
-            <Input type="number" name="costPrice" placeholder="5000" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <label className="text-sm text-foreground">Giá gốc (Nghìn VND) (*)</label>
+            <Input type="number" name="costPrice" placeholder="5" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div>
-            <label className="text-sm text-foreground">Giá bán (VNĐ) (*)</label>
-            <Input type="number" name="price" placeholder="10000" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
+            <label className="text-sm text-foreground">Giá bán (Nghìn VND) (*)</label>
+            <Input type="number" name="price" placeholder="10" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
         </div>
         <div className="sm:col-span-2 md:col-span-3">
             <label className="text-sm text-foreground">URL Hình ảnh</label>
             <Input type="text" name="image" placeholder="https://placehold.co/100x100.png" value={formState.image} onChange={(e) => handleInputChange(e, formSetter)} className="bg-card"/>
         </div>
-        <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 md:col-start-4" disabled={(!formState.name && productNameOptions.length === 0) || (!formState.unit && unitOptions.length === 0) }>
-            {isEditMode ? 'Lưu thay đổi' : 'Lưu sản phẩm'}
-        </Button>
+        <div className="flex items-end md:col-start-4">
+             {isEditMode && (
+                <Button 
+                    type="button" 
+                    onClick={() => { setIsEditingProduct(false); setProductToEdit(null); }} 
+                    variant="outline" 
+                    className="mr-2 h-10"
+                >
+                    Hủy
+                </Button>
+            )}
+            <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 flex-grow" disabled={(!formState.name && productNameOptions.length === 0) || (!formState.unit && unitOptions.length === 0) }>
+                {isEditMode ? 'Lưu thay đổi' : 'Lưu sản phẩm'}
+            </Button>
+        </div>
     </form>
   );
 
@@ -326,18 +339,24 @@ export function InventoryTab({
             <Button onClick={() => openOptionsDialog('units')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Đơn vị
             </Button>
-            <Button onClick={() => { 
-                const isCurrentlyAdding = !isAddingProduct;
-                setIsAddingProduct(isCurrentlyAdding); 
-                setIsEditingProduct(false); 
-                if (isCurrentlyAdding) {
-                    setNewItem({
-                        ...initialFormProductState, 
-                        name: productNameOptions.length > 0 ? productNameOptions[0] : '', 
-                        unit: unitOptions.length > 0 ? unitOptions[0] : ''
-                    });
-                }
-             }} variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90" size="sm">
+            <Button 
+                onClick={() => { 
+                    const isCurrentlyAdding = !isAddingProduct;
+                    setIsAddingProduct(isCurrentlyAdding); 
+                    setIsEditingProduct(false); // Ensure edit mode is off when adding
+                    setProductToEdit(null);   // Clear any product being edited
+                    if (isCurrentlyAdding) {
+                        setNewItem({
+                            ...initialFormProductState, 
+                            name: productNameOptions.length > 0 ? productNameOptions[0] : '', 
+                            unit: unitOptions.length > 0 ? unitOptions[0] : ''
+                        });
+                    }
+                }} 
+                variant="default" 
+                className="bg-primary text-primary-foreground hover:bg-primary/90" 
+                size="sm"
+            >
               <PlusCircle className="mr-2 h-4 w-4" /> {isAddingProduct ? 'Hủy thêm mới' : 'Thêm sản phẩm'}
             </Button>
           </div>
@@ -358,8 +377,8 @@ export function InventoryTab({
                 <TableHead>Kích thước</TableHead>
                 <TableHead>Đơn vị</TableHead>
                 <TableHead className="text-right">Số lượng</TableHead>
-                <TableHead className="text-right">Giá gốc (VNĐ)</TableHead>
-                <TableHead className="text-right">Giá bán (VNĐ)</TableHead>
+                <TableHead className="text-right">Giá gốc (Nghìn VND)</TableHead>
+                <TableHead className="text-right">Giá bán (Nghìn VND)</TableHead>
                 <TableHead className="text-center">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -404,32 +423,13 @@ export function InventoryTab({
         </div>
       </CardContent>
 
-      {isEditingProduct && productToEdit && (
-        <Dialog open={isEditingProduct} onOpenChange={(open) => { if(!open) { setIsEditingProduct(false); setProductToEdit(null); }}}>
-            <DialogContent className="sm:max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Chỉnh sửa sản phẩm</DialogTitle>
-                    <DialogDescription>Cập nhật thông tin cho sản phẩm: {productToEdit?.name}</DialogDescription>
-                </DialogHeader>
-                {/* Form is rendered directly in CardContent now when isEditingProduct is true */}
-                 <DialogFooter>
-                    <Button variant="outline" onClick={() => { setIsEditingProduct(false); setProductToEdit(null); }}>Hủy</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-      )}
-      
-      {/* This separate rendering of edit form inside Dialog might be redundant if already in CardContent */}
-      {/* Consider removing this if the main renderProductForm in CardContent is sufficient for editing */}
-
-
       {productToDelete && (
         <AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                 <AlertDialogTitle>Xác nhận xóa sản phẩm?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Bạn có chắc chắn muốn xóa sản phẩm "{productToDelete.name} ({productToDelete.color}, {productToDelete.size})" không? Hành động này không thể hoàn tác.
+                    Bạn có chắc chắn muốn xóa sản phẩm "{productToDelete.name} ({productToDelete.color || 'Không màu'}, {productToDelete.size || 'Không kích thước'})" không? Hành động này không thể hoàn tác.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

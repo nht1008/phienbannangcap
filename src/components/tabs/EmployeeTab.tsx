@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react'; // Removed PlusCircle
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneNumber } from '@/lib/utils';
 
@@ -26,7 +26,7 @@ const initialFormState: Omit<Employee, 'id' | 'userId'> = { name: '', position: 
 
 
 export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDeleteEmployee }: EmployeeTabProps) {
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(false); // This state will no longer be toggled by a button in this tab
   const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id' | 'userId'>>(initialFormState);
 
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -154,16 +154,11 @@ export function EmployeeTab({ employees, onAddEmployee, onUpdateEmployee, onDele
         <CardHeader>
           <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Danh sách nhân viên</CardTitle>
-              <Button 
-                onClick={() => { setIsAdding(!isAdding); if (isEditingEmployee) setIsEditingEmployee(false); setNewEmployee(initialFormState); }} 
-                variant="default" 
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                  <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm nhân viên'}
-              </Button>
+              {/* Button "Thêm nhân viên" has been removed */}
           </div>
         </CardHeader>
         <CardContent className="p-4">
+          {/* Form for adding new employee will not be shown as isAdding will remain false */}
           {isAdding && renderEmployeeForm(newEmployee, setNewEmployee, handleAdd, false, () => setIsAdding(false))}
           
           <div className="overflow-x-auto mt-4">

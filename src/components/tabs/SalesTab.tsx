@@ -17,7 +17,7 @@ interface SalesTabProps {
   onCreateInvoice: (customerName: string, cart: CartItem[], total: number, paymentMethod: string) => Promise<boolean>;
 }
 
-const paymentOptions = ['Tiền mặt', 'Chuyển khoản', 'Thẻ'];
+const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
 
 export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);

@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Percent } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Percent, Tag } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -537,7 +537,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                     )}
                      <div className="mt-2 flex items-center gap-2">
                         <Label htmlFor={`item-discount-${item.id}`} className="text-sm whitespace-nowrap flex items-center">
-                           <Percent className="h-3 w-3 mr-1 text-destructive"/> GG SP (Nghìn VND):
+                           <Tag className="h-3 w-3 mr-1 text-destructive"/> GG SP (Nghìn VND):
                         </Label>
                         <Input
                             id={`item-discount-${item.id}`}
@@ -838,5 +838,3 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     </>
   );
 }
-
-    

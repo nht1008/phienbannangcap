@@ -61,7 +61,7 @@ interface EmployeeTabProps {
 
 export function EmployeeTab({ employees, currentUser, invoices, debts }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [activityFilter, setActivityFilter] = useState<DateFilter>(() => getCurrentDateFilter(false)); // Default to current month/year, all days
+  const [activityFilter, setActivityFilter] = useState<DateFilter>(() => getCurrentDateFilter(false)); 
 
   const isAdmin = currentUser?.email === 'nthe1008@gmail.com';
 
@@ -82,6 +82,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
 
   const employeeBaseDebts = useMemo(() => {
     if (!selectedEmployee) return [];
+    // Debts created OR last updated by the employee
     return debts.filter(debt => 
                         debt.createdEmployeeId === selectedEmployee.id || 
                         debt.lastUpdatedEmployeeId === selectedEmployee.id
@@ -104,10 +105,29 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
     return allYears.length > 0 ? allYears : [new Date().getFullYear().toString()];
   }, [employeeBaseInvoices, employeeBaseDebts, selectedEmployee]);
 
+  const totalSalesByEmployee = useMemo(() => {
+    return filteredEmployeeInvoices.reduce((sum, inv) => sum + inv.total, 0);
+  }, [filteredEmployeeInvoices]);
+
+  const totalDebtCollectedByEmployee = useMemo(() => {
+    if (!selectedEmployee) return 0;
+    return filteredEmployeeDebts.reduce((sum, debt) => {
+      if (debt.status === 'Đã thanh toán' && debt.lastUpdatedEmployeeId === selectedEmployee.id) {
+        return sum + debt.amount;
+      }
+      return sum;
+    }, 0);
+  }, [filteredEmployeeDebts, selectedEmployee]);
+
+  const totalDiscountsByEmployee = useMemo(() => {
+    return filteredEmployeeInvoices.reduce((sum, inv) => sum + (inv.discount || 0), 0);
+  }, [filteredEmployeeInvoices]);
+
+
   const handleSelectEmployee = (employee: Employee) => {
     if (isAdmin || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
-        setActivityFilter(getCurrentDateFilter(false)); // Reset filter to current month/year for new selected employee
+        setActivityFilter(getCurrentDateFilter(false)); 
     } else {
         setSelectedEmployee(null); 
     }
@@ -240,6 +260,34 @@ export function EmployeeTab({ employees, currentUser, invoices, debts }: Employe
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="bg-primary/10 border-primary">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold text-primary">Tổng tiền bán hàng</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xl font-bold text-primary">{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-green-500/10 border-green-500">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold text-green-700">Tổng thu nợ</CardTitle>
+                     <CardDescription className="text-xs">(Nợ được NV này xử lý Đã TT)</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xl font-bold text-green-700">{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-red-500/10 border-red-500">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold text-red-700">Tổng giảm giá</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xl font-bold text-red-700">{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                  </CardContent>
+                </Card>
+              </div>
+
               <div>
                 <h3 className="font-semibold mb-2 text-lg text-primary">Hóa đơn đã tạo ({filteredEmployeeInvoices.length})</h3>
                 {filteredEmployeeInvoices.length === 0 ? (

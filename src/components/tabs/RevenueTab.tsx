@@ -40,25 +40,78 @@ const chartConfig = {
 export function RevenueTab({ invoices, filter, onFilterChange, availableYears }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
 
-  const revenueData = useMemo(() => {
-    const dataByDay = invoices.reduce((acc, invoice) => {
-      const date = new Date(invoice.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-      if (!acc[date]) {
-        acc[date] = 0;
-      }
-      acc[date] += invoice.total;
-      return acc;
-    }, {} as Record<string, number>);
+  const { chartData, chartTitle, chartDescription } = useMemo(() => {
+    let newChartTitle = "Biểu đồ doanh thu";
+    let newChartDescription = "Hiển thị doanh thu của cửa hàng (theo bộ lọc).";
+    let aggregatedData: Record<string, number> = {};
 
-    return Object.entries(dataByDay)
-      .map(([date, doanhthu]) => ({ name: date, doanhthu }))
-      .sort((a, b) => {
-        const [dayA, monthA] = a.name.split('/').map(Number);
-        const [dayB, monthB] = b.name.split('/').map(Number);
-        if (monthA !== monthB) return monthA - monthB;
-        return dayA - dayB;
+    if (filter.month !== 'all') {
+      // Display daily revenue for the selected month
+      newChartTitle = `Biểu đồ doanh thu theo ngày (${`Tháng ${filter.month}`}${filter.year !== 'all' ? `/${filter.year}` : ', Tất cả các năm'})`;
+      newChartDescription = `Doanh thu hàng ngày cho Tháng ${filter.month}${filter.year !== 'all' ? `, Năm ${filter.year}` : ' qua các năm'}.`;
+      
+      invoices.forEach(invoice => {
+        const dateObj = new Date(invoice.date);
+        // Ensure invoice matches the selected month (and year if specified)
+        const monthMatch = (dateObj.getMonth() + 1).toString() === filter.month;
+        const yearMatch = filter.year === 'all' || dateObj.getFullYear().toString() === filter.year;
+
+        if (monthMatch && yearMatch) {
+          const dayKey = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+          aggregatedData[dayKey] = (aggregatedData[dayKey] || 0) + invoice.total;
+        }
       });
-  }, [invoices]);
+      
+      return {
+        chartData: Object.entries(aggregatedData)
+          .map(([name, doanhthu]) => ({ name, doanhthu }))
+          .sort((a, b) => {
+            const [dayA, monthA] = a.name.split('/').map(Number);
+            const [dayB, monthB] = b.name.split('/').map(Number);
+            if (monthA !== monthB) return monthA - monthB; // Should be same month, but good practice
+            return dayA - dayB;
+          }),
+        chartTitle: newChartTitle,
+        chartDescription: newChartDescription,
+      };
+
+    } else if (filter.year !== 'all') {
+      // Display monthly revenue for the selected year
+      newChartTitle = `Biểu đồ doanh thu theo tháng (Năm ${filter.year})`;
+      newChartDescription = `Tổng doanh thu mỗi tháng cho Năm ${filter.year}.`;
+      invoices.forEach(invoice => {
+         const dateObj = new Date(invoice.date);
+         if (dateObj.getFullYear().toString() === filter.year) {
+            const monthKey = `Tháng ${dateObj.getMonth() + 1}`;
+            aggregatedData[monthKey] = (aggregatedData[monthKey] || 0) + invoice.total;
+         }
+      });
+      return {
+        chartData: Object.entries(aggregatedData)
+            .map(([name, doanhthu]) => ({ name, doanhthu }))
+            .sort((a,b) => parseInt(a.name.split(' ')[1]) - parseInt(b.name.split(' ')[1])),
+        chartTitle: newChartTitle,
+        chartDescription: newChartDescription,
+      };
+
+    } else {
+      // Display yearly revenue (month is 'all', year is 'all')
+      newChartTitle = "Biểu đồ doanh thu theo năm";
+      newChartDescription = "Tổng doanh thu mỗi năm.";
+      invoices.forEach(invoice => {
+        const yearKey = new Date(invoice.date).getFullYear().toString();
+        aggregatedData[yearKey] = (aggregatedData[yearKey] || 0) + invoice.total;
+      });
+      return {
+        chartData: Object.entries(aggregatedData)
+            .map(([name, doanhthu]) => ({ name, doanhthu }))
+            .sort((a,b) => parseInt(a.name) - parseInt(b.name)),
+        chartTitle: newChartTitle,
+        chartDescription: newChartDescription,
+      };
+    }
+  }, [invoices, filter.month, filter.year]);
+
 
   const totalRevenue = useMemo(() => invoices.reduce((sum, inv) => sum + inv.total, 0), [invoices]);
   const totalInvoicesCount = invoices.length;
@@ -66,25 +119,7 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
-        <div>
-          <Label htmlFor="revenue-filter-day" className="text-sm">Ngày</Label>
-          <Select
-            value={filter.day}
-            onValueChange={(value) => onFilterChange({ ...filter, day: value })}
-          >
-            <SelectTrigger id="revenue-filter-day" className="w-full sm:w-28 bg-card h-9">
-              <SelectValue placeholder="Ngày" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả</SelectItem>
-              {Array.from({ length: 31 }, (_, i) => (
-                <SelectItem key={i + 1} value={(i + 1).toString()}>
-                  {i + 1}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Day filter removed */}
         <div>
           <Label htmlFor="revenue-filter-month" className="text-sm">Tháng</Label>
           <Select
@@ -153,15 +188,15 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-4xl font-bold">Biểu đồ doanh thu theo ngày</CardTitle>
-          <CardDescription>Hiển thị doanh thu hàng ngày của cửa hàng (theo bộ lọc).</CardDescription>
+          <CardTitle className="text-4xl font-bold">{chartTitle}</CardTitle>
+          <CardDescription>{chartDescription}</CardDescription>
         </CardHeader>
         <CardContent>
-          {revenueData.length === 0 ? (
+          {chartData.length === 0 ? (
              <p className="text-muted-foreground text-center py-10">Chưa có dữ liệu doanh thu để hiển thị theo bộ lọc đã chọn.</p>
           ) : (
           <ChartContainer config={chartConfig} className="h-[400px] w-full">
-            <BarChart data={revenueData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
               <YAxis tickFormatter={(value) => new Intl.NumberFormat('vi-VN').format(value)} tickLine={false} tickMargin={10} axisLine={false} />
@@ -282,3 +317,4 @@ export function RevenueTab({ invoices, filter, onFilterChange, availableYears }:
     </div>
   );
 }
+

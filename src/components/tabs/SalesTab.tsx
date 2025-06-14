@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
+import { ChevronsUpDown, Check } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -60,6 +60,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
   const [discountStr, setDiscountStr] = useState(''); 
   const [amountPaidStr, setAmountPaidStr] = useState('');
+
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
 
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
@@ -193,7 +196,62 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <h3 className="text-xl font-semibold mb-4 text-foreground">Sản phẩm có sẵn</h3>
+
+          <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
+            <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={isProductSearchOpen}
+                  className="w-full justify-between bg-card text-foreground hover:text-foreground"
+                >
+                  Tìm và thêm sản phẩm vào giỏ...
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                <Command>
+                  <CommandInput
+                    placeholder="Gõ tên sản phẩm..."
+                    value={productSearchQuery}
+                    onValueChange={setProductSearchQuery}
+                  />
+                  <CommandList>
+                    <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
+                    <CommandGroup>
+                      {inventory
+                        .filter(item => 
+                          item.quantity > 0 && 
+                          item.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+                        )
+                        .map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={`${product.name} ${product.color} ${product.size}`} // Unique value for cmdk
+                            onSelect={() => {
+                              addToCart(product);
+                              setProductSearchQuery("");
+                              setIsProductSearchOpen(false);
+                            }}
+                          >
+                            <div className="flex flex-col w-full">
+                              <span className="font-medium">{product.name} <span className="text-xs text-muted-foreground">({product.color}, {product.size}, {product.unit})</span></span>
+                              <span className="text-xs text-muted-foreground">
+                                Giá: {product.price.toLocaleString('vi-VN')} VNĐ - Tồn: {product.quantity}
+                              </span>
+                            </div>
+                          </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             {inventory.filter(item => item.quantity > 0).map(item => (
               <Card key={item.id} className="text-center hover:shadow-lg transition-shadow flex flex-col">
@@ -224,7 +282,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                 </CardFooter>
               </Card>
             ))}
-             {inventory.filter(item => item.quantity > 0).length === 0 && (
+             {inventory.filter(item => item.quantity > 0).length === 0 && !productSearchQuery && (
                 <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
             )}
           </div>
@@ -298,7 +356,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[calc(var(--radix-popover-trigger-width))] p-0">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                   <Command>
                     <CommandInput
                       placeholder="Tìm khách hàng hoặc nhập tên mới..."

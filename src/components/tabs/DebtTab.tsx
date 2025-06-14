@@ -18,7 +18,8 @@ interface DebtTabProps {
     debtId: string, 
     newStatus: 'Chưa thanh toán' | 'Đã thanh toán',
     employeeId: string,
-    employeeName: string
+    employeeName: string,
+    isUndoOperation?: boolean 
   ) => Promise<void>;
   filter: DateFilter;
   onFilterChange: (newFilter: DateFilter) => void;
@@ -35,11 +36,14 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
       return;
     }
     const newStatus = currentStatus === 'Đã thanh toán' ? 'Chưa thanh toán' : 'Đã thanh toán';
+    const isUndo = newStatus === 'Chưa thanh toán'; // It's an undo if we are reverting to "Chưa thanh toán"
+    
     onUpdateDebtStatus(
       debtId, 
       newStatus, 
       currentUser.uid, 
-      currentUser.displayName || currentUser.email || "Không rõ"
+      currentUser.displayName || currentUser.email || "Không rõ",
+      isUndo
     );
   };
 
@@ -164,12 +168,12 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       size="sm"
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",
-                        debt.status === 'Đã thanh toán'
-                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300'
-                          : 'bg-red-200 text-red-800 border-red-400 hover:bg-red-300'
+                        debt.status === 'Chưa thanh toán'
+                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300' // Green for "Thu nợ"
+                          : 'bg-red-200 text-red-800 border-red-400 hover:bg-red-300' // Red for "Hủy thanh toán"
                       )}
                     >
-                      {debt.status}
+                      {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
                     </Button>
                   </TableCell>
                   <TableCell>{debt.createdEmployeeName || 'Không rõ'}</TableCell>
@@ -184,4 +188,3 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
-

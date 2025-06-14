@@ -112,14 +112,15 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
   const updateCartQuantity = (itemId: string, newQuantityStr: string) => {
     const newQuantity = parseInt(newQuantityStr);
-    if (isNaN(newQuantity)) return;
+    if (isNaN(newQuantity) || newQuantity < 0) return;
+
 
     const stockItem = inventory.find(i => i.id === itemId);
-    if (!stockItem) return;
+    if (!stockItem && newQuantity > 0) return; 
 
-    if (newQuantity <= 0) {
+    if (newQuantity === 0) {
       setCart(cart.filter(item => item.id !== itemId));
-    } else if (newQuantity > stockItem.quantity) {
+    } else if (stockItem && newQuantity > stockItem.quantity) {
       showLocalNotification(`Số lượng tồn kho không đủ! Chỉ còn ${stockItem.quantity} ${stockItem.unit}.`, 'error');
       setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
     } else {
@@ -159,7 +160,12 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
   const parsedOverallDiscountNghin = parseFloat(overallDiscountStr) || 0;
   const actualOverallInvoiceDiscountVND = parsedOverallDiscountNghin * 1000;
-  const finalTotalAfterAllDiscounts = subtotalAfterItemDiscounts - actualOverallInvoiceDiscountVND;
+  
+  const finalTotalAfterAllDiscounts = useMemo(() => {
+      const total = subtotalAfterItemDiscounts - actualOverallInvoiceDiscountVND;
+      return total < 0 ? 0 : total; 
+  }, [subtotalAfterItemDiscounts, actualOverallInvoiceDiscountVND]);
+
 
   const parsedAmountPaidNghin = parseFloat(amountPaidStr) || 0;
   const actualAmountPaidVND = parsedAmountPaidNghin * 1000;
@@ -184,7 +190,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
     setOverallDiscountStr('');
-    setAmountPaidStr((finalTotalAfterAllDiscounts / 1000).toString());
+    setAmountPaidStr((finalTotalAfterAllDiscounts / 1000).toString()); 
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
@@ -205,8 +211,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         showLocalNotification("Số tiền khách trả không thể âm.", "error");
         return;
     }
-    if (finalTotalAfterAllDiscounts < 0) {
-        showLocalNotification("Tổng giảm giá không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.", "error");
+    
+    if (subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND) {
+        showLocalNotification("Tổng giảm giá chung không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.", "error");
         return;
     }
 
@@ -223,7 +230,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     const success = await onCreateInvoice(
         finalCustomerName,
         cart,
-        subtotalAfterItemDiscounts,
+        subtotalAfterItemDiscounts, 
         currentPaymentMethod,
         actualOverallInvoiceDiscountVND,
         actualAmountPaidVND,
@@ -238,17 +245,18 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   };
 
   const productsGroupedByName = useMemo(() => {
-    const nameMap = new Map<string, Product[]>();
+    const nameMap = new Map<string, { firstVariant: Product, totalStock: number }>();
     inventory.filter(p => p.quantity > 0).forEach(product => {
       if (!nameMap.has(product.name)) {
-        nameMap.set(product.name, []);
+        nameMap.set(product.name, { firstVariant: product, totalStock: 0 });
       }
-      nameMap.get(product.name)!.push(product);
+      const entry = nameMap.get(product.name)!;
+      entry.totalStock += product.quantity;
     });
-    return Array.from(nameMap.entries()).map(([name, products]) => ({
+    return Array.from(nameMap.entries()).map(([name, data]) => ({
       name,
-      firstVariant: products[0],
-      totalStock: products.reduce((sum, p) => sum + p.quantity, 0)
+      firstVariant: data.firstVariant,
+      totalStock: data.totalStock
     }));
   }, [inventory]);
 
@@ -263,7 +271,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     setSelectedProductNameForVariants(productName);
     setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
-  }, [inventory]);
+  }, [inventory, showLocalNotification]); // Added showLocalNotification to dependencies
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
@@ -274,13 +282,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       );
       const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
       setAvailableVariants(prev => ({ ...prev, sizes }));
-      const newSize = sizes.length === 1 ? sizes[0] : (sizes.includes(variantSelection.size) ? variantSelection.size : '');
+      const newSize = sizes.length === 1 ? sizes[0] : (sizes.includes(variantSelection.size) ? variantSelection.size : (sizes[0] || ''));
       setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' }));
     } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
         setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
     }
-  }, [selectedProductNameForVariants, variantSelection.color, inventory]);
+  }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.size]); // Added variantSelection.size
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
@@ -292,13 +300,14 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       );
       const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
       setAvailableVariants(prev => ({ ...prev, units }));
-      const newUnit = units.length === 1 ? units[0] : (units.includes(variantSelection.unit) ? variantSelection.unit : '');
+      const newUnit = units.length === 1 ? units[0] : (units.includes(variantSelection.unit) ? variantSelection.unit : (units[0] || ''));
       setVariantSelection(prev => ({ ...prev, unit: newUnit }));
     } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, units: [] }));
         setVariantSelection(prev => ({ ...prev, unit: '' }));
     }
-  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory]);
+  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory, variantSelection.unit]); // Added variantSelection.unit
+
 
   const handleVariantSelectionChange = (field: keyof VariantSelection, value: string) => {
     setVariantSelection(prev => {
@@ -325,6 +334,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       p.unit === variantSelection.unit &&
       p.quantity > 0
     );
+
     if (productToAdd) {
       addToCart(productToAdd);
       setIsVariantSelectorOpen(false);
@@ -532,7 +542,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                         <Input
                             id={`item-discount-${item.id}`}
                             type="number"
-                            value={item.itemDiscount ? (item.itemDiscount / 1000).toString() : ""}
+                            value={typeof item.itemDiscount === 'number' ? (item.itemDiscount / 1000).toString() : ""}
                             onChange={(e) => handleItemDiscountChange(item.id, e.target.value)}
                             min="0"
                             step="0.1"
@@ -541,7 +551,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                         />
                     </div>
                 </Card>
-              )})}
+                )})}
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
@@ -731,7 +741,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               type="button"
               onClick={handleConfirmCheckout}
               className="bg-green-500 hover:bg-green-600 text-white"
-              disabled={finalTotalAfterAllDiscounts < 0}
+              disabled={finalTotalAfterAllDiscounts < 0 || subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND}
             >
               Xác nhận thanh toán
             </Button>

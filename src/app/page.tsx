@@ -47,11 +47,18 @@ import { useToast } from "@/hooks/use-toast";
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên' | 'Khách hàng'; // Added 'Khách hàng'
 
+export interface DateFilter {
+  day: string;
+  month: string;
+  year: string;
+}
 
 interface NavItem {
   name: TabName;
   icon: ReactNode;
 }
+
+const initialDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
 
 export default function FleurManagerPage() {
   const { currentUser, loading: authLoading, signOut } = useAuth();
@@ -60,7 +67,7 @@ export default function FleurManagerPage() {
   const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
-  const [customersData, setCustomersData] = useState<Customer[]>([]); // Added customersData state
+  const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const { toast } = useToast();
@@ -69,6 +76,10 @@ export default function FleurManagerPage() {
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
+
+  const [revenueFilter, setRevenueFilter] = useState<DateFilter>(initialDateFilter);
+  const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialDateFilter);
+  const [debtFilter, setDebtFilter] = useState<DateFilter>(initialDateFilter);
 
 
   // Kiểm tra trạng thái đăng nhập
@@ -220,6 +231,54 @@ export default function FleurManagerPage() {
     };
   }, [currentUser]);
 
+  const handleRevenueFilterChange = (newFilter: DateFilter) => setRevenueFilter(newFilter);
+  const handleInvoiceFilterChange = (newFilter: DateFilter) => setInvoiceFilter(newFilter);
+  const handleDebtFilterChange = (newFilter: DateFilter) => setDebtFilter(newFilter);
+
+  const filterDataByDateRange = <T extends { date: string }>(
+    data: T[],
+    filter: DateFilter
+  ): T[] => {
+    if (!data) return [];
+    return data.filter(item => {
+      const itemDate = new Date(item.date);
+      const itemDay = itemDate.getDate().toString();
+      const itemMonth = (itemDate.getMonth() + 1).toString();
+      const itemYear = itemDate.getFullYear().toString();
+
+      const dayMatch = filter.day === 'all' || filter.day === itemDay;
+      const monthMatch = filter.month === 'all' || filter.month === itemMonth;
+      const yearMatch = filter.year === 'all' || filter.year === itemYear;
+
+      return dayMatch && monthMatch && yearMatch;
+    });
+  };
+
+  const availableInvoiceYears = useMemo(() => {
+    if (!invoicesData || invoicesData.length === 0) return [new Date().getFullYear().toString()];
+    const years = new Set(invoicesData.map(inv => new Date(inv.date).getFullYear().toString()));
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [invoicesData]);
+
+  const availableDebtYears = useMemo(() => {
+    if (!debtsData || debtsData.length === 0) return [new Date().getFullYear().toString()];
+    const years = new Set(debtsData.map(debt => new Date(debt.date).getFullYear().toString()));
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [debtsData]);
+
+
+  const filteredInvoicesForRevenue = useMemo(() => {
+    return filterDataByDateRange(invoicesData, revenueFilter);
+  }, [invoicesData, revenueFilter]);
+
+  const filteredInvoicesForInvoiceTab = useMemo(() => {
+    return filterDataByDateRange(invoicesData, invoiceFilter);
+  }, [invoicesData, invoiceFilter]);
+
+  const filteredDebtsForDebtTab = useMemo(() => {
+    return filterDataByDateRange(debtsData, debtFilter);
+  }, [debtsData, debtFilter]);
+
 
   const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
     try {
@@ -353,7 +412,7 @@ export default function FleurManagerPage() {
       if (calculatedDebtAmount > 0) {
         const newDebtRef = push(ref(db, 'debts'));
         const newDebt: Omit<Debt, 'id'> = {
-          supplier: customerName, // Customer name as the debtor
+          supplier: customerName, 
           amount: calculatedDebtAmount,
           date: new Date().toISOString(),
           status: 'Chưa thanh toán',
@@ -399,7 +458,6 @@ export default function FleurManagerPage() {
       const originalInvoice = { id: invoiceId, ...invoiceSnapshot.val() } as Invoice;
       const updates: { [key: string]: any } = {};
 
-      // Logic to delete associated debt if invoice is fully cancelled/returned
       const deleteAssociatedDebtIfNeeded = async () => {
         if (originalInvoice.debtAmount && originalInvoice.debtAmount > 0) {
           const debtsQueryRef = ref(db, 'debts');
@@ -491,13 +549,9 @@ export default function FleurManagerPage() {
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn và công nợ liên quan (nếu có) đã được xóa.", variant: "default" });
         } else {
-          // For partial returns, the debt is not automatically adjusted here.
-          // The original debt amount on the invoice (if any) and the separate debt record remain.
-          // Manual debt adjustment might be needed or a more complex debt update logic.
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newTotal;
           updates[`invoices/${invoiceId}/discount`] = newDiscount;
-          // Note: originalInvoice.amountPaid and originalInvoice.debtAmount are not modified here for partial returns.
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi.", variant: "default" });
         }
@@ -617,9 +671,26 @@ export default function FleurManagerPage() {
                     onDeleteOption={handleDeleteProductOption}
                   />,
     'Nhập hàng': <ImportTab inventory={inventory} onImportProducts={handleImportProducts} />,
-    'Hóa đơn': <InvoiceTab invoices={invoicesData} onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn} />,
-    'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
-    'Doanh thu': <RevenueTab invoices={invoicesData} />,
+    'Hóa đơn': <InvoiceTab 
+                  invoices={filteredInvoicesForInvoiceTab} 
+                  onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
+                  filter={invoiceFilter}
+                  onFilterChange={handleInvoiceFilterChange}
+                  availableYears={availableInvoiceYears}
+                />,
+    'Công nợ': <DebtTab 
+                  debts={filteredDebtsForDebtTab} 
+                  onUpdateDebtStatus={handleUpdateDebtStatus}
+                  filter={debtFilter}
+                  onFilterChange={handleDebtFilterChange}
+                  availableYears={availableDebtYears}
+                />,
+    'Doanh thu': <RevenueTab 
+                  invoices={filteredInvoicesForRevenue}
+                  filter={revenueFilter}
+                  onFilterChange={handleRevenueFilterChange}
+                  availableYears={availableInvoiceYears}
+                />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
     'Khách hàng': <CustomerTab 
                       customers={customersData} 
@@ -627,7 +698,15 @@ export default function FleurManagerPage() {
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
                     />,
-  }), [inventory, employeesData, customersData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions, handleUpdateCustomer, handleDeleteCustomer]);
+  }), [
+      inventory, employeesData, customersData, invoicesData, debtsData, currentUser, 
+      productNameOptions, colorOptions, sizeOptions, unitOptions, 
+      handleUpdateCustomer, handleDeleteCustomer,
+      filteredInvoicesForRevenue, revenueFilter, handleRevenueFilterChange,
+      filteredInvoicesForInvoiceTab, invoiceFilter, handleInvoiceFilterChange,
+      filteredDebtsForDebtTab, debtFilter, handleDebtFilterChange,
+      availableInvoiceYears, availableDebtYears
+  ]);
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
@@ -726,3 +805,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

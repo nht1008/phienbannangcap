@@ -3,17 +3,23 @@
 
 import React, { useMemo } from 'react';
 import type { Debt } from '@/types';
+import type { DateFilter } from '@/app/page';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 
 interface DebtTabProps {
   debts: Debt[];
   onUpdateDebtStatus: (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán') => Promise<void>;
+  filter: DateFilter;
+  onFilterChange: (newFilter: DateFilter) => void;
+  availableYears: string[];
 }
 
-export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
+export function DebtTab({ debts, onUpdateDebtStatus, filter, onFilterChange, availableYears }: DebtTabProps) {
   const toggleStatus = (debtId: string, currentStatus: 'Chưa thanh toán' | 'Đã thanh toán') => {
     const newStatus = currentStatus === 'Đã thanh toán' ? 'Chưa thanh toán' : 'Đã thanh toán';
     onUpdateDebtStatus(debtId, newStatus);
@@ -30,17 +36,82 @@ export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
         <CardTitle className="text-4xl font-bold">Quản lý công nợ</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
+          <div>
+            <Label htmlFor="debt-filter-day" className="text-sm">Ngày</Label>
+            <Select
+              value={filter.day}
+              onValueChange={(value) => onFilterChange({ ...filter, day: value })}
+            >
+              <SelectTrigger id="debt-filter-day" className="w-full sm:w-28 bg-card h-9">
+                <SelectValue placeholder="Ngày" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                {Array.from({ length: 31 }, (_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    {i + 1}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="debt-filter-month" className="text-sm">Tháng</Label>
+            <Select
+              value={filter.month}
+              onValueChange={(value) => onFilterChange({ ...filter, month: value })}
+            >
+              <SelectTrigger id="debt-filter-month" className="w-full sm:w-32 bg-card h-9">
+                <SelectValue placeholder="Tháng" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    Tháng {i + 1}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="debt-filter-year" className="text-sm">Năm</Label>
+            <Select
+              value={filter.year}
+              onValueChange={(value) => onFilterChange({ ...filter, year: value })}
+            >
+              <SelectTrigger id="debt-filter-year" className="w-full sm:w-32 bg-card h-9">
+                <SelectValue placeholder="Năm" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button 
+            onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })} 
+            variant="outline"
+            className="h-9"
+          >
+            Xóa bộ lọc
+          </Button>
+        </div>
+
         <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 rounded-md text-red-800">
-          <p className="font-bold">Tổng công nợ chưa thanh toán: {totalUnpaid.toLocaleString('vi-VN')} VNĐ</p>
+          <p className="font-bold">Tổng công nợ chưa thanh toán (theo bộ lọc): {totalUnpaid.toLocaleString('vi-VN')} VNĐ</p>
         </div>
         {debts.length === 0 ? (
-            <p className="text-muted-foreground">Chưa có công nợ nào.</p>
+            <p className="text-muted-foreground text-center py-6">Không có công nợ nào phù hợp với bộ lọc.</p>
         ) : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nhà cung cấp</TableHead>
+                <TableHead>Nhà cung cấp/Khách hàng</TableHead>
                 <TableHead>Ngày tạo</TableHead>
                 <TableHead>Số tiền</TableHead>
                 <TableHead>Trạng thái</TableHead>
@@ -77,3 +148,4 @@ export function DebtTab({ debts, onUpdateDebtStatus }: DebtTabProps) {
     </Card>
   );
 }
+

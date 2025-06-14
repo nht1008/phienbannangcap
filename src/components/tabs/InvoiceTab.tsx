@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import type { Invoice, CartItem } from '@/types';
+import type { DateFilter } from '@/app/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Undo2 } from 'lucide-react';
@@ -37,6 +39,9 @@ interface InvoiceTabProps {
     operationType: 'delete' | 'return',
     itemsToReturn?: Array<{ productId: string; name: string; quantityToReturn: number }>
   ) => Promise<boolean>;
+  filter: DateFilter;
+  onFilterChange: (newFilter: DateFilter) => void;
+  availableYears: string[];
 }
 
 type ReturnItemDetail = {
@@ -49,7 +54,7 @@ type ReturnItemDetail = {
   price: number; 
 };
 
-export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: InvoiceTabProps) {
+export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter, onFilterChange, availableYears }: InvoiceTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
@@ -134,8 +139,73 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
           <CardTitle className="text-4xl font-bold">Danh sách hóa đơn</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
+            <div>
+              <Label htmlFor="invoice-filter-day" className="text-sm">Ngày</Label>
+              <Select
+                value={filter.day}
+                onValueChange={(value) => onFilterChange({ ...filter, day: value })}
+              >
+                <SelectTrigger id="invoice-filter-day" className="w-full sm:w-28 bg-card h-9">
+                  <SelectValue placeholder="Ngày" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  {Array.from({ length: 31 }, (_, i) => (
+                    <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="invoice-filter-month" className="text-sm">Tháng</Label>
+              <Select
+                value={filter.month}
+                onValueChange={(value) => onFilterChange({ ...filter, month: value })}
+              >
+                <SelectTrigger id="invoice-filter-month" className="w-full sm:w-32 bg-card h-9">
+                  <SelectValue placeholder="Tháng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      Tháng {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="invoice-filter-year" className="text-sm">Năm</Label>
+              <Select
+                value={filter.year}
+                onValueChange={(value) => onFilterChange({ ...filter, year: value })}
+              >
+                <SelectTrigger id="invoice-filter-year" className="w-full sm:w-32 bg-card h-9">
+                  <SelectValue placeholder="Năm" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })} 
+              variant="outline"
+              className="h-9"
+            >
+              Xóa bộ lọc
+            </Button>
+          </div>
+
           {invoices.length === 0 ? (
-            <p className="text-muted-foreground">Chưa có hóa đơn nào.</p>
+            <p className="text-muted-foreground text-center py-6">Không có hóa đơn nào phù hợp với bộ lọc.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -308,3 +378,4 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn }: I
     </>
   );
 }
+

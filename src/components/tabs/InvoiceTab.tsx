@@ -226,7 +226,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead>Tổng tiền</TableHead>
@@ -237,7 +236,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <TableBody>
                   {invoices.map(invoice => (
                     <TableRow key={invoice.id}>
-                      <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                       <TableCell>{invoice.customerName}</TableCell>
                       <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                       <TableCell>{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>

@@ -6,13 +6,13 @@ import type { Product, CartItem, Customer } from '@/types';
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -27,15 +27,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn, formatPhoneNumber } from '@/lib/utils'; 
+import { Separator } from "@/components/ui/separator";
+import { cn, formatPhoneNumber } from '@/lib/utils';
 
 
 interface SalesTabProps {
   inventory: Product[];
   customers: Customer[];
   onCreateInvoice: (
-    customerName: string, 
-    cart: CartItem[], 
+    customerName: string,
+    cart: CartItem[],
     subtotal: number, // actual VND
     paymentMethod: string,
     discount: number, // actual VND
@@ -65,13 +66,13 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   const [cart, setCart] = useState<CartItem[]>([]);
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
-  
+
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [customerNameForInvoice, setCustomerNameForInvoice] = useState('Khách lẻ');
-  const [customerSearchText, setCustomerSearchText] = useState(""); 
+  const [customerSearchText, setCustomerSearchText] = useState("");
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
-  const [discountStr, setDiscountStr] = useState(''); 
+  const [discountStr, setDiscountStr] = useState('');
   const [amountPaidStr, setAmountPaidStr] = useState('');
 
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -151,10 +152,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         return;
       }
     }
-    setCustomerNameForInvoice("Khách lẻ"); 
+    setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
-    setDiscountStr(''); 
-    setAmountPaidStr(''); 
+    setDiscountStr('');
+    setAmountPaidStr((finalTotalAfterDiscount / 1000).toString()); // Pre-fill amount paid with total after discount
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
@@ -166,7 +167,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     }
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
-    
+
     if (actualDiscountVND < 0) {
         showLocalNotification("Số tiền giảm giá không thể âm.", "error");
         return;
@@ -175,7 +176,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
         showLocalNotification("Số tiền khách trả không thể âm.", "error");
         return;
     }
-    if (finalTotalAfterDiscount < 0) { 
+    if (finalTotalAfterDiscount < 0) {
         showLocalNotification("Số tiền giảm giá không thể lớn hơn tổng tiền hàng.", "error");
         return;
     }
@@ -186,16 +187,16 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
           "Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.",
           "error"
         );
-        return; 
+        return;
       }
     }
 
     const success = await onCreateInvoice(
-        finalCustomerName, 
-        cart, 
-        subtotal, 
+        finalCustomerName,
+        cart,
+        subtotal,
         currentPaymentMethod,
-        actualDiscountVND, 
+        actualDiscountVND,
         actualAmountPaidVND,
         isGuest,
         currentUser.uid,
@@ -207,7 +208,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     }
   };
 
-  const productsWithSameName = useMemo(() => {
+  const productsGroupedByName = useMemo(() => {
     const nameMap = new Map<string, Product[]>();
     inventory.filter(p => p.quantity > 0).forEach(product => {
       if (!nameMap.has(product.name)) {
@@ -217,7 +218,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     });
     return Array.from(nameMap.entries()).map(([name, products]) => ({
       name,
-      firstVariant: products[0], // For display on card
+      firstVariant: products[0],
       totalStock: products.reduce((sum, p) => sum + p.quantity, 0)
     }));
   }, [inventory]);
@@ -230,27 +231,25 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     }
 
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
-    // Initially, sizes and units are empty until a color is selected
     setAvailableVariants({ colors, sizes: [], units: [] });
     setSelectedProductNameForVariants(productName);
-    setVariantSelection({ color: colors[0] || '', size: '', unit: '' }); // Pre-select first color
+    setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
   }, [inventory]);
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
-      const variantsMatchingNameAndColor = inventory.filter(p => 
-        p.name === selectedProductNameForVariants && 
+      const variantsMatchingNameAndColor = inventory.filter(p =>
+        p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
         p.quantity > 0
       );
       const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
       setAvailableVariants(prev => ({ ...prev, sizes }));
-      
-      // If only one size, auto-select it. Otherwise, reset size selection.
+
       const newSize = sizes.length === 1 ? sizes[0] : '';
-      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' })); // Reset unit when color/size changes
-    } else if (selectedProductNameForVariants) { // Color not selected or cleared
+      setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' }));
+    } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
         setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
     }
@@ -258,7 +257,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
-      const variantsMatchingNameColorSize = inventory.filter(p => 
+      const variantsMatchingNameColorSize = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
         p.size === variantSelection.size &&
@@ -267,10 +266,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
       setAvailableVariants(prev => ({ ...prev, units }));
 
-      // If only one unit, auto-select it.
       const newUnit = units.length === 1 ? units[0] : '';
       setVariantSelection(prev => ({ ...prev, unit: newUnit }));
-    } else if (selectedProductNameForVariants) { // Size not selected or cleared
+    } else if (selectedProductNameForVariants) {
         setAvailableVariants(prev => ({ ...prev, units: [] }));
         setVariantSelection(prev => ({ ...prev, unit: '' }));
     }
@@ -280,10 +278,10 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   const handleVariantSelectionChange = (field: keyof VariantSelection, value: string) => {
     setVariantSelection(prev => {
       const newState = { ...prev, [field]: value };
-      if (field === 'color') { // Reset size and unit if color changes
+      if (field === 'color') {
         newState.size = '';
         newState.unit = '';
-      } else if (field === 'size') { // Reset unit if size changes
+      } else if (field === 'size') {
         newState.unit = '';
       }
       return newState;
@@ -295,7 +293,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
       showLocalNotification('Vui lòng chọn đầy đủ màu sắc, kích thước và đơn vị.', 'error');
       return;
     }
-    const productToAdd = inventory.find(p => 
+    const productToAdd = inventory.find(p =>
       p.name === selectedProductNameForVariants &&
       p.color === variantSelection.color &&
       p.size === variantSelection.size &&
@@ -315,7 +313,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
 
   const selectedVariantDetails = useMemo(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.size && variantSelection.unit) {
-      return inventory.find(p => 
+      return inventory.find(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
         p.size === variantSelection.size &&
@@ -330,7 +328,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
   return (
     <>
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-6">
         <div className="lg:col-span-2">
 
           <div className="mb-6 p-4 bg-muted/30 rounded-lg">
@@ -357,8 +355,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                   <CommandList>
                     <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
                     <CommandGroup>
-                      {productsWithSameName
-                        .filter(group => 
+                      {productsGroupedByName
+                        .filter(group =>
                           group.name.toLowerCase().includes(productSearchQuery.toLowerCase())
                         )
                         .map((productGroup) => (
@@ -385,17 +383,17 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               </PopoverContent>
             </Popover>
           </div>
-          
+
           <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            {productsWithSameName.map(group => (
+            {productsGroupedByName.map(group => (
               <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
                 <CardContent className="p-4 flex-grow">
-                  <Image 
+                  <Image
                     src={group.firstVariant.image || `https://placehold.co/100x100.png`}
-                    alt={group.name} 
-                    width={100} 
-                    height={100} 
+                    alt={group.name}
+                    width={100}
+                    height={100}
                     className="w-24 h-24 mx-auto rounded-full object-cover mb-2"
                     data-ai-hint={`${group.name.split(' ')[0]} flower`}
                     onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100.png')}
@@ -415,50 +413,83 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                 </CardFooter>
               </Card>
             ))}
-             {productsWithSameName.length === 0 && (
+             {productsGroupedByName.length === 0 && (
                 <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
             )}
           </div>
         </div>
 
-        <Card>
+        <Card className="sticky top-6">
           <CardHeader>
-            <CardTitle>Giỏ hàng</CardTitle>
+            <CardTitle className="flex items-center">
+                <ShoppingCart className="mr-2 h-6 w-6 text-primary"/>
+                Giỏ hàng ({cart.reduce((acc, item) => acc + item.quantityInCart, 0)})
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
             {cart.length === 0 ? (
-              <p className="text-muted-foreground">Giỏ hàng trống</p>
+              <p className="text-muted-foreground text-center py-8">Giỏ hàng trống</p>
             ) : (
               cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center">
-                  <div>
-                    <p className="font-semibold text-foreground">{item.name} <span className="text-xs text-muted-foreground">({item.color}, {item.size}, {item.unit})</span></p>
-                    <p className="text-sm text-muted-foreground">{item.price.toLocaleString('vi-VN')} VNĐ</p>
-                  </div>
-                  <Input
-                    type="number"
-                    value={item.quantityInCart.toString()}
-                    onChange={(e) => updateCartQuantity(item.id, e.target.value)}
-                    className="w-16 p-1 text-center"
-                    min="1"
-                    max={(inventory.find(i => i.id === item.id)?.quantity ?? 1).toString()}
-                  />
-                </div>
+                <Card key={item.id} className="p-3 bg-muted/20 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <Image
+                            src={item.image || `https://placehold.co/60x60.png`}
+                            alt={item.name}
+                            width={60}
+                            height={60}
+                            className="w-16 h-16 rounded-md object-cover aspect-square"
+                            data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/60x60.png')}
+                        />
+                        <div className="flex-grow">
+                            <p className="font-semibold text-foreground text-sm leading-tight">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.color}, {item.size}, {item.unit}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Đơn giá: {item.price.toLocaleString('vi-VN')} VNĐ
+                            </p>
+                        </div>
+                         <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive/80 self-start"
+                            onClick={() => updateCartQuantity(item.id, '0')}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor={`qty-${item.id}`} className="text-xs">SL:</Label>
+                            <Input
+                                id={`qty-${item.id}`}
+                                type="number"
+                                value={item.quantityInCart.toString()}
+                                onChange={(e) => updateCartQuantity(item.id, e.target.value)}
+                                className="w-16 h-8 p-1 text-center text-sm bg-background"
+                                min="1"
+                                max={(inventory.find(i => i.id === item.id)?.quantity ?? 1).toString()}
+                            />
+                        </div>
+                        <p className="font-semibold text-primary text-sm">
+                            {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                    </div>
+                </Card>
               ))
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-             <hr className="w-full border-border my-2"/>
+          <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
             <div className="flex justify-between font-bold text-lg w-full text-foreground">
               <span>Tổng cộng:</span>
               <span>{subtotal.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Button
               onClick={handleOpenPaymentDialog}
-              className="w-full bg-green-500 text-white hover:bg-green-600"
+              className="w-full bg-green-500 text-white hover:bg-green-600 text-base py-3"
               disabled={cart.length === 0}
             >
-              Chọn phương thức thanh toán
+              Thanh toán
             </Button>
           </CardFooter>
         </Card>
@@ -472,7 +503,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               Vui lòng kiểm tra và nhập thông tin thanh toán.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-1">
               <Label htmlFor="customerCombobox">Tên khách hàng</Label>
@@ -494,22 +525,44 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                     <CommandInput
                       placeholder="Tìm khách hàng hoặc nhập tên mới..."
                       value={customerSearchText}
-                      onValueChange={setCustomerSearchText}
+                      onValueChange={(value) => {
+                        setCustomerSearchText(value);
+                        if (!customers.some(c => c.name.toLowerCase() === value.trim().toLowerCase()) && value.trim() !== "Khách lẻ") {
+                            setCustomerNameForInvoice(value.trim());
+                        }
+                      }}
                     />
                     <CommandList>
                       <CommandEmpty>
-                        {customerSearchText.trim() ? `Không tìm thấy "${customerSearchText}". Bạn có thể thêm mới.` : "Nhập tên để tìm kiếm."}
+                        {customerSearchText.trim() ? `Sử dụng tên mới: "${customerSearchText.trim()}"` : "Nhập tên để tìm hoặc thêm mới."}
                       </CommandEmpty>
                       <CommandGroup>
+                        <CommandItem
+                            key="guest"
+                            value="Khách lẻ"
+                            onSelect={() => {
+                                setCustomerNameForInvoice("Khách lẻ");
+                                setCustomerSearchText("Khách lẻ");
+                                setOpenCustomerCombobox(false);
+                            }}
+                        >
+                             <Check
+                                className={cn(
+                                "mr-2 h-4 w-4",
+                                customerNameForInvoice === "Khách lẻ" ? "opacity-100" : "opacity-0"
+                                )}
+                            />
+                            Khách lẻ
+                        </CommandItem>
                         {customers
                           .filter(c => c.name.toLowerCase().includes(customerSearchText.toLowerCase()) || (c.phone && c.phone.includes(customerSearchText)))
                           .map((customer) => (
                             <CommandItem
                               key={customer.id}
-                              value={customer.name} 
-                              onSelect={() => { 
+                              value={customer.name}
+                              onSelect={() => {
                                 setCustomerNameForInvoice(customer.name);
-                                setCustomerSearchText(customer.name); 
+                                setCustomerSearchText(customer.name);
                                 setOpenCustomerCombobox(false);
                               }}
                             >
@@ -536,7 +589,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                           className="text-primary hover:!bg-primary/10"
                         >
                           <PlusCircle className="mr-2 h-4 w-4" />
-                          Sử dụng tên: "{customerSearchText.trim()}"
+                          Thêm mới & sử dụng: "{customerSearchText.trim()}"
                         </CommandItem>
                       )}
                     </CommandList>
@@ -549,7 +602,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
               <Label>Tổng tiền hàng:</Label>
               <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} VNĐ</span>
             </div>
-            
+
             <div>
                 <Label className="mb-2 block">Phương thức thanh toán</Label>
                 <RadioGroup value={currentPaymentMethod} onValueChange={setCurrentPaymentMethod} className="flex space-x-4">
@@ -562,29 +615,36 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
                 </RadioGroup>
             </div>
 
+             <div className="space-y-1">
+              <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
+              <Input
+                id="discount"
+                type="number"
+                value={discountStr}
+                onChange={(e) => setDiscountStr(e.target.value)}
+                min="0"
+                className="bg-card"
+              />
+            </div>
+
+            <div className="flex justify-between items-center text-red-500">
+              <Label className="text-red-500">Sau giảm giá:</Label>
+              <span className="font-semibold">{finalTotalAfterDiscount.toLocaleString('vi-VN')} VNĐ</span>
+            </div>
+            <Separator/>
+
             <div className="space-y-1">
               <Label htmlFor="amountPaid">Số tiền khách trả (Nghìn VND)</Label>
-              <Input 
-                id="amountPaid" 
-                type="number" 
-                value={amountPaidStr} 
-                onChange={(e) => setAmountPaidStr(e.target.value)} 
+              <Input
+                id="amountPaid"
+                type="number"
+                value={amountPaidStr}
+                onChange={(e) => setAmountPaidStr(e.target.value)}
                 min="0"
-                className="bg-card" 
+                className="bg-card"
               />
             </div>
-            
-            <div className="space-y-1">
-              <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
-              <Input 
-                id="discount" 
-                type="number" 
-                value={discountStr} 
-                onChange={(e) => setDiscountStr(e.target.value)} 
-                min="0"
-                className="bg-card" 
-              />
-            </div>
+
 
             <div className="flex justify-between items-center">
               <Label>Tiền thừa:</Label>
@@ -602,9 +662,9 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
               Hủy
             </Button>
-            <Button 
-              type="button" 
-              onClick={handleConfirmCheckout} 
+            <Button
+              type="button"
+              onClick={handleConfirmCheckout}
               className="bg-green-500 hover:bg-green-600 text-white"
               disabled={finalTotalAfterDiscount < 0}
             >
@@ -632,8 +692,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
           <div className="space-y-4 py-4">
             <div>
               <Label htmlFor="variant-color">Màu sắc</Label>
-              <Select 
-                value={variantSelection.color} 
+              <Select
+                value={variantSelection.color}
                 onValueChange={(value) => handleVariantSelectionChange('color', value)}
                 disabled={availableVariants.colors.length === 0}
               >
@@ -649,8 +709,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             </div>
             <div>
               <Label htmlFor="variant-size">Kích thước</Label>
-              <Select 
-                value={variantSelection.size} 
+              <Select
+                value={variantSelection.size}
                 onValueChange={(value) => handleVariantSelectionChange('size', value)}
                 disabled={!variantSelection.color || availableVariants.sizes.length === 0}
               >
@@ -666,8 +726,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
             </div>
             <div>
               <Label htmlFor="variant-unit">Đơn vị</Label>
-              <Select 
-                value={variantSelection.unit} 
+              <Select
+                value={variantSelection.unit}
                 onValueChange={(value) => handleVariantSelectionChange('unit', value)}
                 disabled={!variantSelection.color || !variantSelection.size || availableVariants.units.length === 0}
               >
@@ -690,7 +750,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
-            <Button 
+            <Button
               onClick={handleAddVariantToCart}
               disabled={!variantSelection.color || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -703,4 +763,3 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser }:
     </>
   );
 }
-

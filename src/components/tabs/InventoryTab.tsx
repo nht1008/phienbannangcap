@@ -100,7 +100,7 @@ export function InventoryTab({
             unit: currentFormState.unit || defaultState.unit,
             image: currentFormState.image || defaultState.image,
         }));
-        setImagePreview(defaultState.image); 
+        setImagePreview(newItem.image || defaultState.image); 
     } else {
         setNewItem(defaultState);
         setImagePreview(null);
@@ -123,7 +123,7 @@ export function InventoryTab({
         setEditedItem(defaultState);
         setEditedImagePreview(null);
     }
-  }, [productNameOptions, colorOptions, sizeOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit]);
+  }, [productNameOptions, colorOptions, sizeOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit, newItem.image]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
@@ -168,6 +168,10 @@ export function InventoryTab({
       toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).", variant: "destructive"});
       return;
     }
+    if (parseFloat(newItem.price) <= parseFloat(newItem.costPrice)) {
+      toast({title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc.", variant: "destructive"});
+      return;
+    }
     const newProductData: Omit<Product, 'id'> = {
       name: newItem.name,
       quantity: parseInt(newItem.quantity),
@@ -201,6 +205,10 @@ export function InventoryTab({
     e.preventDefault();
     if (!productToEdit || !editedItem.name || !editedItem.color || !editedItem.size || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseFloat(editedItem.costPrice) < 0 || parseFloat(editedItem.price) < 0) {
       toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).", variant: "destructive"});
+      return;
+    }
+    if (parseFloat(editedItem.price) <= parseFloat(editedItem.costPrice)) {
+      toast({title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc.", variant: "destructive"});
       return;
     }
     const updatedProductData: Omit<Product, 'id'> = {
@@ -350,7 +358,7 @@ export function InventoryTab({
             
             {/* Image Upload and Preview */}
             <div className="md:col-span-2 flex flex-col">
-                <label className="text-sm text-foreground mb-1">Hình ảnh sản phẩm</label>
+                <label htmlFor={isEditMode ? "editImageFile" : "newImageFile"} className="text-sm text-foreground mb-1">Hình ảnh sản phẩm</label>
                 <div className="flex items-center gap-4">
                     <Input
                         id={isEditMode ? "editImageFile" : "newImageFile"}
@@ -579,4 +587,6 @@ export function InventoryTab({
     </Card>
   );
 }
+    
+
     

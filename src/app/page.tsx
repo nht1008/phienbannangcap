@@ -23,7 +23,7 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
-import { CustomerTab } from '@/components/tabs/CustomerTab'; // Added this import
+import { CustomerTab } from '@/components/tabs/CustomerTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { cn } from '@/lib/utils';
@@ -109,11 +109,11 @@ export default function FleurManagerPage() {
       return;
     }
     if (currentUser) {
-      const currentUserEmployeeRecordExists = employeesData.some(emp => emp.userId === currentUser.uid);
-      if (!currentUser.displayName || !currentUserEmployeeRecordExists) {
+      const currentUserEmployeeRecord = employeesData.find(emp => emp.userId === currentUser.uid);
+      if (!currentUser.displayName || !currentUserEmployeeRecord) {
         setIsSettingName(true);
       } else {
-        setIsSettingName(false);
+        setIsSettingName(false); 
       }
     } else {
       setIsSettingName(false); 
@@ -154,19 +154,23 @@ export default function FleurManagerPage() {
         let otherEmployees: Employee[];
 
         if (currentUser.email === 'nthe1008@gmail.com') {
+          // Admin sees all other employees
           otherEmployees = allEmployees.filter(emp => emp.email !== 'nthe1008@gmail.com');
         } else {
+          // Regular employee only sees their own record (if it exists and is not the admin record)
           const ownRecord = allEmployees.find(emp => emp.userId === currentUser.uid && emp.email !== 'nthe1008@gmail.com');
           otherEmployees = ownRecord ? [ownRecord] : [];
         }
-
+        
+        // Sort other employees alphabetically by name
         otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
 
         const finalEmployeesList: Employee[] = [];
         if (adminRecord) {
-          finalEmployeesList.push(adminRecord);
+          finalEmployeesList.push(adminRecord); // Admin record always first
         }
-        finalEmployeesList.push(...otherEmployees.filter(emp => emp.id !== adminRecord?.id));
+        // Add other employees, ensuring no duplicates if admin is also in otherEmployees (though filtered out)
+        finalEmployeesList.push(...otherEmployees.filter(emp => emp.id !== adminRecord?.id)); 
         
         setEmployeesData(finalEmployeesList);
       } else {
@@ -1009,11 +1013,5 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-
-    
-
-    
-
-    
 
     

@@ -107,7 +107,6 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, authLoading, router]);
 
-  // Effect for loading employees and then deciding on SetNameDialog
   useEffect(() => {
     if (authLoading || !currentUser) return;
 
@@ -133,7 +132,6 @@ export default function FleurManagerPage() {
         
         setEmployeesData(finalSortedEmployees);
 
-        // Decide on SetNameDialog after employeesData is loaded
         const currentUserEmployeeRecord = finalSortedEmployees.find(emp => emp.id === currentUser.uid);
         if (!currentUser.displayName || !currentUserEmployeeRecord) {
             setIsSettingName(true);
@@ -444,7 +442,7 @@ export default function FleurManagerPage() {
       if (calculatedDebtAmount > 0) {
         const newDebtRef = push(ref(db, 'debts'));
         const newDebt: Omit<Debt, 'id'> = {
-          supplier: customerName, // Here supplier is customer for sales debt
+          supplier: customerName, 
           amount: calculatedDebtAmount,
           date: new Date().toISOString(),
           status: 'Chưa thanh toán',
@@ -586,8 +584,6 @@ export default function FleurManagerPage() {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newTotal;
           updates[`invoices/${invoiceId}/discount`] = newDiscount;
-          // Note: employeeId for the invoice remains the original one. This action isn't changing who *created* it.
-          // If we need to track who *returned* items, a separate activity log or modification log on the invoice would be needed.
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi.", variant: "default" });
         }
@@ -664,49 +660,37 @@ export default function FleurManagerPage() {
       const originalDebt = snapshot.val() as Debt;
       const originalStatus = originalDebt.status;
   
-      const debtUpdates: { [key: string]: any } = {};
-      debtUpdates[`debts/${debtId}/status`] = newStatus;
+      const updates: { [key: string]: any } = {}; // Renamed from debtUpdates to updates
+      updates[`debts/${debtId}/status`] = newStatus; // Use 'updates'
       if (!isUndoOperation) {
-        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
-        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
+        updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
+        updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       } else {
-        // For undo, the user performing the UNDO is the last updater
-        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
-        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
+        updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
+        updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       }
   
-      // Synchronize with Invoice if applicable
       if (originalDebt.invoiceId) {
         const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`);
         const invoiceSnapshot = await get(invoiceRef);
         if (invoiceSnapshot.exists()) {
           if (newStatus === 'Đã thanh toán' && !isUndoOperation) {
-            // Debt paid, clear debtAmount on invoice
-            debtUpdates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0;
+            updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0;
           } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) {
-            // Undoing payment, restore debtAmount on invoice to original debt amount
-            debtUpdates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount;
+             updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount;
           }
         } else {
           console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`);
         }
       }
   
-      await update(ref(db), debtUpdates);
+      await update(ref(db), updates); // Use 'updates' here as well
   
       if (!isUndoOperation) {
         toast({
           title: "Thành công",
           description: "Trạng thái công nợ đã được cập nhật.",
           variant: "default",
-          action: (
-            <ToastAction
-              altText="Hoàn tác"
-              onClick={() => handleUpdateDebtStatus(debtId, originalStatus, employeeId, employeeName, true)}
-            >
-              Hoàn tác
-            </ToastAction>
-          ),
         });
       } else {
          toast({
@@ -720,7 +704,7 @@ export default function FleurManagerPage() {
       console.error("Error updating debt status:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" });
     }
-  }, [toast]); // Ensure handleUpdateDebtStatus is in dependency array if it calls itself
+  }, [toast]);
 
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => {
     if (!name.trim()) {
@@ -875,22 +859,19 @@ export default function FleurManagerPage() {
     const employeePosition = isAdmin ? 'Chủ cửa hàng' : 'Nhân viên';
 
     try {
-        await updateUserProfileName(employeeName); // Update Auth display name
+        await updateUserProfileName(employeeName); 
 
-        const employeeDataForDb: Partial<Employee> = { // Use Partial for flexibility
+        const employeeDataForDb: Partial<Employee> = { 
             name: employeeName,
             email: currentUser.email!,
             position: employeePosition,
         };
-        // Only set phone if it's part of the initial setup and available, otherwise manage separately
-        // if (inputPhone) employeeDataForDb.phone = inputPhone;
-
-
+        
         const employeeRef = ref(db, `employees/${currentUser.uid}`);
-        await set(employeeRef, employeeDataForDb); // Creates or overwrites employee node
+        await set(employeeRef, employeeDataForDb); 
 
         toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." });
-        setIsSettingName(false); // Close dialog
+        setIsSettingName(false); 
     } catch (error) {
         console.error("Error in onNameSet:", error);
         toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" });
@@ -903,19 +884,13 @@ export default function FleurManagerPage() {
   }
 
   if (!currentUser) {
-    // This check might be redundant due to the redirect in the first useEffect,
-    // but it's a good safeguard before SetNameDialog or main app renders.
     return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
   }
   
-  // isSettingName is now primarily controlled by the useEffect that loads employeesData
   if (isSettingName) {
     return (
       <SetNameDialog
         onNameSet={handleNameSet}
-        // Optionally pass initialName or isAdmin status if dialog needs to behave differently
-        // initialName={currentUser.email === ADMIN_EMAIL ? ADMIN_NAME : ''} 
-        // isPrefilled={currentUser.email === ADMIN_EMAIL}
       />
     );
   }
@@ -960,7 +935,7 @@ export default function FleurManagerPage() {
                     tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
                     asChild={false}
-                    onClick={(e) => e.preventDefault()} // Prevent action on click
+                    onClick={(e) => e.preventDefault()} 
                 >
                     <UserCircle className="h-5 w-5" />
                     <span>{currentUser.displayName || currentUser.email}</span>
@@ -996,4 +971,5 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 

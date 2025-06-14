@@ -39,11 +39,12 @@ import {
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut } from 'lucide-react'; 
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, push, update, get, child } from "firebase/database";
+import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên';
+type ProductOptionType = 'colors' | 'sizes' | 'units';
 
 interface NavItem {
   name: TabName;
@@ -61,6 +62,11 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const { toast } = useToast();
 
+  const [colorOptions, setColorOptions] = useState<string[]>([]);
+  const [sizeOptions, setSizeOptions] = useState<string[]>([]);
+  const [unitOptions, setUnitOptions] = useState<string[]>([]);
+
+
   // Kiểm tra trạng thái đăng nhập
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -71,7 +77,7 @@ export default function FleurManagerPage() {
 
   // Tải và lắng nghe dữ liệu Kho hàng
   useEffect(() => {
-    if (!currentUser) return; // Không tải nếu chưa đăng nhập
+    if (!currentUser) return; 
     const inventoryRef = ref(db, 'inventory');
     const unsubscribe = onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
@@ -86,7 +92,7 @@ export default function FleurManagerPage() {
       }
     });
     return () => unsubscribe();
-  }, [currentUser]); // Thêm currentUser làm dependency
+  }, [currentUser]); 
 
   // Tải và lắng nghe dữ liệu Nhân viên
   useEffect(() => {
@@ -143,6 +149,30 @@ export default function FleurManagerPage() {
       }
     });
     return () => unsubscribe();
+  }, [currentUser]);
+
+  // Tải và lắng nghe dữ liệu Product Options (Colors, Sizes, Units)
+  useEffect(() => {
+    if (!currentUser) return;
+    const colorsRef = ref(db, 'productOptions/colors');
+    const sizesRef = ref(db, 'productOptions/sizes');
+    const unitsRef = ref(db, 'productOptions/units');
+
+    const unsubColors = onValue(colorsRef, (snapshot) => {
+      setColorOptions(Object.keys(snapshot.val() || {}));
+    });
+    const unsubSizes = onValue(sizesRef, (snapshot) => {
+      setSizeOptions(Object.keys(snapshot.val() || {}));
+    });
+    const unsubUnits = onValue(unitsRef, (snapshot) => {
+      setUnitOptions(Object.keys(snapshot.val() || {}));
+    });
+
+    return () => {
+      unsubColors();
+      unsubSizes();
+      unsubUnits();
+    };
   }, [currentUser]);
 
 
@@ -243,6 +273,29 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleAddProductOption = async (type: ProductOptionType, name: string) => {
+    if (!name.trim()) {
+      toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" });
+      return;
+    }
+    try {
+      await set(ref(db, `productOptions/${type}/${name}`), true);
+      toast({ title: "Thành công", description: `Tùy chọn ${name} đã được thêm.`, variant: "default" });
+    } catch (error) {
+      console.error(`Error adding product ${type} option:`, error);
+      toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteProductOption = async (type: ProductOptionType, name: string) => {
+    try {
+      await remove(ref(db, `productOptions/${type}/${name}`));
+      toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" });
+    } catch (error) {
+      console.error(`Error deleting product ${type} option:`, error);
+      toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" });
+    }
+  };
 
   const navItems: NavItem[] = [
     { name: 'Bán hàng', icon: <SellIcon /> },
@@ -256,13 +309,21 @@ export default function FleurManagerPage() {
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
     'Bán hàng': <SalesTab inventory={inventory} onCreateInvoice={handleCreateInvoice} />,
-    'Kho hàng': <InventoryTab inventory={inventory} onAddProduct={handleAddProduct} />,
+    'Kho hàng': <InventoryTab 
+                    inventory={inventory} 
+                    onAddProduct={handleAddProduct} 
+                    colorOptions={colorOptions}
+                    sizeOptions={sizeOptions}
+                    unitOptions={unitOptions}
+                    onAddOption={handleAddProductOption}
+                    onDeleteOption={handleDeleteProductOption}
+                  />,
     'Nhập hàng': <ImportTab inventory={inventory} onImportProducts={handleImportProducts} />,
     'Hóa đơn': <InvoiceTab invoices={invoicesData} />,
     'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
-  }), [inventory, employeesData, invoicesData, debtsData, currentUser]); // Thêm currentUser
+  }), [inventory, employeesData, invoicesData, debtsData, currentUser, colorOptions, sizeOptions, unitOptions]);
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
@@ -282,7 +343,7 @@ export default function FleurManagerPage() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      router.push('/login'); // Chuyển hướng về trang login sau khi đăng xuất
+      router.push('/login'); 
       toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" });
     } catch (error) {
       console.error("Error signing out:", error);
@@ -290,7 +351,6 @@ export default function FleurManagerPage() {
     }
   };
 
-  // Hiển thị loading hoặc null trong khi kiểm tra auth hoặc nếu chưa đăng nhập (sẽ bị chuyển hướng)
   if (authLoading || !currentUser) {
     return (
         <div className="flex items-center justify-center min-h-screen bg-background">
@@ -331,7 +391,7 @@ export default function FleurManagerPage() {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2"> {/* Thêm space-y-2 */}
+          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2"> 
             <SidebarMenuButton
                 onClick={handleSignOut}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -362,3 +422,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

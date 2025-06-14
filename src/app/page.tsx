@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
 
-import { HomeIcon } from '@/components/icons/HomeIcon';
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
 import { SellIcon } from '@/components/icons/SellIcon';
 import { ImportIcon } from '@/components/icons/ImportIcon';
@@ -930,9 +929,8 @@ export default function FleurManagerPage() {
     <SidebarProvider>
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
-          <SidebarHeader className="h-20 flex items-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0 group-data-[state=expanded]:justify-start group-data-[state=collapsed]:justify-center">
-            <HomeIcon className="text-primary h-8 w-8 flex-shrink-0" />
-            <h1 className="ml-3 text-base font-semibold text-primary group-data-[state=collapsed]:hidden truncate">
+           <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
+            <h1 className="text-xl font-bold text-primary group-data-[state=collapsed]:hidden truncate text-center w-full group-data-[state=expanded]:text-left">
               Cửa Hàng Hoa Công Nguyệt
             </h1>
           </SidebarHeader>
@@ -1001,3 +999,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

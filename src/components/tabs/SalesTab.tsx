@@ -104,8 +104,8 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
         return;
       }
     }
-    setDiscountStr(''); // Reset on open
-    setAmountPaidStr(''); // Reset on open
+    setDiscountStr(''); 
+    setAmountPaidStr(''); 
     setIsPaymentDialogOpen(true);
   };
 
@@ -243,23 +243,7 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
               <Label>Tổng tiền hàng:</Label>
               <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} Nghìn VND</span>
             </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
-              <Input 
-                id="discount" 
-                type="number" 
-                value={discountStr} 
-                onChange={(e) => setDiscountStr(e.target.value)} 
-                min="0"
-                className="bg-card" 
-              />
-            </div>
             
-            {/* Thành tiền section removed */}
-
-            <Separator />
-
             <div>
                 <Label className="mb-2 block">Phương thức thanh toán</Label>
                 <RadioGroup value={currentPaymentMethod} onValueChange={setCurrentPaymentMethod} className="flex space-x-4">
@@ -279,6 +263,18 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
                 type="number" 
                 value={amountPaidStr} 
                 onChange={(e) => setAmountPaidStr(e.target.value)} 
+                min="0"
+                className="bg-card" 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
+              <Input 
+                id="discount" 
+                type="number" 
+                value={discountStr} 
+                onChange={(e) => setDiscountStr(e.target.value)} 
                 min="0"
                 className="bg-card" 
               />
@@ -308,4 +304,3 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
     </>
   );
 }
-

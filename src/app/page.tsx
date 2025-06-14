@@ -663,25 +663,37 @@ export default function FleurManagerPage() {
       }
       const originalDebt = snapshot.val() as Debt;
       const originalStatus = originalDebt.status;
-      // const originalLastUpdatedEmployeeId = originalDebt.lastUpdatedEmployeeId;
-      // const originalLastUpdatedEmployeeName = originalDebt.lastUpdatedEmployeeName;
-
-
-      const updateData: Partial<Debt> = { status: newStatus };
+  
+      const debtUpdates: { [key: string]: any } = {};
+      debtUpdates[`debts/${debtId}/status`] = newStatus;
       if (!isUndoOperation) {
-        updateData.lastUpdatedEmployeeId = employeeId;
-        updateData.lastUpdatedEmployeeName = employeeName || 'Không rõ';
+        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
+        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       } else {
-        // If undoing, we might want to revert to previous employee if tracked, or clear it.
-        // For now, the "undo" action itself will be attributed to the current user.
-        // To truly revert who did it, we'd need to store a history or more fields on the Debt object.
-        // Keeping it simple: the user performing the UNDO is the last updater.
-        updateData.lastUpdatedEmployeeId = employeeId;
-        updateData.lastUpdatedEmployeeName = employeeName || 'Không rõ';
+        // For undo, the user performing the UNDO is the last updater
+        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
+        debtUpdates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       }
-
-      await update(debtRef, updateData);
-
+  
+      // Synchronize with Invoice if applicable
+      if (originalDebt.invoiceId) {
+        const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`);
+        const invoiceSnapshot = await get(invoiceRef);
+        if (invoiceSnapshot.exists()) {
+          if (newStatus === 'Đã thanh toán' && !isUndoOperation) {
+            // Debt paid, clear debtAmount on invoice
+            debtUpdates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0;
+          } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) {
+            // Undoing payment, restore debtAmount on invoice to original debt amount
+            debtUpdates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount;
+          }
+        } else {
+          console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`);
+        }
+      }
+  
+      await update(ref(db), debtUpdates);
+  
       if (!isUndoOperation) {
         toast({
           title: "Thành công",
@@ -703,12 +715,12 @@ export default function FleurManagerPage() {
           variant: "default",
         });
       }
-
+  
     } catch (error) {
       console.error("Error updating debt status:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" });
     }
-  }, [toast]); // Added handleUpdateDebtStatus to dependency array if it references itself via Hoan tac.
+  }, [toast]); // Ensure handleUpdateDebtStatus is in dependency array if it calls itself
 
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => {
     if (!name.trim()) {

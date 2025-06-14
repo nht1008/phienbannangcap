@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { HomeIcon } from '@/components/icons/HomeIcon'; 
 
 export default function LoginPage() {
@@ -104,9 +104,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="text-center text-sm text-muted-foreground mt-4">
-          <p>Quên mật khẩu? Liên hệ quản trị viên.</p>
-        </CardFooter>
       </Card>
     </div>
   );

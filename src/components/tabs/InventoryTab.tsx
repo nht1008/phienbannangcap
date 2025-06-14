@@ -14,6 +14,9 @@ import { PlusCircle, Trash2, Settings } from 'lucide-react';
 
 type ProductOptionType = 'colors' | 'sizes' | 'units';
 
+const EMPTY_COLOR_VALUE = "__EMPTY_COLOR__";
+const EMPTY_SIZE_VALUE = "__EMPTY_SIZE__";
+
 interface InventoryTabProps {
   inventory: Product[];
   onAddProduct: (newProductData: Omit<Product, 'id'>) => Promise<void>;
@@ -48,7 +51,13 @@ export function InventoryTab({
   };
 
   const handleSelectChange = (name: 'color' | 'size' | 'unit', value: string) => {
-    setNewItem(prev => ({ ...prev, [name]: value }));
+    let actualValue = value;
+    if (name === 'color' && value === EMPTY_COLOR_VALUE) {
+      actualValue = '';
+    } else if (name === 'size' && value === EMPTY_SIZE_VALUE) {
+      actualValue = '';
+    }
+    setNewItem(prev => ({ ...prev, [name]: actualValue }));
   };
   
   const handleAddItem = async (e: React.FormEvent) => {
@@ -129,31 +138,31 @@ export function InventoryTab({
             </div>
             <div>
                 <label className="text-sm text-foreground">Màu sắc</label>
-                <Select value={newItem.color} onValueChange={(value) => handleSelectChange('color', value)}>
+                <Select value={newItem.color === '' ? EMPTY_COLOR_VALUE : newItem.color} onValueChange={(value) => handleSelectChange('color', value)}>
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Chọn màu sắc" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Để trống</SelectItem>
+                        <SelectItem value={EMPTY_COLOR_VALUE}>Để trống</SelectItem>
                         {colorOptions.map(option => (
                             <SelectItem key={option} value={option}>{option}</SelectItem>
                         ))}
-                        {colorOptions.length === 0 && <SelectItem value="no-color" disabled>Không có tùy chọn</SelectItem>}
+                        {colorOptions.length === 0 && newItem.color !== '' && <SelectItem value="no-color" disabled>Không có tùy chọn</SelectItem>}
                     </SelectContent>
                 </Select>
             </div>
             <div>
                 <label className="text-sm text-foreground">Kích thước</label>
-                <Select value={newItem.size} onValueChange={(value) => handleSelectChange('size', value)}>
+                <Select value={newItem.size === '' ? EMPTY_SIZE_VALUE : newItem.size} onValueChange={(value) => handleSelectChange('size', value)}>
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Chọn kích thước" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Để trống</SelectItem>
+                        <SelectItem value={EMPTY_SIZE_VALUE}>Để trống</SelectItem>
                         {sizeOptions.map(option => (
                             <SelectItem key={option} value={option}>{option}</SelectItem>
                         ))}
-                        {sizeOptions.length === 0 && <SelectItem value="no-size" disabled>Không có tùy chọn</SelectItem>}
+                        {sizeOptions.length === 0 && newItem.size !== '' && <SelectItem value="no-size" disabled>Không có tùy chọn</SelectItem>}
                     </SelectContent>
                 </Select>
             </div>
@@ -288,6 +297,6 @@ export function InventoryTab({
     </Card>
   );
 }
-
+    
 
     

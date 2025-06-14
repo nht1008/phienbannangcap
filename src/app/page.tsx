@@ -224,7 +224,11 @@ export default function FleurManagerPage() {
   const handleAddProduct = async (newProductData: Omit<Product, 'id'>) => {
     try {
       const newProductRef = push(ref(db, 'inventory'));
-      await set(newProductRef, newProductData);
+      await set(newProductRef, {
+        ...newProductData,
+        price: newProductData.price, // Already in VND
+        costPrice: newProductData.costPrice, // Already in VND
+      });
       toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" });
     } catch (error) {
       console.error("Error adding product:", error);
@@ -234,7 +238,11 @@ export default function FleurManagerPage() {
 
   const handleUpdateProduct = async (productId: string, updatedProductData: Omit<Product, 'id'>) => {
     try {
-      await update(ref(db, `inventory/${productId}`), updatedProductData);
+      await update(ref(db, `inventory/${productId}`), {
+        ...updatedProductData,
+        price: updatedProductData.price, // Already in VND
+        costPrice: updatedProductData.costPrice, // Already in VND
+      });
       toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" });
     } catch (error) {
       console.error("Error updating product:", error);
@@ -297,21 +305,25 @@ export default function FleurManagerPage() {
   const handleCreateInvoice = async (
     customerName: string,
     cart: CartItem[], 
-    subtotal: number, 
+    subtotal: number, // actual VND from SalesTab
     paymentMethod: string,
-    discount: number, 
-    amountPaid: number 
+    discount: number, // actual VND from SalesTab
+    amountPaid: number // actual VND from SalesTab
   ) => {
     try {
       const newInvoiceRef = push(ref(db, 'invoices'));
       const newInvoice: Omit<Invoice, 'id'> = {
         customerName,
-        items: cart.map(item => ({ ...item, price: item.price, costPrice: item.costPrice ?? 0 })), 
-        total: subtotal - discount, 
+        items: cart.map(item => ({ 
+            ...item, 
+            price: item.price, // price is already in VND from inventory
+            costPrice: item.costPrice ?? 0 // costPrice is already in VND from inventory
+        })), 
+        total: subtotal - discount, // all are actual VND
         date: new Date().toISOString(),
         paymentMethod,
-        discount, 
-        amountPaid, 
+        discount, // actual VND
+        amountPaid, // actual VND
       };
       await set(newInvoiceRef, newInvoice);
 
@@ -388,24 +400,24 @@ export default function FleurManagerPage() {
 
           if (remainingQuantityInCart > 0) {
             newInvoiceItems.push({
-              ...originalItem,
+              ...originalItem, // price and costPrice are already in VND
               quantityInCart: remainingQuantityInCart,
             });
-            newTotal += originalItem.price * remainingQuantityInCart;
+            newTotal += originalItem.price * remainingQuantityInCart; // price is VND
           }
         }
         
         let originalSubTotal = 0;
         for(const item of originalInvoice.items) {
-            originalSubTotal += item.price * item.quantityInCart;
+            originalSubTotal += item.price * item.quantityInCart; // price is VND
         }
 
-        let newDiscount = originalInvoice.discount || 0;
+        let newDiscount = originalInvoice.discount || 0; // discount is VND
         if (originalSubTotal > 0 && originalInvoice.discount && originalInvoice.discount > 0) {
             const discountRatio = originalInvoice.discount / originalSubTotal;
             let currentSubTotalOfNewItems = 0;
              for(const item of newInvoiceItems) {
-                 currentSubTotalOfNewItems += item.price * item.quantityInCart;
+                 currentSubTotalOfNewItems += item.price * item.quantityInCart; // price is VND
              }
             newDiscount = Math.round(currentSubTotalOfNewItems * discountRatio);
         }
@@ -419,8 +431,8 @@ export default function FleurManagerPage() {
           toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn đã được xóa.", variant: "default" });
         } else {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
-          updates[`invoices/${invoiceId}/total`] = newTotal;
-          updates[`invoices/${invoiceId}/discount`] = newDiscount; 
+          updates[`invoices/${invoiceId}/total`] = newTotal; // newTotal is VND
+          updates[`invoices/${invoiceId}/discount`] = newDiscount; // newDiscount is VND
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật.", variant: "default" });
         }
@@ -437,24 +449,24 @@ export default function FleurManagerPage() {
   };
 
 
-  const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalImportCost: number) => {
+  const handleImportProducts = async (supplierName: string | undefined, itemsToImport: ItemToImport[], totalImportCostVND: number) => {
     try {
       const newDebtRef = push(ref(db, 'debts'));
       const newDebt: Omit<Debt, 'id'> = {
         supplier: supplierName,
-        amount: totalImportCost, 
+        amount: totalImportCostVND, // This is actual VND
         date: new Date().toISOString(),
         status: 'Chưa thanh toán'
       };
       await set(newDebtRef, newDebt);
 
       const updates: { [key: string]: any } = {};
-      for (const importItem of itemsToImport) { 
+      for (const importItem of itemsToImport) { // importItem.cost is in Nghin VND
         const productSnapshot = await get(child(ref(db), `inventory/${importItem.productId}`));
         if (productSnapshot.exists()) {
           const currentProduct = productSnapshot.val();
           updates[`inventory/${importItem.productId}/quantity`] = currentProduct.quantity + importItem.quantity;
-          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; 
+          updates[`inventory/${importItem.productId}/costPrice`] = importItem.cost * 1000; // Convert Nghin VND to VND for storage
         } else {
           console.warn(`Sản phẩm ID ${importItem.productId} không tìm thấy trong kho khi nhập hàng. Bỏ qua cập nhật số lượng và giá vốn cho sản phẩm này.`);
         }
@@ -640,7 +652,7 @@ export default function FleurManagerPage() {
               </SidebarTrigger>
               <h2 className="text-4xl font-bold text-foreground font-headline">{activeTab}</h2>
             </div>
-            <div className="bg-card p-6 rounded-xl shadow-xl min-h-[calc(100vh-10rem)]">
+            <div className="min-h-[calc(100vh-10rem)]">
                {tabs[activeTab]}
             </div>
           </main>

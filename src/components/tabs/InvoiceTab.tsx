@@ -8,13 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -35,7 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 interface InvoiceTabProps {
   invoices: Invoice[];
   onProcessInvoiceCancellationOrReturn: (
-    invoiceId: string, 
+    invoiceId: string,
     operationType: 'delete' | 'return',
     itemsToReturn?: Array<{ productId: string; name: string; quantityToReturn: number }>
   ) => Promise<boolean>;
@@ -51,7 +51,7 @@ type ReturnItemDetail = {
   color: string;
   size: string;
   unit: string;
-  price: number; 
+  price: number;
 };
 
 export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears }: InvoiceTabProps) {
@@ -71,7 +71,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
   const handleConfirmDelete = async () => {
     if (invoiceToDelete) {
       await onProcessInvoiceCancellationOrReturn(invoiceToDelete.id, 'delete');
-      setInvoiceToDelete(null); 
+      setInvoiceToDelete(null);
     }
   };
 
@@ -79,7 +79,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     setCurrentInvoiceForReturnDialog(invoice);
     const initialReturnItems: Record<string, ReturnItemDetail> = {};
     invoice.items.forEach(item => {
-      initialReturnItems[item.id] = { 
+      initialReturnItems[item.id] = {
         originalQuantityInCart: item.quantityInCart,
         quantityToReturn: "0",
         name: item.name,
@@ -103,7 +103,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     } else if (numValue > itemDetail.originalQuantityInCart) {
       numValue = itemDetail.originalQuantityInCart;
     }
-    
+
     setReturnItemsState(prev => ({
       ...prev,
       [productId]: { ...prev[productId], quantityToReturn: numValue.toString() }
@@ -125,7 +125,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
       setIsReturnItemsDialogOpen(false);
       return;
     }
-    
+
     await onProcessInvoiceCancellationOrReturn(currentInvoiceForReturnDialog.id, 'return', itemsToReturnForApi);
     setIsReturnItemsDialogOpen(false);
     setCurrentInvoiceForReturnDialog(null);
@@ -196,8 +196,22 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 </SelectContent>
               </Select>
             </div>
-            <Button 
-              onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })} 
+            <Button
+              onClick={() => {
+                const now = new Date();
+                onFilterChange({
+                  day: now.getDate().toString(),
+                  month: (now.getMonth() + 1).toString(),
+                  year: now.getFullYear().toString(),
+                });
+              }}
+              variant="outline"
+              className="h-9"
+            >
+              Hôm nay
+            </Button>
+            <Button
+              onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })}
               variant="outline"
               className="h-9"
             >
@@ -322,8 +336,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Hủy</AlertDialogCancel>
-                <AlertDialogAction 
-                    onClick={handleConfirmDelete} 
+                <AlertDialogAction
+                    onClick={handleConfirmDelete}
                     className="bg-destructive hover:bg-destructive/90"
                 >
                     Xóa hóa đơn
@@ -365,7 +379,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
             </ScrollArea>
             <DialogFooter className="mt-4">
               <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
-              <Button 
+              <Button
                 onClick={handleConfirmSelectiveReturn}
                 className="bg-yellow-500 hover:bg-yellow-600 text-white"
                 disabled={Object.values(returnItemsState).every(item => (parseInt(item.quantityToReturn) || 0) === 0)}

@@ -94,8 +94,22 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
               </SelectContent>
             </Select>
           </div>
-          <Button 
-            onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })} 
+          <Button
+            onClick={() => {
+              const now = new Date();
+              onFilterChange({
+                day: now.getDate().toString(),
+                month: (now.getMonth() + 1).toString(),
+                year: now.getFullYear().toString(),
+              });
+            }}
+            variant="outline"
+            className="h-9"
+          >
+            Hôm nay
+          </Button>
+          <Button
+            onClick={() => onFilterChange({ day: 'all', month: 'all', year: 'all' })}
             variant="outline"
             className="h-9"
           >
@@ -132,8 +146,8 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                       size="sm"
                       className={cn(
                         "px-3 py-1 rounded-full text-xs h-auto",
-                        debt.status === 'Đã thanh toán' 
-                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300' 
+                        debt.status === 'Đã thanh toán'
+                          ? 'bg-green-200 text-green-800 border-green-400 hover:bg-green-300'
                           : 'bg-red-200 text-red-800 border-red-400 hover:bg-red-300'
                       )}
                     >

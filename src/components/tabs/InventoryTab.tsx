@@ -29,26 +29,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Image from 'next/image';
 import { PlusCircle, Trash2, Settings, Pencil } from 'lucide-react';
 
-const EMPTY_COLOR_VALUE = "__EMPTY_COLOR__";
-const EMPTY_SIZE_VALUE = "__EMPTY_SIZE__";
-
-interface InventoryTabProps {
-  inventory: Product[];
-  onAddProduct: (newProductData: Omit<Product, 'id'>) => Promise<void>;
-  onUpdateProduct: (productId: string, updatedProductData: Omit<Product, 'id'>) => Promise<void>;
-  onDeleteProduct: (productId: string) => Promise<void>;
-  productNameOptions: string[];
-  colorOptions: string[];
-  sizeOptions: string[];
-  unitOptions: string[];
-  onAddOption: (type: ProductOptionType, name: string) => Promise<void>;
-  onDeleteOption: (type: ProductOptionType, name: string) => Promise<void>;
-}
-
 type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice'> & { quantity: string; price: string; costPrice: string };
 
 const initialFormProductState: FormProduct = {
-    name: '', quantity: '', price: '', costPrice: '', image: '', color: '', size: '', unit: ''
+    name: '', color: '', size: '', unit: '', quantity: '', costPrice: '', price: '', image: ''
 };
 
 export function InventoryTab({ 
@@ -78,39 +62,48 @@ export function InventoryTab({
   const [newOptionName, setNewOptionName] = useState('');
 
   useEffect(() => {
-    const defaultProductName = productNameOptions.length > 0 ? productNameOptions[0] : '';
-    const defaultUnit = unitOptions.length > 0 ? unitOptions[0] : '';
-    
-    const updateFormStateDefaults = (currentFormState: FormProduct) => {
-        let updatedState = { ...currentFormState };
-        if (!currentFormState.name && defaultProductName) {
-            updatedState.name = defaultProductName;
-        }
-        if (!currentFormState.unit && defaultUnit) {
-            updatedState.unit = defaultUnit;
-        }
-        return updatedState;
-    };
-
     if (isAddingProduct) {
-        setNewItem(updateFormStateDefaults);
+        setNewItem(currentFormState => {
+            let updatedState = { ...currentFormState };
+            if (!updatedState.name && productNameOptions.length > 0) updatedState.name = productNameOptions[0];
+            if (!updatedState.color && colorOptions.length > 0) updatedState.color = colorOptions[0];
+            if (!updatedState.size && sizeOptions.length > 0) updatedState.size = sizeOptions[0];
+            if (!updatedState.unit && unitOptions.length > 0) updatedState.unit = unitOptions[0];
+            return updatedState;
+        });
+    } else {
+        // Reset newItem when not adding, to ensure defaults are applied next time
+        setNewItem({
+            ...initialFormProductState,
+            name: productNameOptions.length > 0 ? productNameOptions[0] : '',
+            color: colorOptions.length > 0 ? colorOptions[0] : '',
+            size: sizeOptions.length > 0 ? sizeOptions[0] : '',
+            unit: unitOptions.length > 0 ? unitOptions[0] : '',
+        });
     }
-     // When editing, ensure the form is populated with productToEdit data
+
     if (isEditingProduct && productToEdit) {
         setEditedItem({
             name: productToEdit.name,
+            color: productToEdit.color, // Keep original value, validation will enforce selection if empty
+            size: productToEdit.size,   // Keep original value, validation will enforce selection if empty
+            unit: productToEdit.unit,
             quantity: productToEdit.quantity.toString(),
             price: productToEdit.price.toString(),
             costPrice: productToEdit.costPrice?.toString() || '',
             image: productToEdit.image,
-            color: productToEdit.color,
-            size: productToEdit.size,
-            unit: productToEdit.unit
+        });
+    } else if (!isEditingProduct) {
+        // Reset editedItem when not editing to ensure defaults for next time (though it's mostly for edit)
+         setEditedItem({
+            ...initialFormProductState,
+            name: productNameOptions.length > 0 ? productNameOptions[0] : '',
+            color: colorOptions.length > 0 ? colorOptions[0] : '',
+            size: sizeOptions.length > 0 ? sizeOptions[0] : '',
+            unit: unitOptions.length > 0 ? unitOptions[0] : '',
         });
     }
-
-
-  }, [productNameOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit]);
+  }, [productNameOptions, colorOptions, sizeOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
@@ -119,17 +112,13 @@ export function InventoryTab({
   };
 
   const handleSelectChange = (fieldName: keyof FormProduct, value: string, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
-    let actualValue = value;
-    if (fieldName === 'color' && value === EMPTY_COLOR_VALUE) actualValue = '';
-    else if (fieldName === 'size' && value === EMPTY_SIZE_VALUE) actualValue = '';
-    
-    formSetter(prev => ({ ...prev, [fieldName]: actualValue }));
+    formSetter(prev => ({ ...prev, [fieldName]: value }));
   };
   
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.unit || newItem.quantity === '' || newItem.costPrice === '' || newItem.price === '' || parseInt(newItem.quantity) < 0 || parseInt(newItem.costPrice) < 0 || parseInt(newItem.price) < 0) {
-      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
+    if (!newItem.name || !newItem.color || !newItem.size || !newItem.unit || newItem.quantity === '' || newItem.costPrice === '' || newItem.price === '' || parseInt(newItem.quantity) < 0 || parseInt(newItem.costPrice) < 0 || parseInt(newItem.price) < 0) {
+      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
       return;
     }
     const newProductData: Omit<Product, 'id'> = {
@@ -145,7 +134,9 @@ export function InventoryTab({
     await onAddProduct(newProductData);
     setNewItem({
         ...initialFormProductState, 
-        name: productNameOptions.length > 0 ? productNameOptions[0] : '', 
+        name: productNameOptions.length > 0 ? productNameOptions[0] : '',
+        color: colorOptions.length > 0 ? colorOptions[0] : '',
+        size: sizeOptions.length > 0 ? sizeOptions[0] : '',
         unit: unitOptions.length > 0 ? unitOptions[0] : ''
     });
     setIsAddingProduct(false);
@@ -153,15 +144,14 @@ export function InventoryTab({
 
   const openEditDialog = (product: Product) => {
     setProductToEdit(product);
-    // The useEffect will handle setting editedItem based on productToEdit
     setIsEditingProduct(true);
     setIsAddingProduct(false); 
   };
 
   const handleUpdateExistingProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productToEdit || !editedItem.name || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.costPrice) < 0 || parseInt(editedItem.price) < 0) {
-      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm.");
+    if (!productToEdit || !editedItem.name || !editedItem.color || !editedItem.size || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseInt(editedItem.costPrice) < 0 || parseInt(editedItem.price) < 0) {
+      alert("Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).");
       return;
     }
     const updatedProductData: Omit<Product, 'id'> = {
@@ -231,9 +221,9 @@ export function InventoryTab({
     <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
         <div>
             <label className="text-sm text-foreground">Tên sản phẩm (*)</label>
-            <Select value={formState.name} onValueChange={(value) => handleSelectChange('name', value, formSetter)} required disabled={productNameOptions.length === 0 && !formState.name}>
+            <Select value={formState.name} onValueChange={(value) => handleSelectChange('name', value, formSetter)} required disabled={productNameOptions.length === 0}>
                 <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Chọn tên sản phẩm" />
+                    <SelectValue placeholder="Chọn tên sản phẩm (*)" />
                 </SelectTrigger>
                 <SelectContent>
                     {productNameOptions.length === 0 ? (
@@ -247,36 +237,40 @@ export function InventoryTab({
             </Select>
         </div>
         <div>
-            <label className="text-sm text-foreground">Màu sắc</label>
-            <Select value={formState.color === '' ? EMPTY_COLOR_VALUE : formState.color} onValueChange={(value) => handleSelectChange('color', value, formSetter)}>
+            <label className="text-sm text-foreground">Màu sắc (*)</label>
+            <Select value={formState.color} onValueChange={(value) => handleSelectChange('color', value, formSetter)} required disabled={colorOptions.length === 0}>
                 <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Chọn màu sắc (tùy chọn)" />
+                    <SelectValue placeholder="Chọn màu sắc (*)" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value={EMPTY_COLOR_VALUE}>Để trống</SelectItem>
-                    {colorOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))}
-                    {colorOptions.length === 0 && formState.color !== '' && <SelectItem value="no-color-option" disabled>Vui lòng thêm Màu ở mục quản lý</SelectItem>}
+                    {colorOptions.length === 0 ? (
+                        <SelectItem value="no-color-option" disabled>Vui lòng thêm Màu ở mục quản lý</SelectItem>
+                    ) : (
+                        colorOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))
+                    )}
                 </SelectContent>
             </Select>
         </div>
         <div>
-            <label className="text-sm text-foreground">Kích thước</label>
-            <Select value={formState.size === '' ? EMPTY_SIZE_VALUE : formState.size} onValueChange={(value) => handleSelectChange('size', value, formSetter)}>
+            <label className="text-sm text-foreground">Kích thước (*)</label>
+            <Select value={formState.size} onValueChange={(value) => handleSelectChange('size', value, formSetter)} required disabled={sizeOptions.length === 0}>
                 <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Chọn kích thước (tùy chọn)" />
+                    <SelectValue placeholder="Chọn kích thước (*)" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value={EMPTY_SIZE_VALUE}>Để trống</SelectItem>
-                    {sizeOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))}
-                    {sizeOptions.length === 0 && formState.size !== '' && <SelectItem value="no-size-option" disabled>Vui lòng thêm Kích thước ở mục quản lý</SelectItem>}
+                     {sizeOptions.length === 0 ? (
+                        <SelectItem value="no-size-option" disabled>Vui lòng thêm Kích thước ở mục quản lý</SelectItem>
+                    ) : (
+                        sizeOptions.map(option => ( <SelectItem key={option} value={option}>{option}</SelectItem> ))
+                    )}
                 </SelectContent>
             </Select>
         </div>
         <div>
             <label className="text-sm text-foreground">Đơn vị (*)</label>
-            <Select value={formState.unit} onValueChange={(value) => handleSelectChange('unit', value, formSetter)} required disabled={unitOptions.length === 0 && !formState.unit}>
+            <Select value={formState.unit} onValueChange={(value) => handleSelectChange('unit', value, formSetter)} required disabled={unitOptions.length === 0}>
                 <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Chọn đơn vị" />
+                    <SelectValue placeholder="Chọn đơn vị (*)" />
                 </SelectTrigger>
                 <SelectContent>
                     {unitOptions.length === 0 ? (
@@ -314,7 +308,14 @@ export function InventoryTab({
                     Hủy
                 </Button>
             )}
-            <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 flex-grow" disabled={(!formState.name && productNameOptions.length === 0) || (!formState.unit && unitOptions.length === 0) }>
+            <Button type="submit" className="bg-green-500 text-white hover:bg-green-600 h-10 flex-grow" 
+                disabled={
+                    (productNameOptions.length > 0 && !formState.name) || productNameOptions.length === 0 ||
+                    (colorOptions.length > 0 && !formState.color) || colorOptions.length === 0 ||
+                    (sizeOptions.length > 0 && !formState.size) || sizeOptions.length === 0 ||
+                    (unitOptions.length > 0 && !formState.unit) || unitOptions.length === 0
+                }
+            >
                 {isEditMode ? 'Lưu thay đổi' : 'Lưu sản phẩm'}
             </Button>
         </div>
@@ -343,14 +344,10 @@ export function InventoryTab({
                 onClick={() => { 
                     const isCurrentlyAdding = !isAddingProduct;
                     setIsAddingProduct(isCurrentlyAdding); 
-                    setIsEditingProduct(false); 
-                    setProductToEdit(null);   
                     if (isCurrentlyAdding) {
-                        setNewItem({
-                            ...initialFormProductState, 
-                            name: productNameOptions.length > 0 ? productNameOptions[0] : '', 
-                            unit: unitOptions.length > 0 ? unitOptions[0] : ''
-                        });
+                        setIsEditingProduct(false); 
+                        setProductToEdit(null);
+                        // useEffect will set defaults for newItem
                     }
                 }} 
                 variant="default" 
@@ -495,3 +492,5 @@ export function InventoryTab({
   );
 }
     
+
+      

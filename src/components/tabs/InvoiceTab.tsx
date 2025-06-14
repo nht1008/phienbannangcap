@@ -229,6 +229,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead>Tổng tiền</TableHead>
+                    <TableHead>Giảm giá</TableHead>
+                    <TableHead>Tiền nợ</TableHead>
                     <TableHead>Chi tiết</TableHead>
                     <TableHead className="text-center">Hành động</TableHead>
                   </TableRow>
@@ -239,6 +241,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                       <TableCell>{invoice.customerName}</TableCell>
                       <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                       <TableCell>{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
+                      <TableCell>{(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
+                      <TableCell>{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell>
                         <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                       </TableCell>
@@ -391,3 +395,4 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
+

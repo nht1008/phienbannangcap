@@ -262,6 +262,16 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     }));
   }, [inventory]);
 
+  const distinctInStockVariants = useMemo(() => {
+    return inventory
+      .filter(p => p.quantity > 0)
+      .map(p => ({
+        ...p,
+        displayLabel: `${p.name} (${p.color}, ${p.size}, ${p.unit}) - Tồn: ${p.quantity}`
+      }));
+  }, [inventory]);
+
+
   const openVariantSelector = useCallback((productName: string) => {
     const variantsOfProduct = inventory.filter(p => p.name === productName && p.quantity > 0);
     if (variantsOfProduct.length === 0) {
@@ -383,31 +393,34 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                 <Command>
                   <CommandInput
-                    placeholder="Gõ tên sản phẩm..."
+                    placeholder="Gõ tên, màu, size hoặc đơn vị..."
                     value={productSearchQuery}
                     onValueChange={setProductSearchQuery}
                   />
                   <CommandList>
                     <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
                     <CommandGroup>
-                      {productsGroupedByName
-                        .filter(group =>
-                          group.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+                      {distinctInStockVariants
+                        .filter(variant =>
+                          variant.displayLabel.toLowerCase().includes(productSearchQuery.toLowerCase())
                         )
-                        .map((productGroup) => (
+                        .map((variant) => (
                           <CommandItem
-                            key={productGroup.name}
-                            value={productGroup.name}
-                            onSelect={() => {
-                              openVariantSelector(productGroup.name);
+                            key={variant.id}
+                            value={variant.id} // Use variant.id as the value for onSelect
+                            onSelect={(currentValue) => { // currentValue is variant.id
+                              const productToAdd = inventory.find(p => p.id === currentValue);
+                              if (productToAdd) {
+                                addToCart(productToAdd);
+                              }
                               setProductSearchQuery("");
                               setIsProductSearchOpen(false);
                             }}
                           >
                             <div className="flex flex-col w-full">
-                              <span className="font-medium">{productGroup.name}</span>
+                              <span className="font-medium">{variant.name} ({variant.color}, {variant.size}, {variant.unit})</span>
                               <span className="text-xs text-muted-foreground">
-                                Tổng tồn: {productGroup.totalStock}
+                                Giá: {variant.price.toLocaleString('vi-VN')} VNĐ - Tồn: {variant.quantity}
                               </span>
                             </div>
                           </CommandItem>
@@ -844,5 +857,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     </>
   );
 }
+
 
 

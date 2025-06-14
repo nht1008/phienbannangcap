@@ -419,7 +419,7 @@ export function InventoryTab({
         <div className="flex justify-end items-center">
           <div className="flex gap-2 items-center flex-wrap">
             <Button onClick={() => openOptionsDialog('productNames')} variant="outline" size="sm">
-              <Settings className="mr-1 h-3 w-3" /> Tên SP
+              <Settings className="mr-1 h-3 w-3" /> Tên Sản Phẩm
             </Button>
             <Button onClick={() => openOptionsDialog('colors')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Màu sắc

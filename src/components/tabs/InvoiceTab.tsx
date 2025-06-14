@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Undo2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface InvoiceTabProps {
   invoices: Invoice[];
@@ -228,9 +229,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   <TableRow>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày tạo</TableHead>
-                    <TableHead>Tổng tiền</TableHead>
-                    <TableHead>Giảm giá</TableHead>
-                    <TableHead>Tiền nợ</TableHead>
+                    <TableHead>Đã thanh toán</TableHead>
+                    <TableHead className="text-red-600">Giảm giá</TableHead>
+                    <TableHead className="text-red-600">Tiền nợ</TableHead>
                     <TableHead>Chi tiết</TableHead>
                     <TableHead className="text-center">Hành động</TableHead>
                   </TableRow>
@@ -240,9 +241,15 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableRow key={invoice.id}>
                       <TableCell>{invoice.customerName}</TableCell>
                       <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                      <TableCell>{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
-                      <TableCell>{(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
-                      <TableCell>{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
+                      <TableCell className={cn(invoice.paymentMethod === 'Tiền mặt' ? 'text-green-600' : '')}>
+                        {(invoice.amountPaid ?? 0).toLocaleString('vi-VN')} VNĐ
+                      </TableCell>
+                      <TableCell className="text-red-600">
+                        {(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ
+                      </TableCell>
+                      <TableCell className="text-red-600">
+                        {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
+                      </TableCell>
                       <TableCell>
                         <Button variant="link" className="p-0 h-auto text-blue-500 hover:text-blue-700" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
                       </TableCell>
@@ -288,19 +295,18 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <>
                         <div className="flex justify-between text-sm">
                             <span>Giảm giá:</span>
-                            <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
+                            <span className="text-red-600">-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
-                        <Separator className="my-2" />
                     </>
                 )}
-                <div className="flex justify-between font-bold text-xl text-foreground">
-                  <span>Tổng cộng:</span>
+                <div className="flex justify-between font-bold text-lg text-foreground">
+                  <span>Tổng thanh toán HĐ:</span>
                   <span>{selectedInvoiceDetails.total.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
                  {selectedInvoiceDetails.amountPaid !== undefined && (
                      <>
                         <Separator className="my-2" />
-                        <div className="flex justify-between text-sm">
+                        <div className={cn("flex justify-between text-sm", selectedInvoiceDetails.paymentMethod === 'Tiền mặt' ? 'text-green-600' : '')}>
                             <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                             <span>{selectedInvoiceDetails.amountPaid.toLocaleString('vi-VN')} VNĐ</span>
                         </div>
@@ -396,3 +402,5 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
   );
 }
 
+
+    

@@ -445,7 +445,7 @@ export default function FleurManagerPage() {
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
-    'Bán hàng': <SalesTab inventory={inventory} onCreateInvoice={handleCreateInvoice} />,
+    'Bán hàng': <SalesTab inventory={inventory} customers={customersData} onCreateInvoice={handleCreateInvoice} />,
     'Kho hàng': <InventoryTab 
                     inventory={inventory} 
                     onAddProduct={handleAddProduct}
@@ -563,3 +563,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import type { Product, CartItem } from '@/types';
+import type { Product, CartItem, Customer } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,10 +11,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { Separator } from '@/components/ui/separator';
 
 interface SalesTabProps {
   inventory: Product[];
+  customers: Customer[]; // Added customers prop
   onCreateInvoice: (
     customerName: string, 
     cart: CartItem[], 
@@ -27,11 +27,13 @@ interface SalesTabProps {
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
 
-export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
+export function SalesTab({ inventory, customers, onCreateInvoice }: SalesTabProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
+  
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [customerName, setCustomerName] = useState('Khách lẻ');
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
   const [discountStr, setDiscountStr] = useState('');
   const [amountPaidStr, setAmountPaidStr] = useState('');
@@ -104,12 +106,15 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
         return;
       }
     }
+    setCustomerName("Khách lẻ"); // Reset customer name for new transaction
     setDiscountStr(''); 
     setAmountPaidStr(''); 
+    setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
 
   const handleConfirmCheckout = async () => {
+    const finalCustomerName = customerName.trim() === '' ? 'Khách lẻ' : customerName.trim();
     const discountNum = parseFloat(discountStr) || 0;
     const amountPaidNum = parseFloat(amountPaidStr) || 0;
 
@@ -128,7 +133,7 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
 
 
     const success = await onCreateInvoice(
-        "Khách lẻ", 
+        finalCustomerName, 
         cart, 
         subtotal, 
         currentPaymentMethod,
@@ -138,9 +143,7 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
     if (success) {
       setCart([]);
       setIsPaymentDialogOpen(false);
-      setCurrentPaymentMethod(paymentOptions[0]); 
-      setDiscountStr('');
-      setAmountPaidStr('');
+      // States are reset in handleOpenPaymentDialog for next transaction
     }
   };
 
@@ -239,6 +242,18 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            <div className="space-y-1">
+              <Label htmlFor="customerName">Tên khách hàng</Label>
+              <Input 
+                id="customerName" 
+                type="text" 
+                value={customerName} 
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Khách lẻ"
+                className="bg-card" 
+              />
+            </div>
+
             <div className="flex justify-between items-center">
               <Label>Tổng tiền hàng:</Label>
               <span className="font-semibold">{subtotal.toLocaleString('vi-VN')} Nghìn VND</span>
@@ -267,7 +282,7 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
                 className="bg-card" 
               />
             </div>
-
+            
             <div className="space-y-1">
               <Label htmlFor="discount">Giảm giá (Nghìn VND)</Label>
               <Input 
@@ -304,3 +319,4 @@ export function SalesTab({ inventory, onCreateInvoice }: SalesTabProps) {
     </>
   );
 }
+

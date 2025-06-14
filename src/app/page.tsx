@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect } from 'react';
-import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport, ProductOptionType } from '@/types';
+import type { Product, Employee, Invoice, Debt, CartItem, ItemToImport, ProductOptionType, Customer } from '@/types'; // Added Customer
 import { useRouter } from 'next/navigation'; 
 import { useAuth } from '@/contexts/AuthContext'; 
 
@@ -14,6 +14,7 @@ import { InvoiceIcon as InvoiceIconSvg } from '@/components/icons/InvoiceIcon';
 import { DebtIcon } from '@/components/icons/DebtIcon';
 import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { EmployeeIcon } from '@/components/icons/EmployeeIcon';
+import { CustomerIcon } from '@/components/icons/CustomerIcon'; // Added CustomerIcon
 
 import { SalesTab } from '@/components/tabs/SalesTab';
 import { InventoryTab } from '@/components/tabs/InventoryTab';
@@ -22,6 +23,7 @@ import { InvoiceTab } from '@/components/tabs/InvoiceTab';
 import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
+import { CustomerTab } from '@/components/tabs/CustomerTab'; // Added CustomerTab
 import { cn } from '@/lib/utils';
 
 import { 
@@ -43,7 +45,7 @@ import { ref, onValue, set, push, update, get, child, remove } from "firebase/da
 import { useToast } from "@/hooks/use-toast";
 
 
-type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên';
+type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Nhân viên' | 'Khách hàng'; // Added 'Khách hàng'
 
 
 interface NavItem {
@@ -58,6 +60,7 @@ export default function FleurManagerPage() {
   const [activeTab, setActiveTab] = useState<TabName>('Kho hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
+  const [customersData, setCustomersData] = useState<Customer[]>([]); // Added customersData state
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const { toast } = useToast();
@@ -113,6 +116,26 @@ export default function FleurManagerPage() {
     });
     return () => unsubscribe();
   }, [currentUser]);
+
+  // Tải và lắng nghe dữ liệu Khách hàng
+  useEffect(() => {
+    if (!currentUser) return;
+    const customersRef = ref(db, 'customers');
+    const unsubscribe = onValue(customersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const customersArray: Customer[] = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        setCustomersData(customersArray.sort((a,b) => a.name.localeCompare(b.name)));
+      } else {
+        setCustomersData([]);
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
 
   // Tải và lắng nghe dữ liệu Hóa đơn
   useEffect(() => {
@@ -237,6 +260,17 @@ export default function FleurManagerPage() {
     } catch (error) {
       console.error("Error adding employee:", error);
       toast({ title: "Lỗi", description: "Không thể thêm nhân viên. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  const handleAddCustomer = async (newCustomerData: Omit<Customer, 'id'>) => {
+    try {
+      const newCustomerRef = push(ref(db, 'customers'));
+      await set(newCustomerRef, newCustomerData);
+      toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" });
+    } catch (error) {
+      console.error("Error adding customer:", error);
+      toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" });
     }
   };
   
@@ -407,6 +441,7 @@ export default function FleurManagerPage() {
     { name: 'Công nợ', icon: <DebtIcon /> },
     { name: 'Doanh thu', icon: <RevenueIcon /> },
     { name: 'Nhân viên', icon: <EmployeeIcon /> },
+    { name: 'Khách hàng', icon: <CustomerIcon /> }, // Added 'Khách hàng'
   ];
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
@@ -428,7 +463,8 @@ export default function FleurManagerPage() {
     'Công nợ': <DebtTab debts={debtsData} onUpdateDebtStatus={handleUpdateDebtStatus} />,
     'Doanh thu': <RevenueTab invoices={invoicesData} />,
     'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
-  }), [inventory, employeesData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions]);
+    'Khách hàng': <CustomerTab customers={customersData} onAddCustomer={handleAddCustomer} />, // Added CustomerTab
+  }), [inventory, employeesData, customersData, invoicesData, debtsData, currentUser, productNameOptions, colorOptions, sizeOptions, unitOptions]); // Added customersData
 
   const SidebarToggleButton = () => {
     const { open, toggleSidebar } = useSidebar();
@@ -527,8 +563,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-
-
-    
-
-

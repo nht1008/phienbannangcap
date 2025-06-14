@@ -22,6 +22,13 @@ export interface Employee {
   phone: string;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  address?: string;
+}
+
 export interface Supplier {
   id: number; 
   name: string;
@@ -53,4 +60,3 @@ export interface ItemToImport {
 }
 
 export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
-

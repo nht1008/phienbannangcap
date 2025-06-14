@@ -931,10 +931,7 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
           <SidebarHeader className="h-20 p-0 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20">
-            <HomeIcon className="text-primary" />
-            <h1 className="text-2xl font-bold text-primary ml-3 font-headline group-data-[state=collapsed]:hidden">
-              Fleur Manager
-            </h1>
+            <HomeIcon className="text-primary h-8 w-8" />
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>

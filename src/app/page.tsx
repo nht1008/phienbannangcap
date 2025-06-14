@@ -42,7 +42,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -930,9 +930,9 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-            <h1 className="text-xl font-bold text-primary text-center w-full group-data-[state=expanded]:text-left">
-              Cửa Hàng Hoa Công Nguyệt
-            </h1>
+             <h1 className="text-xl font-bold text-primary text-center w-full group-data-[state=expanded]:text-left">
+                Cửa Hàng Hoa Công Nguyệt
+             </h1>
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -970,6 +970,15 @@ export default function FleurManagerPage() {
                 </SidebarMenuButton>
             )}
             <SidebarMenuButton
+                onClick={() => { /* Placeholder for settings action */ }}
+                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                tooltip={{children: "Cài đặt", side: "right", align: "center"}}
+                variant="ghost"
+            >
+                <Settings className="h-5 w-5" />
+                <span>Cài đặt</span>
+            </SidebarMenuButton>
+            <SidebarMenuButton
                 onClick={handleSignOut}
                 className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 tooltip={{children: "Đăng xuất", side: "right", align: "center"}}
@@ -999,5 +1008,6 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 
 

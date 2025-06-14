@@ -567,7 +567,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                             onChange={(e) => handleItemDiscountChange(item.id, e.target.value)}
                             min="0"
                             step="0.1"
-                            className="h-8 w-full bg-card text-sm p-2"
+                            className="h-8 w-full bg-card text-sm p-2 hide-number-spinners"
                             placeholder="Nhập giảm giá"
                         />
                     </div>
@@ -806,7 +806,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                 value={overallDiscountStr}
                 onChange={(e) => setOverallDiscountStr(e.target.value)}
                 min="0"
-                className="bg-card"
+                className="bg-card hide-number-spinners"
               />
             </div>
 
@@ -824,7 +824,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                 value={amountPaidStr}
                 onChange={(e) => setAmountPaidStr(e.target.value)}
                 min="0"
-                className="bg-card"
+                className="bg-card hide-number-spinners"
               />
             </div>
 
@@ -859,3 +859,4 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     </>
   );
 }
+

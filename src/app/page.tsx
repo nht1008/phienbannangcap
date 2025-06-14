@@ -30,6 +30,19 @@ import { cn } from '@/lib/utils';
 import { ToastAction } from "@/components/ui/toast";
 
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from '@/components/ui/button';
+
+
+import {
   SidebarProvider,
   Sidebar,
   SidebarTrigger,
@@ -99,6 +112,8 @@ export default function FleurManagerPage() {
   const [revenueFilter, setRevenueFilter] = useState<DateFilter>(getCurrentMonthYearFilter());
   const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialAllDateFilter);
   const [debtFilter, setDebtFilter] = useState<DateFilter>(initialAllDateFilter);
+  const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
+
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -959,11 +974,10 @@ export default function FleurManagerPage() {
           <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2">
             {currentUser && (
                 <SidebarMenuButton
-                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-default"
+                    onClick={() => setIsUserInfoDialogOpen(true)}
+                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
                     variant="ghost"
-                    asChild={false}
-                    onClick={(e) => e.preventDefault()} 
                 >
                     <UserCircle className="h-5 w-5" />
                     <span>{currentUser.displayName || currentUser.email}</span>
@@ -1005,9 +1019,48 @@ export default function FleurManagerPage() {
           </main>
         </SidebarInset>
       </div>
+      {currentUser && (
+        <Dialog open={isUserInfoDialogOpen} onOpenChange={setIsUserInfoDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Thông tin tài khoản</DialogTitle>
+              <DialogDescription>
+                Thông tin chi tiết về tài khoản của bạn.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="info-displayName" className="text-right">
+                  Tên hiển thị
+                </Label>
+                <Input id="info-displayName" value={currentUser.displayName || 'Chưa cập nhật'} readOnly className="col-span-3 bg-muted/50" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="info-email" className="text-right">
+                  Email
+                </Label>
+                <Input id="info-email" value={currentUser.email || 'Không có'} readOnly className="col-span-3 bg-muted/50" />
+              </div>
+              {employeesData.find(emp => emp.id === currentUser.uid)?.position && (
+                   <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="info-position" className="text-right">
+                          Chức vụ
+                      </Label>
+                      <Input id="info-position" value={employeesData.find(emp => emp.id === currentUser.uid)?.position} readOnly className="col-span-3 bg-muted/50" />
+                  </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setIsUserInfoDialogOpen(false)} variant="outline">Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </SidebarProvider>
   );
 }
-
-
-
+    
+    
+    
+    
+    

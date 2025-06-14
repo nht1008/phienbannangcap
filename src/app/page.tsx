@@ -330,6 +330,26 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleUpdateEmployee = async (employeeId: string, updatedEmployeeData: Omit<Employee, 'id'>) => {
+    try {
+      await update(ref(db, `employees/${employeeId}`), updatedEmployeeData);
+      toast({ title: "Thành công", description: "Thông tin nhân viên đã được cập nhật.", variant: "default" });
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật thông tin nhân viên. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId: string) => {
+    try {
+      await remove(ref(db, `employees/${employeeId}`));
+      toast({ title: "Thành công", description: "Nhân viên đã được xóa.", variant: "default" });
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast({ title: "Lỗi", description: "Không thể xóa nhân viên. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
   const handleAddCustomer = async (newCustomerData: Omit<Customer, 'id'>) => {
     try {
       const newCustomerRef = push(ref(db, 'customers'));
@@ -691,7 +711,12 @@ export default function FleurManagerPage() {
                   onFilterChange={handleRevenueFilterChange}
                   availableYears={availableInvoiceYears}
                 />,
-    'Nhân viên': <EmployeeTab employees={employeesData} onAddEmployee={handleAddEmployee} />,
+    'Nhân viên': <EmployeeTab 
+                    employees={employeesData} 
+                    onAddEmployee={handleAddEmployee} 
+                    onUpdateEmployee={handleUpdateEmployee}
+                    onDeleteEmployee={handleDeleteEmployee}
+                  />,
     'Khách hàng': <CustomerTab 
                       customers={customersData} 
                       onAddCustomer={handleAddCustomer}
@@ -702,6 +727,7 @@ export default function FleurManagerPage() {
       inventory, employeesData, customersData, invoicesData, debtsData, currentUser, 
       productNameOptions, colorOptions, sizeOptions, unitOptions, 
       handleUpdateCustomer, handleDeleteCustomer,
+      handleUpdateEmployee, handleDeleteEmployee,
       filteredInvoicesForRevenue, revenueFilter, handleRevenueFilterChange,
       filteredInvoicesForInvoiceTab, invoiceFilter, handleInvoiceFilterChange,
       filteredDebtsForDebtTab, debtFilter, handleDebtFilterChange,

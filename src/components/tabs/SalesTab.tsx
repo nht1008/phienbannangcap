@@ -95,7 +95,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     const stockItem = inventory.find(i => i.id === item.id);
 
     if (!stockItem || stockItem.quantity <= 0) {
-      showLocalNotification(`Sản phẩm "${item.name} (${item.color}, ${item.size}, ${item.unit})" đã hết hàng!`, 'error');
+      showLocalNotification(`Sản phẩm "${item.name} ${item.color} ${item.size} ${item.unit}" đã hết hàng!`, 'error');
       return;
     }
 
@@ -105,7 +105,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
           cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
         ));
       } else {
-        showLocalNotification(`Không đủ số lượng "${item.name} (${item.color}, ${item.size}, ${item.unit})" trong kho (Còn: ${stockItem.quantity}).`, 'error');
+        showLocalNotification(`Không đủ số lượng "${item.name} ${item.color} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, 'error');
       }
     } else {
       setCart([...cart, { ...item, quantityInCart: 1, itemDiscount: 0 }]);
@@ -267,7 +267,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
       .filter(p => p.quantity > 0)
       .map(p => ({
         ...p,
-        displayLabel: `${p.name} (${p.color}, ${p.size}, ${p.unit}) - Tồn: ${p.quantity}`
+        displayLabel: `${p.name} ${p.color} ${p.size} ${p.unit} - Tồn: ${p.quantity}`
       }));
   }, [inventory]);
 
@@ -409,8 +409,8 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                         .map((variant) => (
                           <CommandItem
                             key={variant.id}
-                            value={variant.id} // Use variant.id as the value for onSelect
-                            onSelect={(currentValue) => { // currentValue is variant.id
+                            value={variant.id} 
+                            onSelect={(currentValue) => { 
                               const productToAdd = inventory.find(p => p.id === currentValue);
                               if (productToAdd) {
                                 addToCart(productToAdd);
@@ -420,7 +420,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                             }}
                           >
                             <div className="flex flex-col w-full">
-                              <span className="font-medium">{variant.name} ({variant.color}, {variant.size}, {variant.unit})</span>
+                              <span className="font-medium">{variant.name} {variant.color} {variant.size} {variant.unit}</span>
                               <span className="text-xs text-muted-foreground">
                                 Giá: {variant.price.toLocaleString('vi-VN')} VNĐ - Tồn: {variant.quantity}
                               </span>
@@ -859,6 +859,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     </>
   );
 }
+
 
 
 

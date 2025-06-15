@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { ShopInfo } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { UploadCloud } from 'lucide-react';
 
 export type OverallFontSize = 'sm' | 'md' | 'lg';
 export type NumericDisplaySize = 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl';
@@ -43,6 +45,9 @@ interface SettingsDialogProps {
   isAdmin: boolean;
   isLoadingShopInfo: boolean;
 }
+
+const MAX_LOGO_SIZE_MB = 2;
+const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
 export function SettingsDialog({
   isOpen,
@@ -79,12 +84,41 @@ export function SettingsDialog({
     onOverallFontSizeChange(currentOverallSize);
     onNumericDisplaySizeChange(currentNumericSize);
     toast({ title: "Cài đặt hiển thị đã được áp dụng.", variant: "default" });
-    // onClose(); // Optionally close dialog on apply
   };
 
   const handleShopInfoInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditableShopInfo(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > MAX_LOGO_SIZE_BYTES) {
+        toast({
+          title: "Lỗi tải ảnh",
+          description: `Kích thước file không được vượt quá ${MAX_LOGO_SIZE_MB}MB.`,
+          variant: "destructive",
+        });
+        e.target.value = ""; // Clear the input
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditableShopInfo(prev => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Lỗi đọc file",
+          description: "Không thể đọc file ảnh đã chọn.",
+          variant: "destructive",
+        });
+      }
+      reader.readAsDataURL(file);
+    } else {
+      // If no file is selected (e.g., user cancels dialog), reset to default or previous if any
+       setEditableShopInfo(prev => ({ ...prev, logoUrl: shopInfo?.logoUrl || defaultShopInfo.logoUrl }));
+    }
   };
 
   const handleSaveShopInfoSubmit = async (e: React.FormEvent) => {
@@ -116,7 +150,6 @@ export function SettingsDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Font Size Settings */}
           <section>
             <h3 className="text-lg font-semibold mb-2 text-primary">Kích thước hiển thị</h3>
             <div className="space-y-4">
@@ -185,10 +218,39 @@ export function SettingsDialog({
                     <Label htmlFor="shopAddress">Địa chỉ cửa hàng</Label>
                     <Input id="shopAddress" name="address" value={editableShopInfo.address} onChange={handleShopInfoInputChange} placeholder="VD: 123 Đường Hoa, Phường X, Quận Y, TP. Z" />
                   </div>
+                  
                   <div>
-                    <Label htmlFor="shopLogoUrl">URL Logo (nếu có)</Label>
-                    <Input id="shopLogoUrl" name="logoUrl" value={editableShopInfo.logoUrl} onChange={handleShopInfoInputChange} placeholder="VD: https://example.com/logo.png" />
+                    <Label htmlFor="shopLogoFile" className="mb-1 block">Logo cửa hàng (Tối đa {MAX_LOGO_SIZE_MB}MB)</Label>
+                    <div className="flex items-center gap-4">
+                        <Input 
+                            id="shopLogoFile" 
+                            name="logoUrl" 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleLogoFileChange}
+                            className="bg-card flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                        {editableShopInfo.logoUrl ? (
+                            <Image
+                                src={editableShopInfo.logoUrl}
+                                alt="Xem trước logo"
+                                width={60}
+                                height={60}
+                                className="rounded-md object-contain border aspect-square bg-muted/50"
+                                data-ai-hint="shop logo"
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none'; // Hide broken image
+                                }}
+                            />
+                        ) : (
+                             <div className="w-[60px] h-[60px] flex items-center justify-center rounded-md border bg-muted/50 text-muted-foreground">
+                                <UploadCloud className="h-6 w-6" />
+                            </div>
+                        )}
+                    </div>
                   </div>
+
                   <Separator className="my-3"/>
                    <h4 className="text-md font-medium text-primary/90">Thông tin chuyển khoản</h4>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

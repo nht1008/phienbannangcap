@@ -6,6 +6,7 @@ import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Emp
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
+import Image from 'next/image';
 
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
 import { SellIcon } from '@/components/icons/SellIcon';
@@ -1007,7 +1008,18 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-             <Flower2 className="h-12 w-12 text-primary" />
+            {shopInfo && shopInfo.logoUrl ? (
+                <Image 
+                    src={shopInfo.logoUrl} 
+                    alt={shopInfo.name || "Shop Logo"} 
+                    width={56} 
+                    height={56} 
+                    className="object-contain rounded-sm"
+                    data-ai-hint="shop brand" 
+                />
+            ) : (
+                <Flower2 className="h-12 w-12 text-primary" />
+            )}
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -1162,6 +1174,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

@@ -36,15 +36,15 @@ interface RevenueTabProps {
 const chartConfig = {
   doanhthu: {
     label: "Doanh thu",
-    color: "hsl(var(--primary))",
+    color: "hsl(330, 85%, 60%)", // Brighter Rose Pink
   },
   giagoc: {
     label: "Giá gốc",
-    color: "hsl(var(--chart-2))",
+    color: "hsl(270, 70%, 75%)", // Lavender
   },
   loinhuan: {
     label: "Lợi nhuận",
-    color: "hsl(var(--success))", // Changed to success for profit
+    color: "hsl(130, 60%, 55%)", // Brighter Green
   },
 } satisfies ChartConfig;
 
@@ -71,8 +71,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    // Use all invoices (passed via props, already filtered by date) for chart calculations
-    const invoicesForChart = invoices;
+    const invoicesForChart = invoices; // Use all filtered invoices
 
     if (filterMonth !== 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
@@ -286,13 +285,13 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
-        <Card className="bg-success/10 border-[hsl(var(--success))]">
+        <Card className="bg-accent/10 border-accent">
           <CardHeader className="pb-2">
-            <CardTitle className="text-2xl font-bold text-[hsl(var(--success))]">Tổng số hóa đơn</CardTitle>
+            <CardTitle className="text-2xl font-bold text-accent">Tổng số hóa đơn</CardTitle>
             <CardDescription className="text-xs">(Theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalInvoicesCount}</p>
+            <p className={cn("font-bold text-accent", numericDisplaySize)}>{totalInvoicesCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -316,9 +315,9 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                 content={<ChartTooltipContent formatter={(value, name) => `${(name === 'doanhthu' ? 'Doanh thu: ' : name === 'giagoc' ? 'Giá gốc: ' : 'Lợi nhuận: ') + Number(value).toLocaleString('vi-VN')} VNĐ`} />}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="doanhthu" fill="var(--color-doanhthu)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="giagoc" fill="var(--color-giagoc)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="loinhuan" fill="var(--color-loinhuan)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="doanhthu" fill="var(--color-doanhthu)" radius={[4, 4, 0, 0]} barSize={25} />
+              <Bar dataKey="giagoc" fill="var(--color-giagoc)" radius={[4, 4, 0, 0]} barSize={25} />
+              <Bar dataKey="loinhuan" fill="var(--color-loinhuan)" radius={[4, 4, 0, 0]} barSize={25} />
             </BarChart>
           </ChartContainer>
           )}
@@ -340,7 +339,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
-                    <TableHead>Ngày tạo</TableHead>
+                    <TableHead>Ngày và Giờ tạo</TableHead>
                     <TableHead className="text-right">Tổng tiền HĐ</TableHead>
                     <TableHead className="text-right">Tổng giá gốc HĐ</TableHead>
                     <TableHead className="text-right">Lợi nhuận HĐ</TableHead>
@@ -352,9 +351,6 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                   {invoices.map(invoice => {
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
                     const actualInvoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
-
-                    // For the table, we always show the full invoice total, cost, and profit based on that total.
-                    // The "Tiền nợ" column will indicate if it's not fully paid.
                     const tableDisplayTotal = invoice.total;
                     const tableDisplayCost = actualInvoiceCost;
                     const tableDisplayProfit = tableDisplayTotal - tableDisplayCost;
@@ -388,7 +384,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
               <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
                 <strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName} <br />
-                <strong>Ngày:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
+                <strong>Ngày và Giờ:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />
@@ -475,5 +471,5 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
-
     
+

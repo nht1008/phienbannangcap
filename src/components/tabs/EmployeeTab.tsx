@@ -351,6 +351,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         <TableHead>Ngày tạo nợ</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
+                        <TableHead>Người thực hiện</TableHead>
                         <TableHead className="text-center">Hành động</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -361,30 +362,32 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                           <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
                           <TableCell className="text-right">{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
                           <TableCell>{debt.status}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center space-x-2">
+                          <TableCell>
+                            <div className="flex flex-col text-xs">
                                 {debt.createdEmployeeId === selectedEmployee.id && debt.lastUpdatedEmployeeId !== selectedEmployee.id && (
-                                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full inline-block">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
                                 )}
                                 {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId !== selectedEmployee.id && (
-                                    <span className="text-xs bg-success/10 text-[hsl(var(--success))] px-2 py-0.5 rounded-full">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
+                                    <span className="text-xs bg-success/10 text-[hsl(var(--success))] px-2 py-0.5 rounded-full inline-block">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
                                 )}
                                 {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId === selectedEmployee.id && (
-                                    <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">Tạo & Cập nhật</span>
+                                    <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full inline-block">Tạo & Cập nhật</span>
                                 )}
-                                {debt.createdEmployeeId === selectedEmployee.id && debt.lastUpdatedEmployeeId !== selectedEmployee.id && !debt.lastUpdatedEmployeeId && (
-                                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                                {debt.createdEmployeeId === selectedEmployee.id && !debt.lastUpdatedEmployeeId && (
+                                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full inline-block">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
                                 )}
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-7 w-7 text-destructive hover:text-destructive/80"
-                                    onClick={() => onDeleteDebt(debt.id)}
-                                    title="Xóa công nợ"
-                                >
-                                    <Trash2 className="h-4 w-4"/>
-                                </Button>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-destructive hover:text-destructive/80"
+                                onClick={() => onDeleteDebt(debt.id)}
+                                title="Xóa công nợ"
+                            >
+                                <Trash2 className="h-4 w-4"/>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -63,7 +63,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, Eye } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -554,10 +554,9 @@ export default function FleurManagerPage() {
         }
         return item;
       });
-       if (toastInfo) {
-          // Schedule toast to avoid direct state update during render
-          setTimeout(() => toast(toastInfo!), 0);
-        }
+      if (toastInfo) {
+        setTimeout(() => toast(toastInfo!), 0);
+      }
       return newCart;
     });
   }, [toast, setCart]);
@@ -1037,6 +1036,7 @@ export default function FleurManagerPage() {
                 />,
     'Doanh thu': <RevenueTab
                   invoices={filteredInvoicesForRevenue}
+                  inventory={inventory} // Pass full inventory for analysis
                   filter={revenueFilter}
                   onFilterChange={handleRevenueFilterChange}
                   availableYears={availableInvoiceYears}
@@ -1316,6 +1316,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

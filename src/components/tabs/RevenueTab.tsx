@@ -2,8 +2,9 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import type { Invoice, InvoiceCartItem } from '@/types'; // Added InvoiceCartItem
+import type { Invoice, InvoiceCartItem, Product } from '@/types';
 import type { DateFilter } from '@/app/page';
+import Image from 'next/image';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -23,10 +24,12 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
+import { Eye } from 'lucide-react';
 
 
 interface RevenueTabProps {
   invoices: Invoice[];
+  inventory: Product[]; // Full inventory list
   filter: DateFilter;
   onFilterChange: (newFilter: DateFilter) => void;
   availableYears: string[];
@@ -57,13 +60,27 @@ const getDaysInMonth = (month: number, year: number): number => {
     return new Date(year, month, 0).getDate();
 };
 
-export function RevenueTab({ invoices, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
+interface ProductPerformance {
+  id: string; // Concatenated key: name-color-quality-size-unit
+  name: string;
+  color: string;
+  quality?: string;
+  size: string;
+  unit: string;
+  image: string;
+  currentStock: number;
+  soldInPeriod: number;
+  revenueInPeriod: number;
+}
+
+
+export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const { month: filterMonth, year: filterYear } = filterProp;
 
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
-    let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng. (Tính tất cả hóa đơn)"; // Updated description
+    let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng. (Tính tất cả hóa đơn)";
     let aggregatedData: Record<string, AggregatedRevenueData> = {};
     let finalChartData: { name: string; doanhthu: number; giagoc: number; loinhuan: number }[] = [];
 
@@ -209,6 +226,61 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   [invoices]);
 
   const totalInvoicesCount = invoices.length;
+
+  const productSalesPerformanceInPeriod = useMemo(() => {
+    const salesMap: Record<string, { sold: number; revenue: number; image: string; name: string; color: string; quality?: string; size: string; unit: string; }> = {};
+
+    invoices.forEach(invoice => {
+      invoice.items.forEach(item => {
+        const key = `${item.name}-${item.color}-${item.quality || 'N/A'}-${item.size}-${item.unit}`;
+        if (!salesMap[key]) {
+          salesMap[key] = { sold: 0, revenue: 0, image: item.image, name: item.name, color: item.color, quality: item.quality, size: item.size, unit: item.unit };
+        }
+        salesMap[key].sold += item.quantityInCart;
+        salesMap[key].revenue += (item.price * item.quantityInCart) - (item.itemDiscount || 0);
+      });
+    });
+
+    return inventory.map(invProduct => {
+      const key = `${invProduct.name}-${invProduct.color}-${invProduct.quality || 'N/A'}-${invProduct.size}-${invProduct.unit}`;
+      const salesInfo = salesMap[key] || { sold: 0, revenue: 0, image: invProduct.image }; // Use invProduct.image if not sold
+      return {
+        id: invProduct.id, // Use inventory product id for direct reference if needed, or the key itself
+        key, // The composite key
+        name: invProduct.name,
+        color: invProduct.color,
+        quality: invProduct.quality,
+        size: invProduct.size,
+        unit: invProduct.unit,
+        image: salesInfo.image,
+        currentStock: invProduct.quantity,
+        soldInPeriod: salesInfo.sold,
+        revenueInPeriod: salesInfo.revenue,
+      };
+    });
+  }, [invoices, inventory]);
+
+  const topSellingProducts = useMemo(() => {
+    return [...productSalesPerformanceInPeriod]
+      .filter(p => p.soldInPeriod > 0)
+      .sort((a, b) => b.soldInPeriod - a.soldInPeriod)
+      .slice(0, 10);
+  }, [productSalesPerformanceInPeriod]);
+
+  const unsoldProductsInPeriod = useMemo(() => {
+    return productSalesPerformanceInPeriod
+      .filter(p => p.soldInPeriod === 0 && p.currentStock > 0)
+      .sort((a, b) => b.currentStock - a.currentStock);
+  }, [productSalesPerformanceInPeriod]);
+
+  const productsToWatch = useMemo(() => {
+    const WATCH_THRESHOLD_LOW_SALES = 3; // Example: sold less than 3 items
+    const WATCH_THRESHOLD_HIGH_STOCK = 5; // Example: stock greater than 5 items
+    return productSalesPerformanceInPeriod
+      .filter(p => p.soldInPeriod > 0 && p.soldInPeriod < WATCH_THRESHOLD_LOW_SALES && p.currentStock >= WATCH_THRESHOLD_HIGH_STOCK)
+      .sort((a, b) => b.currentStock - a.currentStock); // Prioritize higher stock items
+  }, [productSalesPerformanceInPeriod]);
+
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -382,7 +454,9 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                         <TableCell className="text-right">{tableDisplayProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right text-[hsl(var(--destructive))]">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
-                          <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>
+                             <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -408,10 +482,10 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <ScrollArea className="max-h-60">
               <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
               <ul className="space-y-1 pr-3">
-                {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => ( // Use InvoiceCartItem
+                {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => (
                   <li key={`${item.id}-${index}`} className="text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{item.name} ({item.color}, {item.quality || 'N/A'}, {item.size}) x {item.quantityInCart} {item.unit}</span> {/* Added quality */}
+                      <span className="text-muted-foreground">{item.name} ({item.color}, {item.quality || 'N/A'}, {item.size}) x {item.quantityInCart} {item.unit}</span>
                       <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
                     </div>
                     <div className="flex justify-between text-xs">
@@ -485,10 +559,167 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Product Performance Analysis Sections */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold">Top Sản Phẩm Bán Chạy Nhất</CardTitle>
+          <CardDescription>Theo số lượng bán trong khoảng thời gian đã lọc. (Tối đa 10 sản phẩm)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {topSellingProducts.length === 0 ? (
+            <p className="text-muted-foreground text-center py-6">Không có dữ liệu sản phẩm bán chạy cho khoảng thời gian này.</p>
+          ) : (
+            <ScrollArea className="max-h-96">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">STT</TableHead>
+                    <TableHead className="w-20">Ảnh</TableHead>
+                    <TableHead>Chi tiết Sản phẩm</TableHead>
+                    <TableHead className="text-right">SL Bán</TableHead>
+                    <TableHead className="text-right">Doanh thu</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topSellingProducts.map((product, index) => (
+                    <TableRow key={product.key}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        <Image 
+                            src={product.image || `https://placehold.co/40x40.png`} 
+                            alt={product.name} 
+                            width={40} 
+                            height={40} 
+                            className="w-10 h-10 rounded-md object-cover aspect-square" 
+                            data-ai-hint={`${product.name.split(' ')[0]} flower`}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {product.color}, {product.quality || 'N/A'}, {product.size}, {product.unit}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{product.soldInPeriod}</TableCell>
+                      <TableCell className="text-right">{product.revenueInPeriod.toLocaleString('vi-VN')} VNĐ</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold">Sản Phẩm Không Bán Được (Trong Kỳ)</CardTitle>
+          <CardDescription>Các sản phẩm còn tồn kho nhưng không có doanh số trong khoảng thời gian đã lọc, sắp xếp theo tồn kho giảm dần.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {unsoldProductsInPeriod.length === 0 ? (
+            <p className="text-muted-foreground text-center py-6">Không có sản phẩm nào không bán được (và còn tồn) trong kỳ này.</p>
+          ) : (
+            <ScrollArea className="max-h-96">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">STT</TableHead>
+                    <TableHead className="w-20">Ảnh</TableHead>
+                    <TableHead>Chi tiết Sản phẩm</TableHead>
+                    <TableHead className="text-right">Tồn Kho</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unsoldProductsInPeriod.map((product, index) => (
+                    <TableRow key={product.key}>
+                      <TableCell>{index + 1}</TableCell>
+                       <TableCell>
+                        <Image 
+                            src={product.image || `https://placehold.co/40x40.png`} 
+                            alt={product.name} 
+                            width={40} 
+                            height={40} 
+                            className="w-10 h-10 rounded-md object-cover aspect-square" 
+                            data-ai-hint={`${product.name.split(' ')[0]} flower`}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {product.color}, {product.quality || 'N/A'}, {product.size}, {product.unit}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{product.currentStock}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold">Sản Phẩm Cần Lưu Ý</CardTitle>
+          <CardDescription>Tồn kho cao ( &gt; 5) nhưng bán được ít ( &lt; 3 và &gt; 0) trong khoảng thời gian đã lọc. Sắp xếp theo tồn kho giảm dần.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {productsToWatch.length === 0 ? (
+            <p className="text-muted-foreground text-center py-6">Không có sản phẩm nào cần lưu ý đặc biệt theo tiêu chí này.</p>
+          ) : (
+            <ScrollArea className="max-h-96">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">STT</TableHead>
+                    <TableHead className="w-20">Ảnh</TableHead>
+                    <TableHead>Chi tiết Sản phẩm</TableHead>
+                    <TableHead className="text-right">Tồn Kho</TableHead>
+                    <TableHead className="text-right">SL Bán</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {productsToWatch.map((product, index) => (
+                    <TableRow key={product.key}>
+                      <TableCell>{index + 1}</TableCell>
+                       <TableCell>
+                        <Image 
+                            src={product.image || `https://placehold.co/40x40.png`} 
+                            alt={product.name} 
+                            width={40} 
+                            height={40} 
+                            className="w-10 h-10 rounded-md object-cover aspect-square" 
+                            data-ai-hint={`${product.name.split(' ')[0]} flower`}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {product.color}, {product.quality || 'N/A'}, {product.size}, {product.unit}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{product.currentStock}</TableCell>
+                      <TableCell className="text-right">{product.soldInPeriod}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
     
+
 
 
 

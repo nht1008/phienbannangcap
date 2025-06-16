@@ -440,7 +440,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
-                    <TableHead>Ngày và Giờ tạo</TableHead>
+                    <TableHead>Ngày tạo</TableHead>
                     <TableHead className="text-right">Tổng tiền HĐ</TableHead>
                     <TableHead className="text-right">Tổng giá gốc HĐ</TableHead>
                     <TableHead className="text-right">Lợi nhuận HĐ</TableHead>
@@ -487,7 +487,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
               <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
                 <strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName} <br />
-                <strong>Ngày và Giờ:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
+                <strong>Ngày:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />

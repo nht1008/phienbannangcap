@@ -325,7 +325,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         <TableRow key={invoice.id}>
                           <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
                           <TableCell>{invoice.customerName}</TableCell>
-                          <TableCell>{new Date(invoice.date).toLocaleDateString('vi-VN')}</TableCell>
+                          <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                           <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
                           <TableCell className="text-right">{(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         </TableRow>
@@ -359,7 +359,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       {filteredEmployeeDebts.map(debt => (
                         <TableRow key={debt.id}>
                           <TableCell>{debt.supplier}</TableCell>
-                          <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
+                          <TableCell>{new Date(debt.date).toLocaleString('vi-VN')}</TableCell>
                           <TableCell className="text-right">{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
                           <TableCell>{debt.status}</TableCell>
                           <TableCell>
@@ -403,5 +403,4 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     </Card>
   );
 }
-
 

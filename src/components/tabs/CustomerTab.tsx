@@ -296,7 +296,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     {customerInvoices.map(invoice => (
                       <TableRow key={invoice.id} className={invoice.debtAmount && invoice.debtAmount > 0 ? "bg-destructive/5" : ""}>
                         <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
-                        <TableCell>{new Date(invoice.date).toLocaleDateString('vi-VN')}</TableCell>
+                        <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
                         <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell>{invoice.paymentMethod}</TableCell>
                         <TableCell className="text-right text-destructive">

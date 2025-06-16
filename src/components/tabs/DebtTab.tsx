@@ -152,7 +152,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                 {debts.map(debt => (
                   <TableRow key={debt.id}>
                     <TableCell>{debt.supplier || 'N/A'}</TableCell>
-                    <TableCell>{new Date(debt.date).toLocaleDateString('vi-VN')}</TableCell>
+                    <TableCell>{new Date(debt.date).toLocaleString('vi-VN')}</TableCell>
                     <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
                     <TableCell className="text-center">
                       <Button
@@ -180,3 +180,4 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
+

@@ -265,15 +265,13 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           </Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)} title="Hoàn trả sản phẩm">
+                            <Undo2 className="h-4 w-4" />
+                          </Button>
                           {hasFullAccessRights && (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)} title="Hoàn trả sản phẩm">
-                                <Undo2 className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
@@ -408,7 +406,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         </AlertDialog>
       )}
 
-      {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && hasFullAccessRights && (
+      {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && (
         <Dialog open={isReturnItemsDialogOpen} onOpenChange={setIsReturnItemsDialogOpen}>
           <DialogContent className="sm:max-w-3xl">
             <DialogHeader>

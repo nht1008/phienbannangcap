@@ -55,21 +55,21 @@ interface SalesTabProps {
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => void;
   onClearCart: () => void; 
-  productQualityOptions: string[]; // Added
+  productQualityOptions: string[];
 }
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
 
 interface VariantSelection {
   color: string;
-  quality: string; // Added
+  quality: string;
   size: string;
   unit: string;
 }
 
 interface AvailableVariants {
   colors: string[];
-  qualities: string[]; // Added
+  qualities: string[];
   sizes: string[];
   units: string[];
 }
@@ -85,7 +85,7 @@ export function SalesTab({
     onUpdateCartQuantity,
     onItemDiscountChange,
     onClearCart,
-    productQualityOptions // Added
+    productQualityOptions
 }: SalesTabProps) {
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
@@ -102,9 +102,9 @@ export function SalesTab({
   const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
 
   const [selectedProductNameForVariants, setSelectedProductNameForVariants] = useState<string | null>(null);
-  const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', quality: '', size: '', unit: '' }); // Added quality
+  const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', quality: '', size: '', unit: '' });
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
-  const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] }); // Added qualities
+  const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] });
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
@@ -226,7 +226,7 @@ export function SalesTab({
       .filter(p => p.quantity > 0)
       .map(p => ({
         ...p,
-        displayLabel: `${p.name} ${p.color} ${p.quality || ''} ${p.size} ${p.unit} - Tồn: ${p.quantity}`.replace(/\s\s+/g, ' ') // Added quality, replace multiple spaces
+        displayLabel: `${p.name} ${p.color} ${p.quality || ''} ${p.size} ${p.unit} - Tồn: ${p.quantity}`.replace(/\s\s+/g, ' ')
       }));
   }, [inventory]);
 
@@ -238,13 +238,13 @@ export function SalesTab({
       return;
     }
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
-    setAvailableVariants({ colors, qualities: [], sizes: [], units: [] }); // Reset other variants
+    setAvailableVariants({ colors, qualities: [], sizes: [], units: [] });
     setSelectedProductNameForVariants(productName);
     setVariantSelection({ color: colors[0] || '', quality: '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
   }, [inventory, showLocalNotification]);
 
-  useEffect(() => { // For Qualities
+  useEffect(() => { 
     if (selectedProductNameForVariants && variantSelection.color) {
       const variantsMatchingNameAndColor = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
@@ -261,7 +261,7 @@ export function SalesTab({
     }
   }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.quality]);
   
-  useEffect(() => { // For Sizes
+  useEffect(() => { 
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality) {
       const variantsMatchingNameColorQuality = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
@@ -279,7 +279,7 @@ export function SalesTab({
     }
   }, [selectedProductNameForVariants, variantSelection.color, variantSelection.quality, inventory, variantSelection.size]);
 
-  useEffect(() => { // For Units
+  useEffect(() => { 
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size) {
       const variantsMatchingNameColorQualitySize = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
@@ -321,7 +321,7 @@ export function SalesTab({
     const productToAdd = inventory.find(p =>
       p.name === selectedProductNameForVariants &&
       p.color === variantSelection.color &&
-      p.quality === variantSelection.quality && // Added
+      p.quality === variantSelection.quality &&
       p.size === variantSelection.size &&
       p.unit === variantSelection.unit &&
       p.quantity > 0
@@ -331,18 +331,18 @@ export function SalesTab({
       onAddToCart(productToAdd);
       setIsVariantSelectorOpen(false);
       setSelectedProductNameForVariants(null);
-      setVariantSelection({ color: '', quality: '', size: '', unit: '' }); // Added quality
+      setVariantSelection({ color: '', quality: '', size: '', unit: '' });
     } else {
       showLocalNotification('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.', 'error');
     }
   };
 
   const selectedVariantDetails = useMemo(() => {
-    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size && variantSelection.unit) { // Added quality
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size && variantSelection.unit) {
       return inventory.find(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
-        p.quality === variantSelection.quality && // Added
+        p.quality === variantSelection.quality &&
         p.size === variantSelection.size &&
         p.unit === variantSelection.unit &&
         p.quantity > 0
@@ -374,7 +374,7 @@ export function SalesTab({
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                 <Command shouldFilter={false}>
                   <CommandInput
-                    placeholder="Gõ tên, màu, chất lượng, size hoặc đơn vị..." // Added chất lượng
+                    placeholder="Gõ tên, màu, chất lượng, size hoặc đơn vị..."
                     value={productSearchQuery}
                     onValueChange={setProductSearchQuery}
                   />
@@ -465,12 +465,16 @@ export function SalesTab({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[150px]">Sản phẩm</TableHead>
-                      <TableHead className="text-center w-[130px]">SL</TableHead>
-                      <TableHead className="text-right">Đơn giá</TableHead>
-                      <TableHead className="text-center w-[100px]">GG SP</TableHead>
-                      <TableHead className="text-right">Thành tiền</TableHead>
-                      <TableHead className="text-center w-[50px]">Xóa</TableHead>
+                      <TableHead className="min-w-[120px]">Tên Sản phẩm</TableHead>
+                      <TableHead className="min-w-[60px]">Màu</TableHead>
+                      <TableHead className="min-w-[70px]">Chất lượng</TableHead>
+                      <TableHead className="min-w-[70px]">K.Thước</TableHead>
+                      <TableHead className="min-w-[50px]">ĐV</TableHead>
+                      <TableHead className="text-center w-[120px]">SL</TableHead>
+                      <TableHead className="text-right min-w-[80px]">Đơn giá</TableHead>
+                      <TableHead className="text-center w-[90px]">GG SP</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Thành tiền</TableHead>
+                      <TableHead className="text-center w-[40px]">Xóa</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -479,23 +483,24 @@ export function SalesTab({
                       const itemFinalTotal = itemOriginalTotal - (item.itemDiscount || 0);
                       return (
                         <TableRow key={item.id}>
-                          <TableCell className="py-2">
+                          <TableCell className="py-2 align-middle">
                             <div className="flex items-center gap-2">
                               <Image
-                                src={item.image || `https://placehold.co/40x40.png`}
+                                src={item.image || `https://placehold.co/32x32.png`}
                                 alt={item.name}
-                                width={40}
-                                height={40}
-                                className="w-10 h-10 rounded-md object-cover aspect-square border"
+                                width={32}
+                                height={32}
+                                className="w-8 h-8 rounded-md object-cover aspect-square border"
                                 data-ai-hint={`${item.name.split(' ')[0]} flower`}
-                                onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png')}
+                                onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/32x32.png')}
                               />
-                              <div>
-                                <p className="font-semibold text-foreground text-sm leading-tight">{item.name}</p>
-                                <p className="text-xs text-muted-foreground">{item.color}, {item.quality || 'N/A'}, {item.size}, {item.unit}</p>
-                              </div>
+                              <p className="font-semibold text-foreground text-sm leading-tight">{item.name}</p>
                             </div>
                           </TableCell>
+                          <TableCell className="py-2 align-middle text-xs">{item.color}</TableCell>
+                          <TableCell className="py-2 align-middle text-xs">{item.quality || 'N/A'}</TableCell>
+                          <TableCell className="py-2 align-middle text-xs">{item.size}</TableCell>
+                          <TableCell className="py-2 align-middle text-xs">{item.unit}</TableCell>
                           <TableCell className="text-center py-2 align-middle">
                             <div className="flex items-center justify-center gap-1">
                               <Button
@@ -526,7 +531,7 @@ export function SalesTab({
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right py-2 align-middle">{item.price.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell className="text-right py-2 align-middle text-sm">{item.price.toLocaleString('vi-VN')}</TableCell>
                           <TableCell className="text-center py-2 align-middle">
                             <Input
                                 id={`item-discount-${item.id}`}
@@ -539,7 +544,7 @@ export function SalesTab({
                                 placeholder="GG"
                             />
                           </TableCell>
-                          <TableCell className={cn("text-right py-2 align-middle font-semibold",(item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
+                          <TableCell className={cn("text-right py-2 align-middle font-semibold text-sm",(item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
                             {itemFinalTotal.toLocaleString('vi-VN')}
                             {(item.itemDiscount || 0) > 0 && (
                                 <p className="text-xs text-destructive font-normal normal-case">
@@ -585,7 +590,7 @@ export function SalesTab({
       <Dialog open={isVariantSelectorOpen} onOpenChange={(isOpen) => {
         if (!isOpen) {
           setSelectedProductNameForVariants(null);
-          setVariantSelection({ color: '', quality: '', size: '', unit: '' }); // Added quality
+          setVariantSelection({ color: '', quality: '', size: '', unit: '' });
         }
         setIsVariantSelectorOpen(isOpen);
       }}>
@@ -593,7 +598,7 @@ export function SalesTab({
           <DialogHeader>
             <DialogTitle>Chọn thuộc tính cho: {selectedProductNameForVariants}</DialogTitle>
             <DialogDescription>
-              Vui lòng chọn màu sắc, chất lượng, kích thước và đơn vị. {/* Added quality */}
+              Vui lòng chọn màu sắc, chất lượng, kích thước và đơn vị.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -615,7 +620,7 @@ export function SalesTab({
               </Select>
             </div>
             <div>
-              <Label htmlFor="variant-quality">Chất lượng</Label> {/* Added */}
+              <Label htmlFor="variant-quality">Chất lượng</Label>
               <Select
                 value={variantSelection.quality}
                 onValueChange={(value) => handleVariantSelectionChange('quality', value)}
@@ -636,7 +641,7 @@ export function SalesTab({
               <Select
                 value={variantSelection.size}
                 onValueChange={(value) => handleVariantSelectionChange('size', value)}
-                disabled={!variantSelection.color || !variantSelection.quality || availableVariants.sizes.length === 0} // Added quality
+                disabled={!variantSelection.color || !variantSelection.quality || availableVariants.sizes.length === 0}
               >
                 <SelectTrigger id="variant-size" className="bg-card">
                   <SelectValue placeholder="Chọn kích thước" />
@@ -653,7 +658,7 @@ export function SalesTab({
               <Select
                 value={variantSelection.unit}
                 onValueChange={(value) => handleVariantSelectionChange('unit', value)}
-                disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || availableVariants.units.length === 0} // Added quality
+                disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || availableVariants.units.length === 0}
               >
                 <SelectTrigger id="variant-unit" className="bg-card">
                   <SelectValue placeholder="Chọn đơn vị" />
@@ -676,7 +681,7 @@ export function SalesTab({
             <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
             <Button
               onClick={handleAddVariantToCart}
-              disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails} // Added quality
+              disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Thêm vào giỏ
@@ -866,7 +871,3 @@ export function SalesTab({
     </>
   );
 }
-
-
-
-

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Employee, Invoice, Debt, EmployeePosition } from '@/types';
+import type { Employee, Invoice, Debt, EmployeePosition, UserAccessRequest } from '@/types';
 import type { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,13 +15,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil, Users, CheckCircle, XCircle } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { ref, onValue, update, set } from "firebase/database";
 
 
 interface ActivityDateTimeFilter {
@@ -126,6 +128,92 @@ export function EmployeeTab({
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [editFormData, setEditFormData] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
   const { toast } = useToast();
+
+  const [userAccessRequests, setUserAccessRequests] = useState<UserAccessRequest[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [requestToReject, setRequestToReject] = useState<UserAccessRequest | null>(null);
+
+
+  useEffect(() => {
+    if (isCurrentUserAdmin) {
+      setIsLoadingRequests(true);
+      const requestsRef = ref(db, 'userAccessRequests');
+      const unsubscribe = onValue(requestsRef, (snapshot) => {
+        const data = snapshot.val();
+        const loadedRequests: UserAccessRequest[] = [];
+        if (data) {
+          Object.keys(data).forEach(key => {
+            if (data[key].status === 'pending') { // Only load pending requests
+              loadedRequests.push({ id: key, ...data[key] });
+            }
+          });
+        }
+        setUserAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
+        setIsLoadingRequests(false);
+      }, (error) => {
+        console.error("Error fetching user access requests:", error);
+        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu người dùng.", variant: "destructive" });
+        setIsLoadingRequests(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [isCurrentUserAdmin, toast]);
+
+  const handleApproveRequest = async (request: UserAccessRequest) => {
+    if (!isCurrentUserAdmin || !currentUser) return;
+    try {
+      const updates: Record<string, any> = {};
+      updates[`userAccessRequests/${request.id}/status`] = 'approved';
+      updates[`userAccessRequests/${request.id}/reviewedBy`] = currentUser.uid;
+      updates[`userAccessRequests/${request.id}/reviewDate`] = new Date().toISOString();
+
+      if (request.requestedRole === 'employee') {
+        updates[`employees/${request.id}`] = {
+          name: request.name,
+          email: request.email,
+          phone: request.phone,
+          address: request.address,
+          position: 'Nhân viên' as EmployeePosition, 
+        };
+      } else if (request.requestedRole === 'customer') {
+         updates[`customers/${request.id}`] = {
+          name: request.name,
+          email: request.email,
+          phone: request.phone,
+          address: request.address,
+        };
+      }
+      await update(ref(db), updates);
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của ${request.name}.`, variant: "default" });
+    } catch (error) {
+      console.error("Error approving request:", error);
+      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu.", variant: "destructive" });
+    }
+  };
+
+  const openRejectDialog = (request: UserAccessRequest) => {
+    setRequestToReject(request);
+    setRejectionReason("");
+  };
+
+  const handleConfirmRejectRequest = async () => {
+    if (!isCurrentUserAdmin || !currentUser || !requestToReject) return;
+    try {
+      await update(ref(db, `userAccessRequests/${requestToReject.id}`), {
+        status: 'rejected',
+        reviewedBy: currentUser.uid,
+        reviewDate: new Date().toISOString(),
+        rejectionReason: rejectionReason.trim() || "Không có lý do cụ thể.",
+      });
+      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${requestToReject.name}.`, variant: "default" });
+      setRequestToReject(null);
+      setRejectionReason("");
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      toast({ title: "Lỗi", description: "Không thể từ chối yêu cầu.", variant: "destructive" });
+    }
+  };
 
 
   const displayEmployees = useMemo(() => {
@@ -356,8 +444,61 @@ export function EmployeeTab({
           </div>
         </div>
 
+        {isCurrentUserAdmin && (
+          <>
+            <Separator className="my-6"/>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của người dùng</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {isLoadingRequests ? (
+                        <p className="text-muted-foreground">Đang tải yêu cầu...</p>
+                    ) : userAccessRequests.length === 0 ? (
+                        <p className="text-muted-foreground">Không có yêu cầu nào đang chờ xử lý.</p>
+                    ) : (
+                        <ScrollArea className="h-72">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Tên</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Vai trò YC</TableHead>
+                                        <TableHead>SĐT</TableHead>
+                                        <TableHead>Ngày YC</TableHead>
+                                        <TableHead className="text-center">Hành động</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {userAccessRequests.map(req => (
+                                        <TableRow key={req.id}>
+                                            <TableCell>{req.name}</TableCell>
+                                            <TableCell>{req.email}</TableCell>
+                                            <TableCell>{req.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</TableCell>
+                                            <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                                            <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
+                                            <TableCell className="text-center space-x-2">
+                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveRequest(req)}>
+                                                    <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
+                                                </Button>
+                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => openRejectDialog(req)}>
+                                                    <XCircle className="h-4 w-4 mr-1"/>Từ chối
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    )}
+                </CardContent>
+            </Card>
+          </>
+        )}
+
+
         {selectedEmployee && (
-          <Card className="shadow-md">
+          <Card className="shadow-md mt-6">
             <CardHeader>
               <CardTitle className="text-xl font-semibold">Nhật ký hoạt động của: {selectedEmployee.name}</CardTitle>
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
@@ -666,7 +807,29 @@ export function EmployeeTab({
           </DialogContent>
         </Dialog>
       )}
+
+      {requestToReject && (
+        <Dialog open={!!requestToReject} onOpenChange={() => setRequestToReject(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Từ chối yêu cầu của {requestToReject.name}?</DialogTitle>
+              <DialogDescription>
+                Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Nhập lý do từ chối (tùy chọn)..."
+              className="min-h-[100px]"
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRequestToReject(null)}>Hủy</Button>
+              <Button variant="destructive" onClick={handleConfirmRejectRequest}>Xác nhận từ chối</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
-

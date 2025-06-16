@@ -2,20 +2,20 @@
 export interface Product {
   id: string;
   name: string;
-  quality?: string; // Added
+  quality?: string; 
   quantity: number;
-  price: number; // Selling price
-  costPrice?: number; // Cost price / Original price
+  price: number; 
+  costPrice?: number; 
   image: string;
   color: string;
   size: string;
   unit: string;
-  maxDiscountPerUnitVND?: number; // Max discount per unit in VND
+  maxDiscountPerUnitVND?: number; 
 }
 
 export interface CartItem extends Product {
   quantityInCart: number;
-  itemDiscount?: number; // Discount for this specific item in VND, applied to the total for this line item (price * quantityInCart)
+  itemDiscount?: number; 
 }
 
 export interface Customer {
@@ -23,6 +23,7 @@ export interface Customer {
   name: string;
   phone: string;
   address?: string;
+  email?: string; // Added for login/request tracking
 }
 
 export interface Supplier {
@@ -30,64 +31,64 @@ export interface Supplier {
   name: string;
 }
 
-// This is the structure of items as stored within an Invoice
+
 export interface InvoiceCartItem {
   id: string;
   name: string;
-  quality?: string; // Added
+  quality?: string; 
   quantityInCart: number;
-  price: number; // Original selling price per unit
+  price: number; 
   costPrice?: number;
   image: string;
   color: string;
   size: string;
   unit: string;
-  itemDiscount?: number; // Discount applied to this line item in VND
+  itemDiscount?: number; 
 }
 
 export interface Invoice {
   id: string;
   customerName: string;
-  items: InvoiceCartItem[]; // Uses the specialized InvoiceCartItem
-  total: number; // Final amount after all item and overall discounts
-  date: string; // ISO date string
+  items: InvoiceCartItem[]; 
+  total: number; 
+  date: string; 
   paymentMethod: string;
-  discount?: number; // Overall invoice discount (additional to item discounts) - This is currently always 0
-  amountPaid?: number; // Amount paid by customer
-  debtAmount?: number; // Amount of debt created from this invoice
-  employeeId: string; // UID of the employee who created theinvoice
-  employeeName?: string; // Name of the employee
+  discount?: number; 
+  amountPaid?: number; 
+  debtAmount?: number; 
+  employeeId: string; 
+  employeeName?: string; 
 }
 
 export interface Debt {
   id: string;
-  supplier: string; // For customer debt, this will be customerName. For supplier debt, actual supplier name.
+  supplier: string; 
   amount: number;
-  date: string; // ISO date string
+  date: string; 
   status: 'Chưa thanh toán' | 'Đã thanh toán';
-  invoiceId?: string; // Link to the invoice that generated this debt (for customer debts)
-  createdEmployeeId?: string; // UID of the employee who created the debt
-  createdEmployeeName?: string; // Name of the employee who created
-  lastUpdatedEmployeeId?: string; // UID of the employee who last updated the status
-  lastUpdatedEmployeeName?: string; // Name of the employee who last updated
+  invoiceId?: string; 
+  createdEmployeeId?: string; 
+  createdEmployeeName?: string; 
+  lastUpdatedEmployeeId?: string; 
+  lastUpdatedEmployeeName?: string; 
 }
 
 export interface ItemToImport {
   name: string;
   color: string;
-  quality: string; // Added
+  quality: string; 
   size: string;
   unit: string;
   quantity: number;
-  cost: number; // Cost per unit in Nghin VND
+  cost: number; 
 }
 
-export type ProductOptionType = 'productNames' | 'colors' | 'qualities' | 'sizes' | 'units'; // Added 'qualities'
+export type ProductOptionType = 'productNames' | 'colors' | 'qualities' | 'sizes' | 'units'; 
 
 export type EmployeePosition = 'Nhân viên' | 'ADMIN' | 'Quản lý';
 
 export interface Employee {
-  id: string; // Firebase Auth UID
+  id: string; 
   name: string;
   email: string;
   position: EmployeePosition;
@@ -115,7 +116,23 @@ export interface DisposalLogEntry {
   image: string;
   quantityDisposed: number;
   reason: string;
-  disposalDate: string; // ISO date string
+  disposalDate: string; 
   employeeId: string;
   employeeName: string;
+}
+
+export type UserAccessRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface UserAccessRequest {
+  id: string; // Same as user's UID
+  name: string; // Display name
+  email: string;
+  phone: string;
+  address: string;
+  requestedRole: 'employee' | 'customer';
+  status: UserAccessRequestStatus;
+  requestDate: string; // ISO date string
+  reviewedBy?: string; // Admin UID
+  reviewDate?: string; // ISO date string
+  rejectionReason?: string;
 }

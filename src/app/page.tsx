@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry, UserAccessRequest, UserAccessRequestStatus } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
@@ -28,6 +28,7 @@ import { CustomerTab } from '@/components/tabs/CustomerTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { OrdersTab } from '@/components/tabs/OrdersTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
+import { RequestAccessDialog } from '@/components/auth/RequestAccessDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
@@ -75,13 +76,13 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, HelpCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
-// Define ADMIN_EMAIL and ADMIN_NAME
-const ADMIN_EMAIL = "admin@fleurmanager.com"; // Replace with your actual admin email
+
+const ADMIN_EMAIL = "admin@fleurmanager.com"; 
 const ADMIN_NAME = "Quản trị viên";
 
 
@@ -155,7 +156,7 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
   const { startDate, endDate, startHour, startMinute, endHour, endMinute } = filter;
 
   if (!startDate && !endDate) {
-    return data; // No date range filtering if both are null
+    return data; 
   }
 
   let effectiveStartDate: Date | null = null;
@@ -166,7 +167,7 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
   let effectiveEndDate: Date | null = null;
   if (endDate) {
     effectiveEndDate = getCombinedDateTime(endDate, endHour, endMinute);
-    if (effectiveEndDate && endMinute === '59' && endHour === '23') { // If end of day, make sure it's truly end
+    if (effectiveEndDate && endMinute === '59' && endHour === '23') { 
         effectiveEndDate = endOfDay(effectiveEndDate);
     } else if (effectiveEndDate && endMinute === '59') {
         effectiveEndDate.setSeconds(59, 999);
@@ -581,6 +582,10 @@ export default function FleurManagerPage() {
   const { toast } = useToast();
 
   const [isSettingName, setIsSettingName] = useState(false);
+  const [showRequestAccessDialog, setShowRequestAccessDialog] = useState(false);
+  const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
+  const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
+
   const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
@@ -597,7 +602,7 @@ export default function FleurManagerPage() {
   
   const [revenueFilter, setRevenueFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
   const [invoiceFilter, setInvoiceFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
-  const [debtFilter, setDebtFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter(true, false)); // Start of today, no end date for debts typically
+  const [debtFilter, setDebtFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter(true, false)); 
 
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
@@ -612,7 +617,8 @@ export default function FleurManagerPage() {
 
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
-
+  // TODO: Add currentUserCustomerData check if customers can log in with specific views
+  
   const hasFullAccessRights = useMemo(() => {
     if (!currentUser) return false;
     if (currentUser.email === ADMIN_EMAIL) return true; 
@@ -635,40 +641,81 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, authLoading, router]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (authLoading || !currentUser) return;
 
+    setIsLoadingAccessRequest(true);
     const employeesRef = ref(db, 'employees');
     const unsubscribeEmployees = onValue(employeesRef, (snapshot) => {
-        const data = snapshot.val();
-        const loadedEmployees: Employee[] = [];
-        if (data) {
-            Object.keys(data).forEach(key => {
-                loadedEmployees.push({ id: key, ...data[key] });
-            });
-        }
-        const adminDbEntry = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
-        let otherEmployees = loadedEmployees.filter(emp => emp.email !== ADMIN_EMAIL);
-        otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
-        
-        let finalSortedEmployees: Employee[] = [];
-        if (adminDbEntry) {
-            finalSortedEmployees.push(adminDbEntry);
-        }
-        finalSortedEmployees = [...finalSortedEmployees, ...otherEmployees];
-        setEmployeesData(finalSortedEmployees);
+      const data = snapshot.val();
+      const loadedEmployees: Employee[] = [];
+      if (data) {
+        Object.keys(data).forEach(key => {
+          loadedEmployees.push({ id: key, ...data[key] });
+        });
+      }
+      setEmployeesData(loadedEmployees.sort((a, b) => a.name.localeCompare(b.name)));
 
-        const currentUserEmployeeRecord = finalSortedEmployees.find(emp => emp.id === currentUser.uid);
-
-        if (!currentUser.displayName || !currentUserEmployeeRecord) {
-            setIsSettingName(true);
-        } else if (currentUser.email === ADMIN_EMAIL && currentUserEmployeeRecord && currentUserEmployeeRecord.position !== 'ADMIN') {
-             setIsSettingName(true); 
+      // User flow logic
+      if (currentUser.email === ADMIN_EMAIL) {
+        const adminEmployeeRecord = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
+        if (!currentUser.displayName || !adminEmployeeRecord || (adminEmployeeRecord && adminEmployeeRecord.position !== 'ADMIN')) {
+           setIsSettingName(true); // Admin needs to set name / ensure DB record is ADMIN
         } else {
-            setIsSettingName(false);
+           setIsSettingName(false);
         }
+        setShowRequestAccessDialog(false);
+        setUserAccessRequest(null);
+        setIsLoadingAccessRequest(false);
+      } else {
+        // Non-admin user
+        const currentEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
+        if (currentEmployee) { // User is an existing, approved employee
+          if (!currentUser.displayName) {
+            setIsSettingName(true); // Existing employee might need to set display name if missing
+          } else {
+            setIsSettingName(false);
+          }
+          setShowRequestAccessDialog(false);
+          setUserAccessRequest({ id: currentUser.uid, status: 'approved' } as UserAccessRequest); // Mark as approved for access
+          setIsLoadingAccessRequest(false);
+        } else {
+          // Not an existing employee, check access requests
+          const requestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
+          get(requestRef).then((requestSnapshot) => {
+            if (requestSnapshot.exists()) {
+              const requestData = requestSnapshot.val() as UserAccessRequest;
+              setUserAccessRequest(requestData);
+              if (requestData.status === 'approved') {
+                 // This state means they were approved but not yet in employees table, admin needs to complete this.
+                 // For now, if approved here, we assume admin will add them.
+                 // Or, better, on approval, admin action should create the employee/customer entry.
+                 // For this flow, if status is 'approved', we let them in assuming record exists.
+                 // This part might need refinement based on admin approval process.
+                setShowRequestAccessDialog(false);
+                setIsSettingName(!currentUser.displayName); // Still might need to set name
+              } else if (requestData.status === 'pending' || requestData.status === 'rejected') {
+                setIsSettingName(!currentUser.displayName); // If name not set, set it first
+                setShowRequestAccessDialog(!!currentUser.displayName); // Show request dialog only if name is set
+              }
+            } else { // No request found
+              setUserAccessRequest(null);
+              setIsSettingName(!currentUser.displayName);
+              setShowRequestAccessDialog(!!currentUser.displayName);
+            }
+          }).catch(error => {
+            console.error("Error fetching user access request:", error);
+            toast({ title: "Lỗi tải yêu cầu", description: error.message, variant: "destructive" });
+            setUserAccessRequest(null); // Fallback
+            setIsSettingName(!currentUser.displayName);
+            setShowRequestAccessDialog(!!currentUser.displayName);
+          }).finally(() => {
+            setIsLoadingAccessRequest(false);
+          });
+        }
+      }
     });
-
+    
     let unsubscribeShopInfo = () => {};
     if (hasFullAccessRights) { 
         setIsLoadingShopInfo(true);
@@ -710,6 +757,7 @@ export default function FleurManagerPage() {
       }
       setDisposalLogEntries(loadedEntries.sort((a,b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
     });
+
 
     return () => { unsubscribeEmployees(); unsubscribeShopInfo(); unsubscribeDisposalLog(); };
   }, [currentUser, authLoading, hasFullAccessRights, toast]);
@@ -831,7 +879,7 @@ export default function FleurManagerPage() {
         total: finalTotal,
         date: new Date().toISOString(),
         paymentMethod,
-        discount: 0, // Overall invoice discount is now always 0
+        discount: 0, 
         amountPaid,
         employeeId,
         employeeName: employeeName || 'Không rõ',
@@ -973,7 +1021,8 @@ export default function FleurManagerPage() {
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa tùy chọn sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast, hasFullAccessRights]);
   const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
   const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
-  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; const employeePosition: EmployeePosition = isSuperAdminEmail ? 'ADMIN' : 'Nhân viên'; try { await updateUserProfileName(employeeName); const employeeDataForDb: Partial<Employee> = { name: employeeName, email: currentUser.email!, position: employeePosition, }; const employeeRef = ref(db, `employees/${currentUser.uid}`); await set(employeeRef, employeeDataForDb); toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." }); setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
+  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; const employeePosition: EmployeePosition = isSuperAdminEmail ? 'ADMIN' : 'Nhân viên'; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); setShowRequestAccessDialog(true); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
+  const handleSaveAccessRequest = async (details: { name: string; email: string; phone: string; address: string; requestedRole: UserAccessRequest['requestedRole']; }) => { if (!currentUser) { toast({ title: "Lỗi", description: "Không có người dùng hiện tại.", variant: "destructive" }); return; } const requestData: UserAccessRequest = { ...details, id: currentUser.uid, status: 'pending', requestDate: new Date().toISOString(), }; try { await set(ref(db, `userAccessRequests/${currentUser.uid}`), requestData); setUserAccessRequest(requestData); setShowRequestAccessDialog(false); toast({ title: "Yêu cầu đã được gửi", description: "Vui lòng chờ quản trị viên phê duyệt.", variant: "default" }); } catch (error) { console.error("Error saving access request:", error); toast({ title: "Lỗi", description: "Không thể gửi yêu cầu. Vui lòng thử lại.", variant: "destructive" }); } };
 
   const handleDeleteDebt = (debtId: string) => {
     const debt = debtsData.find(d => d.id === debtId);
@@ -1102,7 +1151,7 @@ export default function FleurManagerPage() {
         }
         await update(productRef, { quantity: newQuantity });
         
-        // Log disposal
+        
         const newDisposalLogRef = push(ref(db, 'disposalLog'));
         const logEntry: Omit<DisposalLogEntry, 'id'> = {
           productId,
@@ -1139,9 +1188,44 @@ export default function FleurManagerPage() {
   }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
 
-  if (authLoading) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
+  if (authLoading || isLoadingAccessRequest) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
   if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
   if (isSettingName) { return ( <SetNameDialog onNameSet={handleNameSet} /> ); }
+  if (showRequestAccessDialog && currentUser && !isCurrentUserAdmin && (!userAccessRequest || userAccessRequest.status === 'rejected') ) {
+     return (
+      <RequestAccessDialog
+        currentUserName={currentUser.displayName}
+        currentUserEmail={currentUser.email}
+        onSubmitRequest={handleSaveAccessRequest}
+        existingRequestStatus={userAccessRequest?.status}
+        rejectionReason={userAccessRequest?.rejectionReason}
+      />
+    );
+  }
+
+  if (userAccessRequest && userAccessRequest.status === 'pending' && !isCurrentUserAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+        <HelpCircle className="w-16 h-16 text-primary mb-4" />
+        <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
+        <p className="text-muted-foreground">
+          Yêu cầu truy cập của bạn cho vai trò <span className="font-semibold text-primary">{userAccessRequest.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</span> đã được gửi.
+        </p>
+        <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
+         <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
+      </div>
+    );
+  }
+  
+  // If user is not admin, not an existing employee, and their access request is not 'approved', block access.
+  // This check might need to be more robust depending on how 'approved' status leads to employee/customer record creation by admin.
+  if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'approved') {
+     // This state might occur if an approved request didn't yet result in an employee/customer record.
+     // Or if the logic to transition from RequestAccessDialog to main app needs more conditions.
+     // For now, if they are not admin, not in employees list and their request is not explicitly approved, show a generic waiting message.
+     return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
+  }
+
 
   return (
     <SidebarProvider>
@@ -1233,4 +1317,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

@@ -42,7 +42,7 @@ interface SalesTabProps {
     cart: CartItem[],
     subtotalAfterItemDiscounts: number,
     paymentMethod: string,
-    overallInvoiceDiscount: number,
+    // overallInvoiceDiscount: number, // Removed
     amountPaid: number,
     isGuestCustomer: boolean,
     employeeId: string,
@@ -92,7 +92,6 @@ export function SalesTab({
   const [customerSearchText, setCustomerSearchText] = useState("");
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
-  const [overallDiscountStr, setOverallDiscountStr] = useState('');
   const [amountPaidStr, setAmountPaidStr] = useState('');
 
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -103,7 +102,6 @@ export function SalesTab({
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
   const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] });
   const { toast } = useToast();
-  const [maxPossibleOverallDiscountVND, setMaxPossibleOverallDiscountVND] = useState(0);
 
   const subtotalAfterItemDiscounts = useMemo(() =>
     cart.reduce((sum, item) => {
@@ -128,70 +126,14 @@ export function SalesTab({
     });
   }, [cart]);
 
-  const parsedOverallDiscountNghin = parseFloat(overallDiscountStr) || 0;
-  const actualOverallInvoiceDiscountVND = parsedOverallDiscountNghin * 1000;
 
   const finalTotalAfterAllDiscounts = useMemo(() => {
-      const total = subtotalAfterItemDiscounts - actualOverallInvoiceDiscountVND;
-      return total < 0 ? 0 : total;
-  }, [subtotalAfterItemDiscounts, actualOverallInvoiceDiscountVND]);
+      return subtotalAfterItemDiscounts < 0 ? 0 : subtotalAfterItemDiscounts;
+  }, [subtotalAfterItemDiscounts]);
 
   const parsedAmountPaidNghin = parseFloat(amountPaidStr) || 0;
   const actualAmountPaidVND = parsedAmountPaidNghin * 1000;
   const changeVND = actualAmountPaidVND - finalTotalAfterAllDiscounts;
-
-  useEffect(() => {
-    if (cart.length === 0) {
-      setMaxPossibleOverallDiscountVND(0);
-      return;
-    }
-
-    let totalPotentialOverallDiscount = 0;
-    cart.forEach(item => {
-      const itemPriceAfterItemDiscount = (item.price * item.quantityInCart) - (item.itemDiscount || 0);
-      let itemFloorPriceTotal = 0; // Default: item can be discounted to 0 if no maxDiscountPerUnitVND
-
-      if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND >= 0) {
-        // The effective price per unit cannot go below (item.price - item.maxDiscountPerUnitVND)
-        const floorPricePerUnit = Math.max(0, item.price - item.maxDiscountPerUnitVND);
-        itemFloorPriceTotal = floorPricePerUnit * item.quantityInCart;
-      }
-      
-      const additionalDiscountRoomForItem = itemPriceAfterItemDiscount - itemFloorPriceTotal;
-      totalPotentialOverallDiscount += Math.max(0, additionalDiscountRoomForItem);
-    });
-    
-    setMaxPossibleOverallDiscountVND(totalPotentialOverallDiscount);
-
-  }, [cart, subtotalAfterItemDiscounts]);
-
-
-  const handleOverallDiscountChange = (value: string) => {
-    setOverallDiscountStr(value); 
-
-    const enteredNghin = parseFloat(value);
-
-    if (value === '' || value === '-' || isNaN(enteredNghin)) {
-      return;
-    }
-
-    const enteredVND = enteredNghin * 1000;
-
-    if (enteredVND < 0) {
-      // Let min="0" handle immediate UI feedback, but state should reflect if it were possible
-      // For now, this path is less likely due to min="0"
-      return;
-    }
-
-    if (enteredVND > maxPossibleOverallDiscountVND) {
-      toast({
-        title: "Lỗi giảm giá chung",
-        description: `Giảm giá chung tối đa cho phép là ${(maxPossibleOverallDiscountVND / 1000).toLocaleString('vi-VN')}K.`,
-        variant: "destructive",
-      });
-      setOverallDiscountStr((maxPossibleOverallDiscountVND / 1000).toString());
-    }
-  };
 
 
   const handleOpenPaymentDialog = () => {
@@ -208,7 +150,6 @@ export function SalesTab({
 
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
-    setOverallDiscountStr(''); // Reset overall discount on dialog open
     setAmountPaidStr('');
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
@@ -222,26 +163,8 @@ export function SalesTab({
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
 
-    if (actualOverallInvoiceDiscountVND < 0) {
-        toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá chung không thể âm.", variant: "destructive" });
-        return;
-    }
-     if (actualOverallInvoiceDiscountVND > maxPossibleOverallDiscountVND) {
-      toast({
-        title: "Lỗi giảm giá chung",
-        description: `Giảm giá chung vượt quá giới hạn cho phép. Tối đa: ${(maxPossibleOverallDiscountVND / 1000).toLocaleString('vi-VN')}K.`,
-        variant: "destructive",
-      });
-      setOverallDiscountStr((maxPossibleOverallDiscountVND / 1000).toString()); // Correct it
-      return;
-    }
     if (actualAmountPaidVND < 0) {
         toast({ title: "Lỗi thanh toán", description: "Số tiền khách trả không thể âm.", variant: "destructive" });
-        return;
-    }
-
-    if (subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND) {
-        toast({ title: "Lỗi giảm giá", description: "Tổng giảm giá chung không thể lớn hơn tổng tiền hàng (sau GG sản phẩm).", variant: "destructive" });
         return;
     }
 
@@ -257,7 +180,7 @@ export function SalesTab({
         cart,
         subtotalAfterItemDiscounts,
         currentPaymentMethod,
-        actualOverallInvoiceDiscountVND,
+        // 0, // Overall discount is now 0
         actualAmountPaidVND,
         isGuest,
         currentUser.uid,
@@ -265,7 +188,6 @@ export function SalesTab({
     );
     if (success) {
       setIsPaymentDialogOpen(false);
-      setOverallDiscountStr('');
       setAmountPaidStr('');
     }
   };
@@ -902,26 +824,8 @@ export function SalesTab({
                 </RadioGroup>
             </div>
 
-             <div className="space-y-1">
-              <Label htmlFor="overallDiscount">Giảm giá thêm (Nghìn VND)</Label>
-              <Input
-                id="overallDiscount"
-                type="number"
-                value={overallDiscountStr}
-                onChange={(e) => handleOverallDiscountChange(e.target.value)}
-                min="0"
-                className="bg-card hide-number-spinners"
-                disabled={maxPossibleOverallDiscountVND <= 0 && cart.length > 0}
-              />
-               {(maxPossibleOverallDiscountVND <= 0 && cart.length > 0) && (
-                <p className="text-xs text-muted-foreground">
-                  Không thể áp dụng giảm giá chung thêm do đã đạt giới hạn của sản phẩm hoặc giỏ hàng.
-                </p>
-              )}
-            </div>
-
             <div className="flex justify-between items-center text-red-500">
-              <Label className={cn("text-red-500", numericDisplaySize === "text-xl" ? "text-lg" : numericDisplaySize === "text-2xl" ? "text-xl" : numericDisplaySize === "text-3xl" ? "text-2xl" : "text-3xl" )}>Thành tiền (sau tất cả GG):</Label>
+              <Label className={cn("text-red-500", numericDisplaySize === "text-xl" ? "text-lg" : numericDisplaySize === "text-2xl" ? "text-xl" : numericDisplaySize === "text-3xl" ? "text-2xl" : "text-3xl" )}>Thành tiền:</Label>
               <span className={cn("font-semibold", numericDisplaySize)}>{finalTotalAfterAllDiscounts.toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <Separator/>
@@ -961,11 +865,9 @@ export function SalesTab({
               className="w-full bg-green-500 text-white hover:bg-green-600"
               disabled={
                 finalTotalAfterAllDiscounts < 0 ||
-                subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND ||
                 (customerNameForInvoice.trim().toLowerCase() === 'khách lẻ' && finalTotalAfterAllDiscounts > actualAmountPaidVND && currentPaymentMethod !== 'Chuyển khoản') || 
                 (currentPaymentMethod === 'Chuyển khoản' && finalTotalAfterAllDiscounts > actualAmountPaidVND) ||
-                !areAllItemDiscountsValid ||
-                (parseFloat(overallDiscountStr || "0") * 1000 > maxPossibleOverallDiscountVND) // Final check
+                !areAllItemDiscountsValid
               }
             >
               Xác nhận thanh toán

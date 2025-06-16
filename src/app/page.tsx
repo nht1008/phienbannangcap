@@ -162,7 +162,7 @@ interface FleurManagerLayoutContentProps {
   filteredInvoicesForRevenue: Invoice[];
   filteredInvoicesForInvoiceTab: Invoice[];
   filteredDebtsForDebtTab: Debt[];
-  handleCreateInvoice: (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, overallInvoiceDiscount: number, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => Promise<boolean>;
+  handleCreateInvoice: (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => Promise<boolean>;
   handleAddProduct: (newProductData: Omit<Product, "id">) => Promise<void>;
   handleUpdateProduct: (productId: string, updatedProductData: Partial<Omit<Product, "id">>) => Promise<void>;
   handleDeleteProduct: (productId: string) => Promise<void>;
@@ -681,16 +681,16 @@ export default function FleurManagerPage() {
   const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => { const newQuantity = parseInt(newQuantityStr); if (isNaN(newQuantity) || newQuantity < 0) return; const stockItem = inventory.find(i => i.id === itemId); if (!stockItem && newQuantity > 0) return; if (newQuantity === 0) { setCart(prevCart => prevCart.filter(item => item.id !== itemId)); } else if (stockItem && newQuantity > stockItem.quantity) { toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockItem.quantity} ${stockItem.unit} trong kho.`, variant: "destructive" }); setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item)); } else { setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item)); } }, [inventory, toast, setCart]);
   
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
-    const discountNghin = parseFloat(discountNghinStr);
-    const rawDiscountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
     let inputWasInvalid = false;
-    let validatedDiscountForItem = rawDiscountVND;
-
     const currentItemInCart = cart.find(i => i.id === itemId);
+
     if (!currentItemInCart) {
         console.error("Item not found in cart for discount change:", itemId);
         return false; 
     }
+
+    const discountNghin = parseFloat(discountNghinStr);
+    let validatedDiscountForItem = isNaN(discountNghin) ? 0 : discountNghin * 1000;
     
     const itemOriginalTotal = currentItemInCart.price * currentItemInCart.quantityInCart;
 
@@ -724,7 +724,69 @@ export default function FleurManagerPage() {
   }, [cart, toast, setCart]);
 
   const onClearCart = useCallback(() => { setCart([]); }, [setCart]);
-  const handleCreateInvoice = useCallback(async (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, overallInvoiceDiscount: number, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => { try { const finalTotal = subtotalAfterItemDiscounts - overallInvoiceDiscount; let calculatedDebtAmount = 0; if (finalTotal < 0) { toast({ title: "Lỗi tính toán", description: "Tổng tiền sau giảm giá không thể âm. Vui lòng kiểm tra lại giảm giá.", variant: "destructive", }); return false; } if (finalTotal > amountPaid) { calculatedDebtAmount = finalTotal - amountPaid; if (isGuestCustomer || paymentMethod === 'Chuyển khoản') { toast({ title: "Lỗi thanh toán", description: "Khách lẻ hoặc thanh toán bằng Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ số tiền.", variant: "destructive", }); return false; } } const newInvoiceRef = push(ref(db, 'invoices')); const invoiceId = newInvoiceRef.key; if (!invoiceId) { throw new Error("Không thể tạo ID cho hóa đơn mới."); } const itemsForDb: InvoiceCartItem[] = invoiceCartItems.map(item => ({ id: item.id, name: item.name, quality: item.quality, quantityInCart: item.quantityInCart, price: item.price, costPrice: item.costPrice ?? 0, image: item.image, color: item.color, size: item.size, unit: item.unit, itemDiscount: item.itemDiscount || 0, maxDiscountPerUnitVND: item.maxDiscountPerUnitVND })); const newInvoiceData: Omit<Invoice, 'id'> = { customerName, items: itemsForDb, total: finalTotal, date: new Date().toISOString(), paymentMethod, discount: overallInvoiceDiscount, amountPaid, employeeId, employeeName: employeeName || 'Không rõ', ...(calculatedDebtAmount > 0 && { debtAmount: calculatedDebtAmount }), }; await set(newInvoiceRef, newInvoiceData); if (calculatedDebtAmount > 0) { const newDebtRef = push(ref(db, 'debts')); const newDebt: Omit<Debt, 'id'> = { supplier: customerName, amount: calculatedDebtAmount, date: new Date().toISOString(), status: 'Chưa thanh toán', invoiceId: invoiceId, createdEmployeeId: employeeId, createdEmployeeName: employeeName || 'Không rõ', }; await set(newDebtRef, newDebt); } const updates: { [key: string]: any } = {}; for (const cartItem of invoiceCartItems) { const productSnapshot = await get(child(ref(db), `inventory/${cartItem.id}`)); if (productSnapshot.exists()) { const currentQuantity = productSnapshot.val().quantity; updates[`inventory/${cartItem.id}/quantity`] = currentQuantity - cartItem.quantityInCart; } else { throw new Error(`Sản phẩm ID ${cartItem.id} không tồn tại để cập nhật số lượng.`); } } if (Object.keys(updates).length > 0) { await update(ref(db), updates); } toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" }); onClearCart(); return true; } catch (error) { console.error("Error creating invoice:", error); toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" }); return false; } }, [toast, onClearCart]);
+  const handleCreateInvoice = useCallback(async (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => {
+    try {
+      const finalTotal = subtotalAfterItemDiscounts; // Overall discount removed
+      let calculatedDebtAmount = 0;
+
+      if (finalTotal < 0) {
+        toast({ title: "Lỗi tính toán", description: "Tổng tiền sau giảm giá không thể âm. Vui lòng kiểm tra lại giảm giá.", variant: "destructive", });
+        return false;
+      }
+
+      if (finalTotal > amountPaid) {
+        calculatedDebtAmount = finalTotal - amountPaid;
+        if (isGuestCustomer || paymentMethod === 'Chuyển khoản') {
+          toast({ title: "Lỗi thanh toán", description: "Khách lẻ hoặc thanh toán bằng Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ số tiền.", variant: "destructive", });
+          return false;
+        }
+      }
+      const newInvoiceRef = push(ref(db, 'invoices'));
+      const invoiceId = newInvoiceRef.key;
+      if (!invoiceId) {
+        throw new Error("Không thể tạo ID cho hóa đơn mới.");
+      }
+      const itemsForDb: InvoiceCartItem[] = invoiceCartItems.map(item => ({ id: item.id, name: item.name, quality: item.quality, quantityInCart: item.quantityInCart, price: item.price, costPrice: item.costPrice ?? 0, image: item.image, color: item.color, size: item.size, unit: item.unit, itemDiscount: item.itemDiscount || 0, maxDiscountPerUnitVND: item.maxDiscountPerUnitVND }));
+      const newInvoiceData: Omit<Invoice, 'id'> = {
+        customerName,
+        items: itemsForDb,
+        total: finalTotal,
+        date: new Date().toISOString(),
+        paymentMethod,
+        discount: 0, // Overall discount is now always 0
+        amountPaid,
+        employeeId,
+        employeeName: employeeName || 'Không rõ',
+        ...(calculatedDebtAmount > 0 && { debtAmount: calculatedDebtAmount }),
+      };
+      await set(newInvoiceRef, newInvoiceData);
+      if (calculatedDebtAmount > 0) {
+        const newDebtRef = push(ref(db, 'debts'));
+        const newDebt: Omit<Debt, 'id'> = { supplier: customerName, amount: calculatedDebtAmount, date: new Date().toISOString(), status: 'Chưa thanh toán', invoiceId: invoiceId, createdEmployeeId: employeeId, createdEmployeeName: employeeName || 'Không rõ', };
+        await set(newDebtRef, newDebt);
+      }
+      const updates: { [key: string]: any } = {};
+      for (const cartItem of invoiceCartItems) {
+        const productSnapshot = await get(child(ref(db), `inventory/${cartItem.id}`));
+        if (productSnapshot.exists()) {
+          const currentQuantity = productSnapshot.val().quantity;
+          updates[`inventory/${cartItem.id}/quantity`] = currentQuantity - cartItem.quantityInCart;
+        } else {
+          throw new Error(`Sản phẩm ID ${cartItem.id} không tồn tại để cập nhật số lượng.`);
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
+      }
+      toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
+      onClearCart();
+      return true;
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+      return false;
+    }
+  }, [toast, onClearCart]);
   
   const handleProcessInvoiceCancellationOrReturn = useCallback(async (invoiceId: string, operationType: 'delete' | 'return', itemsToReturnArray?: Array<{ productId: string; name: string; quantityToReturn: number }>) => {
     if (operationType === 'delete' && !hasFullAccessRights) {
@@ -801,13 +863,9 @@ export default function FleurManagerPage() {
             newSubtotalAfterItemDiscounts += (newItem.price * remainingQuantityInCart) - (newItem.itemDiscount || 0);
           }
         }
-        let newOverallInvoiceDiscount = originalInvoice.discount || 0;
-        const originalSubtotalBeforeOverallDiscount = originalInvoice.items.reduce( (sum, item) => sum + (item.price * item.quantityInCart) - (item.itemDiscount || 0), 0 );
-        if (originalSubtotalBeforeOverallDiscount > 0 && originalInvoice.discount && originalInvoice.discount > 0) {
-          const discountRatio = originalInvoice.discount / originalSubtotalBeforeOverallDiscount;
-          newOverallInvoiceDiscount = Math.round(newSubtotalAfterItemDiscounts * discountRatio);
-        }
-        const newFinalTotal = newSubtotalAfterItemDiscounts - newOverallInvoiceDiscount;
+        
+        // Overall discount is no longer a factor for new total calculation here
+        const newFinalTotal = newSubtotalAfterItemDiscounts; 
 
         if (newInvoiceItems.length === 0 || newFinalTotal <= 0) {
           updates[`invoices/${invoiceId}`] = null;
@@ -817,7 +875,7 @@ export default function FleurManagerPage() {
         } else {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newFinalTotal;
-          updates[`invoices/${invoiceId}/discount`] = newOverallInvoiceDiscount;
+          updates[`invoices/${invoiceId}/discount`] = 0; // Set overall discount to 0 on partial return
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi trừ khi được xử lý riêng.", variant: "default" });
         }
         await update(ref(db), updates);
@@ -1045,6 +1103,7 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 
 
 

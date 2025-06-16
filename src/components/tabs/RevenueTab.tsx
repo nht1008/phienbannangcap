@@ -11,13 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from '@/components/ui/button';
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -61,7 +61,8 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const { month: filterMonth, year: filterYear } = filterProp;
 
-  const invoicesWithoutDebt = useMemo(() => {
+  // This is used for the chart, which specifically states it only counts non-debt invoices
+  const invoicesWithoutDebtForChart = useMemo(() => {
     return invoices.filter(inv => !inv.debtAmount || inv.debtAmount === 0);
   }, [invoices]);
 
@@ -75,76 +76,75 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    if (filterMonth !== 'all' && filterYear !== 'all') { 
+    // Use invoicesWithoutDebtForChart for chart calculations
+    const invoicesForChart = invoicesWithoutDebtForChart;
+
+    if (filterMonth !== 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
         newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày. (Chỉ tính hóa đơn không có nợ)`;
-        
+
         const yearNum = parseInt(filterYear);
-        const monthNum = parseInt(filterMonth); 
+        const monthNum = parseInt(filterMonth);
         const daysInSelectedMonth = getDaysInMonth(monthNum, yearNum);
 
         for (let day = 1; day <= daysInSelectedMonth; day++) {
-            const dayStr = day.toString(); // Use only day for name "1", "2", etc. for sorting
+            const dayStr = day.toString();
             aggregatedData[dayStr] = { doanhthu: 0, giagoc: 0 };
         }
 
-        invoices.forEach(invoice => { 
+        invoicesForChart.forEach(invoice => {
             const dateObj = new Date(invoice.date);
             if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
                 const dayStr = dateObj.getDate().toString();
-                
-                if (aggregatedData[dayStr] && (!invoice.debtAmount || invoice.debtAmount === 0)) { 
+                if (aggregatedData[dayStr]) { // Already filtered by invoicesWithoutDebtForChart
                      aggregatedData[dayStr].doanhthu += invoice.total;
                      aggregatedData[dayStr].giagoc += calculateInvoiceCost(invoice);
                 }
             }
         });
-        
-        finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({ 
-                name: name.padStart(2, '0'), // Pad day with zero for display "01", "02"
-                doanhthu: data.doanhthu, 
-                giagoc: data.giagoc, 
-                loinhuan: data.doanhthu - data.giagoc 
-            }))
-            .sort((a, b) => parseInt(a.name) - parseInt(b.name)); 
 
-    } else if (filterMonth !== 'all' /* && filterYear === 'all' - This case is no longer distinct */) { 
+        finalChartData = Object.entries(aggregatedData)
+            .map(([name, data]) => ({
+                name: name.padStart(2, '0'),
+                doanhthu: data.doanhthu,
+                giagoc: data.giagoc,
+                loinhuan: data.doanhthu - data.giagoc
+            }))
+            .sort((a, b) => parseInt(a.name) - parseInt(b.name));
+
+    } else if (filterMonth !== 'all' /* && filterYear === 'all' */) {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
         newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm. (Chỉ tính hóa đơn không có nợ)`;
-        
-        invoices.forEach(invoice => { 
+
+        invoicesForChart.forEach(invoice => {
             const dateObj = new Date(invoice.date);
-             if ((dateObj.getMonth() + 1) === parseInt(filterMonth)) { 
-                const dayOfMonth = dateObj.getDate().toString().padStart(2, '0'); 
+             if ((dateObj.getMonth() + 1) === parseInt(filterMonth)) {
+                const dayOfMonth = dateObj.getDate().toString().padStart(2, '0');
                 const yearSuffix = filterYear === 'all' ? `/${dateObj.getFullYear().toString().slice(-2)}` : '';
                 const nameKey = `${dayOfMonth}${yearSuffix}`;
-
 
                 if (!aggregatedData[nameKey]) {
                     aggregatedData[nameKey] = { doanhthu: 0, giagoc: 0 };
                 }
-                if(!invoice.debtAmount || invoice.debtAmount === 0) {
-                    aggregatedData[nameKey].doanhthu += invoice.total;
-                    aggregatedData[nameKey].giagoc += calculateInvoiceCost(invoice);
-                }
+                aggregatedData[nameKey].doanhthu += invoice.total;
+                aggregatedData[nameKey].giagoc += calculateInvoiceCost(invoice);
             }
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({ 
-                name, 
-                doanhthu: data.doanhthu, 
-                giagoc: data.giagoc, 
-                loinhuan: data.doanhthu - data.giagoc 
-            })) 
-            .sort((a, b) => { 
+            .map(([name, data]) => ({
+                name,
+                doanhthu: data.doanhthu,
+                giagoc: data.giagoc,
+                loinhuan: data.doanhthu - data.giagoc
+            }))
+            .sort((a, b) => {
                 const [dayA, yearA] = a.name.split('/').map(Number);
                 const [dayB, yearB] = b.name.split('/').map(Number);
                 if (dayA !== dayB) return dayA - dayB;
                 return (yearA || 0) - (yearB || 0);
             });
-            
-    } else if (filterMonth === 'all' && filterYear !== 'all') { 
+
+    } else if (filterMonth === 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích theo tháng (Năm ${filterYear})`;
         newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng tháng trong Năm ${filterYear}. (Chỉ tính hóa đơn không có nợ)`;
         const yearNum = parseInt(filterYear);
@@ -153,61 +153,60 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             aggregatedData[monthKey] = { doanhthu: 0, giagoc: 0 };
         }
 
-        invoices.forEach(invoice => {
+        invoicesForChart.forEach(invoice => {
             const dateObj = new Date(invoice.date);
             if (dateObj.getFullYear() === yearNum) {
                 const monthKey = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-                if (aggregatedData[monthKey] && (!invoice.debtAmount || invoice.debtAmount === 0)) {
+                if (aggregatedData[monthKey]) {
                     aggregatedData[monthKey].doanhthu += invoice.total;
                     aggregatedData[monthKey].giagoc += calculateInvoiceCost(invoice);
                 }
             }
         });
         finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({ 
-                name: `T${name}`, 
-                doanhthu: data.doanhthu, 
-                giagoc: data.giagoc, 
-                loinhuan: data.doanhthu - data.giagoc 
+            .map(([name, data]) => ({
+                name: `T${name}`,
+                doanhthu: data.doanhthu,
+                giagoc: data.giagoc,
+                loinhuan: data.doanhthu - data.giagoc
             }))
             .sort((a,b) => parseInt(a.name.substring(1)) - parseInt(b.name.substring(1)));
-            
-    } else { 
+
+    } else { // filterMonth === 'all' && filterYear === 'all'
         newChartTitle = "Phân tích theo năm";
         newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Chỉ tính hóa đơn không có nợ)";
-        invoices.forEach(invoice => {
+        invoicesForChart.forEach(invoice => {
             const yearKey = new Date(invoice.date).getFullYear().toString();
             if (!aggregatedData[yearKey]) {
                 aggregatedData[yearKey] = { doanhthu: 0, giagoc: 0 };
             }
-            if(!invoice.debtAmount || invoice.debtAmount === 0) {
-                aggregatedData[yearKey].doanhthu += invoice.total;
-                aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
-            }
+            aggregatedData[yearKey].doanhthu += invoice.total;
+            aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
         });
         finalChartData = Object.entries(aggregatedData)
             .map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
             .sort((a,b) => parseInt(a.name) - parseInt(b.name));
     }
     return { chartData: finalChartData, chartTitle: newChartTitle, chartDescription: newChartDescription };
-  }, [invoices, filterMonth, filterYear]);
+  }, [invoicesWithoutDebtForChart, filterMonth, filterYear]); // Use invoicesWithoutDebtForChart for chart
 
 
-  const totalRevenue = useMemo(() => 
-    invoicesWithoutDebt.reduce((sum, inv) => sum + inv.total, 0), 
-    [invoicesWithoutDebt]
+  // Calculations for summary cards - use all invoices within the filter period
+  const totalRevenue = useMemo(() =>
+    invoices.reduce((sum, inv) => sum + inv.total, 0),
+    [invoices] // Use all filtered invoices
   );
 
   const totalCostPriceForPeriod = useMemo(() =>
-    invoicesWithoutDebt.reduce((totalCost, invoice) => {
+    invoices.reduce((totalCost, invoice) => {
       const invoiceCost = invoice.items.reduce((itemSum, item) => itemSum + (item.costPrice ?? 0) * item.quantityInCart, 0);
       return totalCost + invoiceCost;
     }, 0),
-    [invoicesWithoutDebt]
+    [invoices] // Use all filtered invoices
   );
 
   const totalProfitForPeriod = useMemo(() => totalRevenue - totalCostPriceForPeriod, [totalRevenue, totalCostPriceForPeriod]);
-  const totalInvoicesCount = invoices.length; 
+  const totalInvoicesCount = invoices.length;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -248,13 +247,13 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             </SelectContent>
           </Select>
         </div>
-        <Button 
+        <Button
             onClick={() => {
                 const now = new Date();
-                onFilterChange({ 
-                    day: 'all', 
-                    month: (now.getMonth() + 1).toString(), 
-                    year: now.getFullYear().toString() 
+                onFilterChange({
+                    day: 'all',
+                    month: (now.getMonth() + 1).toString(),
+                    year: now.getFullYear().toString()
                 });
             }}
             variant="outline"
@@ -263,12 +262,12 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             Tháng này
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-primary/10 border-primary">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-primary">Tổng doanh thu</CardTitle>
-            <CardDescription className="text-xs">(Đã thu, theo bộ lọc)</CardDescription>
+            <CardDescription className="text-xs">(Tổng giá trị hóa đơn, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
             <p className={cn("font-bold text-primary", numericDisplaySize)}>{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
@@ -277,7 +276,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         <Card className="bg-chart-2/10 border-[hsl(var(--chart-2))]">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-[hsl(var(--chart-2))]">Tổng giá gốc</CardTitle>
-             <CardDescription className="text-xs">(Hàng đã bán, đã thu, theo bộ lọc)</CardDescription>
+             <CardDescription className="text-xs">(Giá gốc hàng đã bán, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
             <p className={cn("font-bold text-[hsl(var(--chart-2))]", numericDisplaySize)}>{totalCostPriceForPeriod.toLocaleString('vi-VN')} VNĐ</p>
@@ -286,7 +285,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         <Card className="bg-success/10 border-[hsl(var(--success))]">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-[hsl(var(--success))]">Tổng lợi nhuận</CardTitle>
-             <CardDescription className="text-xs">(Từ doanh thu đã thu, theo bộ lọc)</CardDescription>
+             <CardDescription className="text-xs">(Dựa trên tổng hóa đơn, theo bộ lọc)</CardDescription>
           </CardHeader>
           <CardContent>
             <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
@@ -358,30 +357,21 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                   {invoices.map(invoice => {
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
                     const actualInvoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
-                    
-                    let displayTotalForTable: number;
-                    let displayInvoiceCostForTable: number;
-                    let displayInvoiceProfitForTable: number;
 
-                    if (hasDebt) {
-                        displayTotalForTable = invoice.amountPaid || 0; 
-                        displayInvoiceCostForTable = actualInvoiceCost; 
-                        displayInvoiceProfitForTable = (invoice.amountPaid || 0) - actualInvoiceCost;
-
-                    } else { 
-                        displayTotalForTable = invoice.total;
-                        displayInvoiceCostForTable = actualInvoiceCost;
-                        displayInvoiceProfitForTable = invoice.total - actualInvoiceCost;
-                    }
+                    // For the table, we always show the full invoice total, cost, and profit based on that total.
+                    // The "Tiền nợ" column will indicate if it's not fully paid.
+                    const tableDisplayTotal = invoice.total;
+                    const tableDisplayCost = actualInvoiceCost;
+                    const tableDisplayProfit = tableDisplayTotal - tableDisplayCost;
 
                     return (
                       <TableRow key={invoice.id} className={ hasDebt ? 'bg-destructive/5 hover:bg-destructive/10' : ''}>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell className="text-right">{displayTotalForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right">{displayInvoiceCostForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell className="text-right">{displayInvoiceProfitForTable.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{tableDisplayTotal.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{tableDisplayCost.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right">{tableDisplayProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right text-[hsl(var(--destructive))]">{(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-center">
                           <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
@@ -454,15 +444,15 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
                  <>
                     <Separator className="my-3" />
                      <div className={cn(
-                          "flex justify-between text-sm", 
-                           selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && 
-                           ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 
+                          "flex justify-between text-sm",
+                           selectedInvoiceDetails.paymentMethod === 'Tiền mặt' &&
+                           ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0
                            ? 'text-[hsl(var(--success))]' : 'text-foreground'
                         )}>
                         <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                         <span>
-                            {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) 
-                              ? selectedInvoiceDetails.total 
+                            {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0)
+                              ? selectedInvoiceDetails.total
                               : (selectedInvoiceDetails.amountPaid ?? 0)
                             ).toLocaleString('vi-VN')} VNĐ
                         </span>
@@ -490,4 +480,3 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
-

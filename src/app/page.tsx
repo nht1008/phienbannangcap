@@ -154,8 +154,8 @@ interface FleurManagerLayoutContentProps {
   setOverallFontSize: React.Dispatch<React.SetStateAction<OverallFontSize>>;
   numericDisplaySize: NumericDisplaySize;
   setNumericDisplaySize: React.Dispatch<React.SetStateAction<NumericDisplaySize>>;
-  isAdmin: boolean; // Super admin (based on ADMIN_EMAIL)
-  hasFullAccessRights: boolean; // Admin or Manager
+  isCurrentUserAdmin: boolean; 
+  hasFullAccessRights: boolean; 
   availableInvoiceYears: string[];
   availableDebtYears: string[];
   filteredInvoicesForRevenue: Invoice[];
@@ -173,7 +173,7 @@ interface FleurManagerLayoutContentProps {
   handleAddCustomer: (newCustomerData: Omit<Customer, "id">) => Promise<void>;
   handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, "id">) => Promise<void>;
   handleDeleteCustomer: (customerId: string) => Promise<void>;
-  handleDeleteDebt: (debtId: string) => void; // Changed from handleConfirmDeleteDebt
+  handleDeleteDebt: (debtId: string) => void; 
   handleSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
   handleSignOut: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<User | null>;
@@ -193,7 +193,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
-    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isAdmin, hasFullAccessRights, availableInvoiceYears,
+    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, hasFullAccessRights, availableInvoiceYears,
     availableDebtYears, filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
     handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
@@ -291,13 +291,13 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onDeleteDebt={handleDeleteDebt}
                     onToggleEmployeeRole={handleToggleEmployeeRole}
                     adminEmail={ADMIN_EMAIL}
-                    isCurrentUserAdmin={isAdmin}
+                    isCurrentUserAdmin={isCurrentUserAdmin}
                   />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData, cart, currentUser, numericDisplaySize,
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
-      filteredDebtsForDebtTab, debtFilter, availableInvoiceYears, availableDebtYears, isAdmin,
+      filteredDebtsForDebtTab, debtFilter, availableInvoiceYears, availableDebtYears, isCurrentUserAdmin,
       handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct,
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
@@ -525,13 +525,17 @@ export default function FleurManagerPage() {
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
   const [isConfirmingDebtDelete, setIsConfirmingDebtDelete] = useState(false);
 
-  const isAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
+  const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
 
   const hasFullAccessRights = useMemo(() => {
-    if (!currentUser || !currentUserEmployeeData) return false;
-    return currentUser.email === ADMIN_EMAIL || currentUserEmployeeData.position === 'ADMIN' || currentUserEmployeeData.position === 'Quản lý';
-  }, [currentUser, currentUserEmployeeData, ADMIN_EMAIL]);
+    if (!currentUser) return false; // No user, no rights
+    if (currentUser.email === ADMIN_EMAIL) return true; // Super admin has full rights
+    if (currentUserEmployeeData) {
+      return currentUserEmployeeData.position === 'Quản lý' || currentUserEmployeeData.position === 'ADMIN';
+    }
+    return false; // Default to no full access if not super admin and no employee record or not manager/admin
+  }, [currentUser, currentUserEmployeeData]);
 
 
   useEffect(() => {
@@ -570,18 +574,19 @@ export default function FleurManagerPage() {
         setEmployeesData(finalSortedEmployees);
 
         const currentUserEmployeeRecord = finalSortedEmployees.find(emp => emp.id === currentUser.uid);
+
         if (!currentUser.displayName || !currentUserEmployeeRecord) {
             setIsSettingName(true);
         } else if (currentUser.email === ADMIN_EMAIL && currentUserEmployeeRecord && currentUserEmployeeRecord.position !== 'ADMIN') {
-             setIsSettingName(true); // Force name set if super admin is not marked as ADMIN in DB
-        }
-        else {
+             setIsSettingName(true); 
+        } else {
             setIsSettingName(false);
         }
     });
 
     let unsubscribeShopInfo = () => {};
-    if (hasFullAccessRights) { // Changed from isAdmin to hasFullAccessRights
+    // Shop info is loaded if user has full access rights (ADMIN or Manager)
+    if (hasFullAccessRights) { 
         setIsLoadingShopInfo(true);
         const shopInfoRef = ref(db, 'shopInfo');
         unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
@@ -605,6 +610,10 @@ export default function FleurManagerPage() {
             toast({ title: "Lỗi tải thông tin cửa hàng", description: error.message, variant: "destructive" });
             setIsLoadingShopInfo(false);
         });
+    } else {
+        // If user does not have full access, set shopInfo to null and not loading
+        setShopInfo(null);
+        setIsLoadingShopInfo(false);
     }
     return () => { unsubscribeEmployees(); unsubscribeShopInfo(); };
   }, [currentUser, authLoading, hasFullAccessRights, toast]);
@@ -674,7 +683,6 @@ export default function FleurManagerPage() {
                     newDiscountForItem = 0;
                     inputWasInvalid = true;
                 } else {
-                    // Check against product-specific max discount FIRST
                     if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND !== null && item.maxDiscountPerUnitVND >= 0) {
                         const maxAllowedLineItemDiscount = item.maxDiscountPerUnitVND * item.quantityInCart;
                         if (newDiscountForItem > maxAllowedLineItemDiscount) {
@@ -683,7 +691,6 @@ export default function FleurManagerPage() {
                             inputWasInvalid = true;
                         }
                     }
-                    // THEN check if it exceeds the item's total price (after possibly being capped above)
                     if (newDiscountForItem > itemOriginalTotal) {
                          toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
                         newDiscountForItem = itemOriginalTotal;
@@ -723,15 +730,13 @@ export default function FleurManagerPage() {
   const handleConfirmDeleteDebt = async () => {
     if (!debtToDelete) return;
     try {
-      // Check if this debt is linked to an invoice
       if (debtToDelete.invoiceId) {
         const invoiceRef = ref(db, `invoices/${debtToDelete.invoiceId}`);
         const invoiceSnapshot = await get(invoiceRef);
         if (invoiceSnapshot.exists()) {
           const invoiceData = invoiceSnapshot.val() as Invoice;
-          // If debtAmount matches the debt being deleted, clear it from invoice
           if (invoiceData.debtAmount && invoiceData.debtAmount === debtToDelete.amount) {
-            await update(invoiceRef, { debtAmount: 0 }); // Or remove debtAmount field
+            await update(invoiceRef, { debtAmount: 0 }); 
           }
         }
       }
@@ -762,7 +767,7 @@ export default function FleurManagerPage() {
       newPosition = 'Quản lý';
     } else if (currentPosition === 'Quản lý') {
       newPosition = 'Nhân viên';
-    } else { // Should not happen for non-ADMIN_EMAIL users if logic is correct
+    } else { 
       toast({ title: "Lỗi", description: "Thao tác không hợp lệ cho vai trò hiện tại.", variant: "destructive" });
       return;
     }
@@ -817,7 +822,7 @@ export default function FleurManagerPage() {
         setOverallFontSize={setOverallFontSize}
         numericDisplaySize={numericDisplaySize}
         setNumericDisplaySize={setNumericDisplaySize}
-        isAdmin={isAdmin}
+        isCurrentUserAdmin={isCurrentUserAdmin}
         hasFullAccessRights={hasFullAccessRights}
         availableInvoiceYears={availableInvoiceYears}
         availableDebtYears={availableDebtYears}
@@ -873,3 +878,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

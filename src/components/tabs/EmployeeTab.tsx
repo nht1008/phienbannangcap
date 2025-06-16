@@ -85,7 +85,7 @@ interface EmployeeTabProps {
   onDeleteDebt: (debtId: string) => void;
   onToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
   adminEmail: string;
-  isCurrentUserAdmin: boolean; // True if the logged-in user is the super admin (ADMIN_EMAIL)
+  isCurrentUserAdmin: boolean; 
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -108,8 +108,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
   });
 
   const displayEmployees = useMemo(() => {
-    if (isCurrentUserAdmin) return employees; // Super admin sees all
-    // Non-super admin (Manager or Employee) sees Admin and self
+    if (isCurrentUserAdmin) return employees; 
     const adminEmployee = employees.find(emp => emp.email === adminEmail);
     const selfEmployee = employees.find(emp => emp.id === currentUser?.uid);
     const result = [];
@@ -166,7 +165,6 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
   }, [totalSalesByEmployee, totalDebtCollectedByEmployee]);
 
   const handleSelectEmployee = (employee: Employee) => {
-    // Super admin can select anyone. Others can select Admin or self.
     if (isCurrentUserAdmin || employee.email === adminEmail || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
         const today = new Date();
@@ -265,7 +263,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                                 >
                                   {emp.position === 'Nhân viên' ? (
                                     <UserCog className="h-4 w-4 text-blue-600" />
-                                  ) : ( // emp.position === 'Quản lý'
+                                  ) : ( 
                                     <UserX className="h-4 w-4 text-orange-600" />
                                   )}
                                 </Button>
@@ -553,3 +551,4 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     </Card>
   );
 }
+

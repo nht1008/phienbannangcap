@@ -53,7 +53,7 @@ interface SalesTabProps {
   cart: CartItem[];
   onAddToCart: (item: Product) => void;
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
-  onItemDiscountChange: (itemId: string, discountNghinStr: string) => void;
+  onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean; // Updated signature
   onClearCart: () => void;
   productQualityOptions: string[];
 }
@@ -124,7 +124,7 @@ export function SalesTab({
   const areAllItemDiscountsValid = useMemo(() => {
     return cart.every(item => {
       const itemOriginalTotal = item.price * item.quantityInCart;
-      return (item.itemDiscount || 0) <= itemOriginalTotal;
+      return (item.itemDiscount || 0) <= itemOriginalTotal && (item.itemDiscount || 0) >= 0;
     });
   }, [cart]);
 
@@ -363,6 +363,17 @@ export function SalesTab({
     return null;
   }, [inventory, selectedProductNameForVariants, variantSelection]);
 
+  const handleItemDiscountInputChange = (itemId: string, discountStr: string) => {
+    const wasInvalidInput = onItemDiscountChange(itemId, discountStr); 
+    if (wasInvalidInput) {
+      showLocalNotification("Giá trị giảm giá đã được tự động điều chỉnh. Vui lòng kiểm tra lại.", "error");
+    } else {
+      if (localNotification && localNotification.includes("giảm giá")) {
+        setLocalNotification(null);
+      }
+    }
+  };
+
 
   return (
     <>
@@ -386,7 +397,7 @@ export function SalesTab({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                    <Command shouldFilter={false}> {/* Filtering is handled by the .filter() below */}
+                    <Command shouldFilter={false}>
                       <CommandInput
                         placeholder="Gõ tên, màu, chất lượng, size hoặc đơn vị..."
                         value={productSearchQuery}
@@ -415,7 +426,7 @@ export function SalesTab({
                                 }}
                                 className="cursor-pointer"
                               >
-                               <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto_auto] gap-x-2 items-center w-full text-xs py-1">
+                               <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 items-center w-full text-xs py-1">
                                   <Image
                                     src={variant.image || `https://placehold.co/24x24.png`}
                                     alt={variant.name}
@@ -572,7 +583,7 @@ export function SalesTab({
                                   id={`item-discount-${item.id}`}
                                   type="number"
                                   value={typeof item.itemDiscount === 'number' ? (item.itemDiscount / 1000).toString() : ""}
-                                  onChange={(e) => onItemDiscountChange(item.id, e.target.value)}
+                                  onChange={(e) => handleItemDiscountInputChange(item.id, e.target.value)}
                                   min="0"
                                   step="0.1"
                                   className="h-8 w-full bg-card text-xs p-1 hide-number-spinners text-center"
@@ -907,4 +918,5 @@ export function SalesTab({
     </>
   );
 }
+
 

@@ -150,8 +150,6 @@ export function SalesTab({
         maxPossibleDiscountForItem = Math.min(itemLineTotal, productSpecificMaxLineDiscount);
       }
       
-      // After correction by page.tsx, itemDiscount should be <= maxPossibleDiscountForItem
-      // We check if it's effectively at this maximum.
       return actualItemDiscount >= maxPossibleDiscountForItem;
     });
   }, [cart]);
@@ -177,7 +175,7 @@ export function SalesTab({
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
     setOverallDiscountStr(isEveryItemAtMaxPossibleDiscount ? '0' : '');
-    setAmountPaidStr((finalTotalAfterAllDiscounts / 1000).toString());
+    setAmountPaidStr(''); // Set to empty string
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
@@ -382,8 +380,8 @@ export function SalesTab({
 
   return (
     <>
-      <div className="p-4 md:p-6">
-        <div className="flex flex-col gap-6">
+      <div className="p-4 md:p-6 h-full flex flex-col">
+        <div className="flex flex-col gap-6 flex-1 overflow-y-auto">
             <div className="space-y-6">
               <div className="p-4 bg-muted/30 rounded-lg">
                 <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
@@ -495,18 +493,18 @@ export function SalesTab({
               </div>
             </div>
 
-          <Card>
+          <Card className="mt-6 flex flex-col flex-1">
             <CardHeader>
               <CardTitle className="flex items-center text-xl">
                   <ShoppingCart className="mr-2 h-6 w-6 text-primary"/>
                   Giỏ hàng ({cart.reduce((acc, item) => acc + item.quantityInCart, 0)})
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex-1 overflow-hidden">
               {cart.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 px-3">Giỏ hàng trống</p>
               ) : (
-                <ScrollArea className="max-h-[calc(100vh-20rem)]">
+                <ScrollArea className="h-full"> {/* Adjusted for flex */}
                   <Table>
                     <TableHeader>
                       <TableRow>

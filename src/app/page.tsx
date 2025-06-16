@@ -63,7 +63,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, Flower2 } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock } from 'lucide-react'; // Removed Flower2 import
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -182,9 +182,36 @@ export default function FleurManagerPage() {
         const shopInfoRef = ref(db, 'shopInfo');
         const unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
             if (snapshot.exists()) {
-                setShopInfo(snapshot.val() as ShopInfo);
+                 const dbShopInfo = snapshot.val() as ShopInfo;
+                 // Ensure all invoice setting fields are present
+                 setShopInfo({
+                    ...{ // Default values for invoice settings
+                        showShopLogoOnInvoice: true,
+                        showShopAddressOnInvoice: true,
+                        showShopPhoneOnInvoice: true,
+                        showShopBankDetailsOnInvoice: true,
+                        showEmployeeNameOnInvoice: true,
+                        invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
+                    },
+                    ...dbShopInfo // Override with values from DB if they exist
+                 });
             } else {
-                setShopInfo({ name: '', address: '', phone: '', logoUrl: '', bankAccountName: '', bankAccountNumber: '', bankName: '' }); 
+                // Set default values including invoice settings if shopInfo doesn't exist
+                setShopInfo({ 
+                    name: '', 
+                    address: '', 
+                    phone: '', 
+                    logoUrl: '', 
+                    bankAccountName: '', 
+                    bankAccountNumber: '', 
+                    bankName: '',
+                    showShopLogoOnInvoice: true,
+                    showShopAddressOnInvoice: true,
+                    showShopPhoneOnInvoice: true,
+                    showShopBankDetailsOnInvoice: true,
+                    showEmployeeNameOnInvoice: true,
+                    invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
+                }); 
             }
             setIsLoadingShopInfo(false);
         }, (error) => {
@@ -888,6 +915,7 @@ export default function FleurManagerPage() {
                   filter={invoiceFilter}
                   onFilterChange={handleInvoiceFilterChange}
                   availableYears={availableInvoiceYears}
+                  shopInfo={shopInfo}
                 />,
     'Công nợ': <DebtTab
                   debts={filteredDebtsForDebtTab}
@@ -918,7 +946,7 @@ export default function FleurManagerPage() {
                     numericDisplaySize={numericDisplaySize}
                   />,
   }), [
-      inventory, customersData, invoicesData, debtsData, employeesData,
+      inventory, customersData, invoicesData, debtsData, employeesData, shopInfo,
       currentUser, numericDisplaySize,
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
@@ -1008,17 +1036,21 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-            {shopInfo && shopInfo.logoUrl ? (
+            {shopInfo && shopInfo.logoUrl && (
                 <Image 
                     src={shopInfo.logoUrl} 
                     alt={shopInfo.name || "Shop Logo"} 
                     width={56} 
                     height={56} 
                     className="object-contain rounded-sm"
-                    data-ai-hint="shop brand" 
+                    data-ai-hint="shop brand"
+                    onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        // Optionally, set a default placeholder or hide if broken
+                        // For now, we'll just log, as the absence of a logo is handled by showing nothing
+                        console.error("Error loading shop logo in sidebar:", target.src);
+                    }}
                 />
-            ) : (
-                <Flower2 className="h-12 w-12 text-primary" />
             )}
           </SidebarHeader>
           <SidebarContent>
@@ -1174,6 +1206,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

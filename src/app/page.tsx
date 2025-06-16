@@ -109,14 +109,15 @@ export interface DateFilter {
   year: string;
 }
 
-const getCurrentDateFilter = (): DateFilter => {
+const getCurrentDateFilter = (includeDay: boolean = true): DateFilter => {
   const now = new Date();
   return {
-    day: now.getDate().toString(),
+    day: includeDay ? now.getDate().toString() : 'all',
     month: (now.getMonth() + 1).toString(),
     year: now.getFullYear().toString(),
   };
 };
+
 
 const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
 
@@ -215,7 +216,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
     'Bán hàng': <SalesTab
                     inventory={inventory}
-                    customers={customers}
+                    customers={customersData}
                     onCreateInvoice={handleCreateInvoice}
                     currentUser={currentUser}
                     numericDisplaySize={numericDisplaySize}

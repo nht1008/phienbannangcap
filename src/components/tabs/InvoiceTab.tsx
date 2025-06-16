@@ -29,7 +29,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Undo2 } from 'lucide-react';
+import { Trash2, Undo2, Eye, Plus, Minus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -252,13 +252,15 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
                         </TableCell>
                         <TableCell>
-                          <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>Xem</Button>
+                          <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80" onClick={() => setSelectedInvoiceDetails(invoice)}>
+                            <Eye className="h-4 w-4 mr-1" /> Xem
+                          </Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)} title="Hoàn trả sản phẩm">
                             <Undo2 className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -409,7 +411,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableHead>Đơn vị</TableHead>
                     <TableHead className="text-right">Đơn giá</TableHead>
                     <TableHead className="text-center">Số lượng mua</TableHead>
-                    <TableHead className="text-center w-28">Hoàn trả</TableHead>
+                    <TableHead className="text-center w-40">Số lượng hoàn trả</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -423,15 +425,39 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                       <TableCell className="text-right text-xs">{itemData.price.toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
                       <TableCell className="text-center">
-                        <Input
-                          id={`return-qty-${productId}`}
-                          type="number"
-                          value={itemData.quantityToReturn}
-                          onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
-                          min="0"
-                          max={itemData.originalQuantityInCart.toString()}
-                          className="w-20 h-8 text-center bg-card hide-number-spinners"
-                        />
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={() => handleReturnItemQuantityChange(productId, (parseInt(itemData.quantityToReturn) - 1).toString())}
+                            disabled={parseInt(itemData.quantityToReturn) <= 0}
+                            aria-label="Giảm số lượng hoàn trả"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            id={`return-qty-${productId}`}
+                            type="number"
+                            value={itemData.quantityToReturn}
+                            onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
+                            min="0"
+                            max={itemData.originalQuantityInCart.toString()}
+                            className="w-12 h-7 text-center text-sm hide-number-spinners px-1 bg-card"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={() => handleReturnItemQuantityChange(productId, (parseInt(itemData.quantityToReturn) + 1).toString())}
+                            disabled={parseInt(itemData.quantityToReturn) >= itemData.originalQuantityInCart}
+                            aria-label="Tăng số lượng hoàn trả"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

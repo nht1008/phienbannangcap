@@ -359,7 +359,9 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                             <TableCell>{debtDate.toLocaleDateString('vi-VN')}</TableCell>
                             <TableCell>{debtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
                             <TableCell className="text-right">{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
-                            <TableCell>{debt.status}</TableCell>
+                            <TableCell className={cn(
+                                debt.status === 'Chưa thanh toán' ? 'text-destructive' : 'text-[hsl(var(--success))]'
+                            )}>{debt.status}</TableCell>
                             <TableCell>
                                 <div className="flex flex-col text-xs">
                                     {debt.createdEmployeeId === selectedEmployee?.id && debt.lastUpdatedEmployeeId !== selectedEmployee?.id && (

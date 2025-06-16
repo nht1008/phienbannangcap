@@ -65,7 +65,7 @@ interface EmployeeTabProps {
 
 export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [activityFilter, setActivityFilter] = useState<DateFilter>(() => getCurrentDateFilter(false)); 
+  const [activityFilter, setActivityFilter] = useState<DateFilter>(() => getCurrentDateFilter(true)); 
 
   const isAdmin = currentUser?.email === 'nthe1008@gmail.com';
 
@@ -148,7 +148,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
   const handleSelectEmployee = (employee: Employee) => {
     if (isAdmin || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
-        setActivityFilter(getCurrentDateFilter(false)); 
+        setActivityFilter(getCurrentDateFilter(true)); 
     } else {
         setSelectedEmployee(null); 
     }
@@ -403,4 +403,5 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     </Card>
   );
 }
+
 

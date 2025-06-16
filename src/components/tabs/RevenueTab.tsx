@@ -77,7 +77,7 @@ interface ProductPerformance {
 
 export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
-  const { month: filterMonth, year: filterYear } = filterProp;
+  const { month: filterMonth, year: filterYear, day: filterDay } = filterProp;
 
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
@@ -279,10 +279,29 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 p-3 bg-muted/30 rounded-lg items-end">
         <div>
+          <Label htmlFor="revenue-filter-day" className="text-sm">Ngày</Label>
+          <Select
+            value={filterDay}
+            onValueChange={(value) => onFilterChange({ day: value, month: filterMonth, year: filterYear })}
+          >
+            <SelectTrigger id="revenue-filter-day" className="w-full sm:w-28 bg-card h-9">
+              <SelectValue placeholder="Ngày" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả ngày</SelectItem>
+              {Array.from({ length: 31 }, (_, i) => (
+                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                  {i + 1}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label htmlFor="revenue-filter-month" className="text-sm">Tháng</Label>
           <Select
             value={filterMonth}
-            onValueChange={(value) => onFilterChange({ day: 'all', month: value, year: filterYear })}
+            onValueChange={(value) => onFilterChange({ day: filterDay, month: value, year: filterYear })}
           >
             <SelectTrigger id="revenue-filter-month" className="w-full sm:w-32 bg-card h-9">
               <SelectValue placeholder="Tháng" />
@@ -301,7 +320,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
           <Label htmlFor="revenue-filter-year" className="text-sm">Năm</Label>
           <Select
             value={filterYear}
-            onValueChange={(value) => onFilterChange({ day: 'all', month: filterMonth, year: value })}
+            onValueChange={(value) => onFilterChange({ day: filterDay, month: filterMonth, year: value })}
           >
             <SelectTrigger id="revenue-filter-year" className="w-full sm:w-32 bg-card h-9">
               <SelectValue placeholder="Năm" />
@@ -318,7 +337,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
             onClick={() => {
                 const now = new Date();
                 onFilterChange({
-                    day: 'all',
+                    day: now.getDate().toString(),
                     month: (now.getMonth() + 1).toString(),
                     year: now.getFullYear().toString()
                 });
@@ -326,7 +345,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
             variant="outline"
             className="h-9"
         >
-            Tháng này
+            Hôm nay
         </Button>
       </div>
 
@@ -665,10 +684,3 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
   );
 }
     
-
-
-
-
-
-
-

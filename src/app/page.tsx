@@ -109,10 +109,10 @@ export interface DateFilter {
   year: string;
 }
 
-const getCurrentMonthYearFilter = (): DateFilter => {
+const getCurrentDateFilter = (): DateFilter => {
   const now = new Date();
   return {
-    day: 'all',
+    day: now.getDate().toString(),
     month: (now.getMonth() + 1).toString(),
     year: now.getFullYear().toString(),
   };
@@ -215,7 +215,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
     'Bán hàng': <SalesTab
                     inventory={inventory}
-                    customers={customersData}
+                    customers={customers}
                     onCreateInvoice={handleCreateInvoice}
                     currentUser={currentUser}
                     numericDisplaySize={numericDisplaySize}
@@ -505,9 +505,9 @@ export default function FleurManagerPage() {
   const [productQualityOptions, setProductQualityOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
-  const [revenueFilter, setRevenueFilter] = useState<DateFilter>(getCurrentMonthYearFilter());
-  const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(initialAllDateFilter);
-  const [debtFilter, setDebtFilter] = useState<DateFilter>(initialAllDateFilter);
+  const [revenueFilter, setRevenueFilter] = useState<DateFilter>(getCurrentDateFilter());
+  const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(getCurrentDateFilter());
+  const [debtFilter, setDebtFilter] = useState<DateFilter>(getCurrentDateFilter());
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
@@ -643,7 +643,6 @@ export default function FleurManagerPage() {
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     const discountNghin = parseFloat(discountNghinStr);
     const rawDiscountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
-    let toastInfo: { title: string, description: string, variant: "destructive" } | null = null;
     let inputWasInvalid = false;
 
     setCart(prevCart => {
@@ -653,22 +652,22 @@ export default function FleurManagerPage() {
                 let newDiscountForItem = rawDiscountVND;
 
                 if (newDiscountForItem < 0) {
-                    toastInfo = { title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" };
+                    toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" });
                     newDiscountForItem = 0;
                     inputWasInvalid = true;
                 } else {
+                    // Check against product-specific max discount FIRST
                     if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND !== null && item.maxDiscountPerUnitVND >= 0) {
                         const maxAllowedLineItemDiscount = item.maxDiscountPerUnitVND * item.quantityInCart;
                         if (newDiscountForItem > maxAllowedLineItemDiscount) {
-                            toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho "${item.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" };
+                            toast({ title: "Lỗi giảm giá", description: `Giảm giá cho "${item.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
                             newDiscountForItem = maxAllowedLineItemDiscount;
                             inputWasInvalid = true;
                         }
                     }
+                    // THEN check if it exceeds the item's total price (after possibly being capped above)
                     if (newDiscountForItem > itemOriginalTotal) {
-                        if (!toastInfo) { 
-                            toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" };
-                        }
+                         toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
                         newDiscountForItem = itemOriginalTotal;
                         inputWasInvalid = true; 
                     }
@@ -677,10 +676,6 @@ export default function FleurManagerPage() {
             }
             return item;
         });
-
-        if (toastInfo) {
-            setTimeout(() => toast(toastInfo!), 0);
-        }
         return newCart;
     });
     return inputWasInvalid;
@@ -824,4 +819,5 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Invoice, CartItem, InvoiceCartItem, Employee } from '@/types';
 import type { DateFilter } from '@/app/page';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,7 @@ interface InvoiceTabProps {
 }
 
 type ReturnItemDetail = {
+  originalItemId: string; // The actual ID of the product from inventory
   originalQuantityInCart: number;
   quantityToReturn: string;
   name: string;
@@ -54,8 +55,8 @@ type ReturnItemDetail = {
   quality?: string;
   size: string;
   unit: string;
-  price: number;
-  itemDiscount?: number;
+  price: number; // Original price per unit
+  itemDiscount?: number; // Original total discount for this line item
 };
 
 export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears, hasFullAccessRights }: InvoiceTabProps) {
@@ -64,7 +65,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
   const [isReturnItemsDialogOpen, setIsReturnItemsDialogOpen] = useState(false);
   const [currentInvoiceForReturnDialog, setCurrentInvoiceForReturnDialog] = useState<Invoice | null>(null);
-  const [returnItemsState, setReturnItemsState] = useState<Record<string, ReturnItemDetail>>({});
+  const [returnItemsState, setReturnItemsState] = useState<Record<string, ReturnItemDetail>>({}); // Key is original item ID
 
   const { day: currentDay, month: currentMonth, year: currentYear } = filterProp;
 
@@ -83,7 +84,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     setCurrentInvoiceForReturnDialog(invoice);
     const initialReturnItems: Record<string, ReturnItemDetail> = {};
     invoice.items.forEach(item => {
+      // Use item.id (which is the productId) as the key
       initialReturnItems[item.id] = {
+        originalItemId: item.id,
         originalQuantityInCart: item.quantityInCart,
         quantityToReturn: "0",
         name: item.name,
@@ -92,7 +95,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         size: item.size,
         unit: item.unit,
         price: item.price,
-        itemDiscount: item.itemDiscount,
+        itemDiscount: item.itemDiscount, // Store the total discount for this line item
       };
     });
     setReturnItemsState(initialReturnItems);
@@ -116,12 +119,30 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     }));
   };
 
+  const calculatedTotalRefundAmount = useMemo(() => {
+    if (!currentInvoiceForReturnDialog || Object.keys(returnItemsState).length === 0) {
+      return 0;
+    }
+
+    let totalRefund = 0;
+    Object.values(returnItemsState).forEach(detail => {
+      const quantityToReturnNum = parseInt(detail.quantityToReturn);
+      if (quantityToReturnNum > 0) {
+        const originalItemDiscountPerUnit = (detail.itemDiscount || 0) / detail.originalQuantityInCart;
+        const effectivePricePerUnit = detail.price - originalItemDiscountPerUnit;
+        totalRefund += effectivePricePerUnit * quantityToReturnNum;
+      }
+    });
+    return totalRefund;
+  }, [returnItemsState, currentInvoiceForReturnDialog]);
+
+
   const handleConfirmSelectiveReturn = async () => {
     if (!currentInvoiceForReturnDialog) return;
 
-    const itemsToReturnForApi = Object.entries(returnItemsState)
-      .map(([productId, detail]) => ({
-        productId,
+    const itemsToReturnForApi = Object.values(returnItemsState)
+      .map((detail) => ({
+        productId: detail.originalItemId, // Use the stored original product ID
         name: detail.name,
         quantityToReturn: parseInt(detail.quantityToReturn) || 0,
       }))
@@ -477,15 +498,23 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 </TableBody>
               </Table>
             </ScrollArea>
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
-              <Button
-                onClick={handleConfirmSelectiveReturn}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                disabled={Object.values(returnItemsState).every(item => (parseInt(item.quantityToReturn) || 0) === 0)}
-              >
-                Xác nhận hoàn trả
-              </Button>
+             <DialogFooter className="mt-6 sm:justify-between items-center">
+              <div className="text-left mb-4 sm:mb-0">
+                <p className="text-sm font-medium text-muted-foreground">Số tiền hoàn lại (dự kiến):</p>
+                <p className="text-xl font-bold text-primary">
+                  {calculatedTotalRefundAmount.toLocaleString('vi-VN')} VNĐ
+                </p>
+              </div>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
+                <Button
+                  onClick={handleConfirmSelectiveReturn}
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  disabled={Object.values(returnItemsState).every(item => (parseInt(item.quantityToReturn) || 0) === 0)}
+                >
+                  Xác nhận hoàn trả
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

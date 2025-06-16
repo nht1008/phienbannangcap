@@ -685,39 +685,43 @@ export default function FleurManagerPage() {
     const rawDiscountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
     let inputWasInvalid = false;
 
-    setCart(prevCart => {
-        const newCart = prevCart.map(item => {
-            if (item.id === itemId) {
-                const itemOriginalTotal = item.price * item.quantityInCart;
-                let newDiscountForItem = rawDiscountVND;
+    const currentItemInCart = cart.find(i => i.id === itemId);
+    if (!currentItemInCart) {
+        console.error("Item not found in cart for discount change:", itemId);
+        return false; 
+    }
 
-                if (newDiscountForItem < 0) {
-                    toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" });
-                    newDiscountForItem = 0;
-                    inputWasInvalid = true;
-                } else {
-                    if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND !== null && item.maxDiscountPerUnitVND >= 0) {
-                        const maxAllowedLineItemDiscount = item.maxDiscountPerUnitVND * item.quantityInCart;
-                        if (newDiscountForItem > maxAllowedLineItemDiscount) {
-                            toast({ title: "Lỗi giảm giá", description: `Giảm giá cho "${item.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
-                            newDiscountForItem = maxAllowedLineItemDiscount;
-                            inputWasInvalid = true;
-                        }
-                    }
-                    if (newDiscountForItem > itemOriginalTotal) {
-                         toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
-                        newDiscountForItem = itemOriginalTotal;
-                        inputWasInvalid = true; 
-                    }
-                }
-                return { ...item, itemDiscount: newDiscountForItem };
+    const itemOriginalTotal = currentItemInCart.price * currentItemInCart.quantityInCart;
+    let validatedDiscountForItem = rawDiscountVND;
+
+    if (validatedDiscountForItem < 0) {
+        toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" });
+        validatedDiscountForItem = 0;
+        inputWasInvalid = true;
+    } else {
+        if (currentItemInCart.maxDiscountPerUnitVND !== undefined && currentItemInCart.maxDiscountPerUnitVND !== null && currentItemInCart.maxDiscountPerUnitVND >= 0) {
+            const maxAllowedLineItemDiscount = currentItemInCart.maxDiscountPerUnitVND * currentItemInCart.quantityInCart;
+            if (validatedDiscountForItem > maxAllowedLineItemDiscount) {
+                toast({ title: "Lỗi giảm giá", description: `Giảm giá cho "${currentItemInCart.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
+                validatedDiscountForItem = maxAllowedLineItemDiscount;
+                inputWasInvalid = true;
             }
-            return item;
-        });
-        return newCart;
-    });
+        }
+        if (validatedDiscountForItem > itemOriginalTotal) {
+             toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${currentItemInCart.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
+            validatedDiscountForItem = itemOriginalTotal;
+            inputWasInvalid = true;
+        }
+    }
+    
+    setCart(prevCart =>
+        prevCart.map(item =>
+            item.id === itemId ? { ...item, itemDiscount: validatedDiscountForItem } : item
+        )
+    );
+
     return inputWasInvalid;
-  }, [toast, setCart]);
+  }, [cart, toast, setCart]);
 
   const onClearCart = useCallback(() => { setCart([]); }, [setCart]);
   const handleCreateInvoice = useCallback(async (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, overallInvoiceDiscount: number, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => { try { const finalTotal = subtotalAfterItemDiscounts - overallInvoiceDiscount; let calculatedDebtAmount = 0; if (finalTotal < 0) { toast({ title: "Lỗi tính toán", description: "Tổng tiền sau giảm giá không thể âm. Vui lòng kiểm tra lại giảm giá.", variant: "destructive", }); return false; } if (finalTotal > amountPaid) { calculatedDebtAmount = finalTotal - amountPaid; if (isGuestCustomer || paymentMethod === 'Chuyển khoản') { toast({ title: "Lỗi thanh toán", description: "Khách lẻ hoặc thanh toán bằng Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ số tiền.", variant: "destructive", }); return false; } } const newInvoiceRef = push(ref(db, 'invoices')); const invoiceId = newInvoiceRef.key; if (!invoiceId) { throw new Error("Không thể tạo ID cho hóa đơn mới."); } const itemsForDb: InvoiceCartItem[] = invoiceCartItems.map(item => ({ id: item.id, name: item.name, quality: item.quality, quantityInCart: item.quantityInCart, price: item.price, costPrice: item.costPrice ?? 0, image: item.image, color: item.color, size: item.size, unit: item.unit, itemDiscount: item.itemDiscount || 0, maxDiscountPerUnitVND: item.maxDiscountPerUnitVND })); const newInvoiceData: Omit<Invoice, 'id'> = { customerName, items: itemsForDb, total: finalTotal, date: new Date().toISOString(), paymentMethod, discount: overallInvoiceDiscount, amountPaid, employeeId, employeeName: employeeName || 'Không rõ', ...(calculatedDebtAmount > 0 && { debtAmount: calculatedDebtAmount }), }; await set(newInvoiceRef, newInvoiceData); if (calculatedDebtAmount > 0) { const newDebtRef = push(ref(db, 'debts')); const newDebt: Omit<Debt, 'id'> = { supplier: customerName, amount: calculatedDebtAmount, date: new Date().toISOString(), status: 'Chưa thanh toán', invoiceId: invoiceId, createdEmployeeId: employeeId, createdEmployeeName: employeeName || 'Không rõ', }; await set(newDebtRef, newDebt); } const updates: { [key: string]: any } = {}; for (const cartItem of invoiceCartItems) { const productSnapshot = await get(child(ref(db), `inventory/${cartItem.id}`)); if (productSnapshot.exists()) { const currentQuantity = productSnapshot.val().quantity; updates[`inventory/${cartItem.id}/quantity`] = currentQuantity - cartItem.quantityInCart; } else { throw new Error(`Sản phẩm ID ${cartItem.id} không tồn tại để cập nhật số lượng.`); } } if (Object.keys(updates).length > 0) { await update(ref(db), updates); } toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" }); onClearCart(); return true; } catch (error) { console.error("Error creating invoice:", error); toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" }); return false; } }, [toast, onClearCart]);
@@ -925,7 +929,7 @@ export default function FleurManagerPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
                             Xóa công nợ
                         </AlertDialogAction>
                     </AlertDialogFooter>
@@ -935,5 +939,6 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 
 

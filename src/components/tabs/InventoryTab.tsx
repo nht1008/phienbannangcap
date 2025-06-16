@@ -629,7 +629,7 @@ export function InventoryTab({
                     {item.maxDiscountPerUnitVND === 0
                       ? '0 VNĐ'
                       : (item.maxDiscountPerUnitVND && item.maxDiscountPerUnitVND > 0)
-                        ? `${(item.maxDiscountPerUnitVND / 1000).toLocaleString('vi-VN')}K`
+                        ? `${item.maxDiscountPerUnitVND.toLocaleString('vi-VN')} VNĐ`
                         : 'Không GH'}
                   </TableCell>
                   <TableCell className="text-center space-x-1">

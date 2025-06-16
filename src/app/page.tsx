@@ -1089,18 +1089,18 @@ export default function FleurManagerPage() {
     <SidebarProvider>
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
-           <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
+           <SidebarHeader className="h-52 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
             {shopInfo && shopInfo.logoUrl ? (
                 <Image 
                     src={shopInfo.logoUrl} 
                     alt={shopInfo.name || "Shop Logo"} 
-                    width={64} 
-                    height={64} 
+                    width={192} 
+                    height={192} 
                     className="object-contain rounded-sm"
                     data-ai-hint="brand logo"
                     onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = 'https://placehold.co/64x64.png'; 
+                        target.src = 'https://placehold.co/192x192.png'; 
                     }}
                 />
             ) : null }
@@ -1258,6 +1258,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

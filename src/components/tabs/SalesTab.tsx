@@ -54,7 +54,7 @@ interface SalesTabProps {
   onAddToCart: (item: Product) => void;
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => void;
-  onClearCart: () => void; 
+  onClearCart: () => void;
   productQualityOptions: string[];
 }
 
@@ -74,11 +74,11 @@ interface AvailableVariants {
   units: string[];
 }
 
-export function SalesTab({ 
-    inventory, 
-    customers, 
-    onCreateInvoice, 
-    currentUser, 
+export function SalesTab({
+    inventory,
+    customers,
+    onCreateInvoice,
+    currentUser,
     numericDisplaySize,
     cart,
     onAddToCart,
@@ -192,7 +192,7 @@ export function SalesTab({
 
     const success = await onCreateInvoice(
         finalCustomerName,
-        cart, 
+        cart,
         subtotalAfterItemDiscounts,
         currentPaymentMethod,
         actualOverallInvoiceDiscountVND,
@@ -245,7 +245,7 @@ export function SalesTab({
     setIsVariantSelectorOpen(true);
   }, [inventory, showLocalNotification]);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
       const variantsMatchingNameAndColor = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
@@ -261,8 +261,8 @@ export function SalesTab({
         setVariantSelection(prev => ({ ...prev, quality: '', size: '', unit: '' }));
     }
   }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.quality]);
-  
-  useEffect(() => { 
+
+  useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality) {
       const variantsMatchingNameColorQuality = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
@@ -280,7 +280,7 @@ export function SalesTab({
     }
   }, [selectedProductNameForVariants, variantSelection.color, variantSelection.quality, inventory, variantSelection.size]);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size) {
       const variantsMatchingNameColorQualitySize = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
@@ -359,101 +359,107 @@ export function SalesTab({
       <div className="p-4 md:p-6">
         <div className="flex flex-col gap-6">
           {/* Product Selection Area */}
-          <div className="space-y-6">
-            <div className="p-4 bg-muted/30 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
-              <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={isProductSearchOpen}
-                    className="w-full justify-between bg-card text-foreground hover:text-foreground"
-                  >
-                    Tìm và thêm sản phẩm vào giỏ...
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      placeholder="Gõ tên, màu, chất lượng, size hoặc đơn vị..."
-                      value={productSearchQuery}
-                      onValueChange={setProductSearchQuery}
-                    />
-                    <CommandList>
-                      <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
-                      <CommandGroup>
-                        {distinctInStockVariants
-                          .filter(variant => {
-                            const normalizedLabel = normalizeStringForSearch(variant.displayLabel);
-                            const normalizedQuery = normalizeStringForSearch(productSearchQuery);
-                            return normalizedLabel.includes(normalizedQuery);
-                          })
-                          .map((variant) => (
-                            <CommandItem
-                              key={variant.id}
-                              value={variant.id} 
-                              onSelect={(currentValue) => { 
-                                const productToAdd = inventory.find(p => p.id === currentValue);
-                                if (productToAdd) {
-                                  onAddToCart(productToAdd);
-                                }
-                                setProductSearchQuery("");
-                                setIsProductSearchOpen(false);
-                              }}
-                            >
-                              <div className="flex flex-col w-full">
-                                <span className="font-medium">{variant.name} {variant.color} {variant.quality || ''} {variant.size} {variant.unit}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Giá: {variant.price.toLocaleString('vi-VN')} VNĐ - Tồn: {variant.quantity}
-                                </span>
-                              </div>
-                            </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {productsGroupedByName.map(group => (
-                  <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
-                    <CardContent className="p-4 flex-grow">
-                      <Image
-                        src={group.firstVariant.image || `https://placehold.co/100x100.png`}
-                        alt={group.name}
-                        width={100}
-                        height={100}
-                        className="w-24 h-24 mx-auto rounded-full object-cover mb-2 aspect-square"
-                        data-ai-hint={`${group.name.split(' ')[0]} flower`}
-                        onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
+            <div className="space-y-6">
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
+                <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isProductSearchOpen}
+                      className="w-full justify-between bg-card text-foreground hover:text-foreground"
+                    >
+                      Tìm và thêm sản phẩm vào giỏ...
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command shouldFilter={false}> {/* Filtering is handled by the .filter() below */}
+                      <CommandInput
+                        placeholder="Gõ tên, màu, chất lượng, size hoặc đơn vị..."
+                        value={productSearchQuery}
+                        onValueChange={setProductSearchQuery}
                       />
-                      <h4 className="font-semibold text-foreground">{group.name}</h4>
-                      <p className="text-xs text-muted-foreground">Tổng còn lại: {group.totalStock}</p>
-                    </CardContent>
-                    <CardFooter className="p-2">
-                      <Button
-                        onClick={() => openVariantSelector(group.name)}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
-                        size="sm"
-                        disabled={group.totalStock <= 0}
-                      >
-                        Thêm
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-                {productsGroupedByName.length === 0 && (
-                    <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
-                )}
+                      <CommandList>
+                        <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
+                        <CommandGroup>
+                          {distinctInStockVariants
+                            .filter(variant => {
+                              const normalizedLabel = normalizeStringForSearch(variant.displayLabel);
+                              const normalizedQuery = normalizeStringForSearch(productSearchQuery);
+                              return normalizedLabel.includes(normalizedQuery);
+                            })
+                            .map((variant) => (
+                              <CommandItem
+                                key={variant.id}
+                                value={variant.id}
+                                onSelect={(currentValue) => {
+                                  const productToAdd = inventory.find(p => p.id === currentValue);
+                                  if (productToAdd) {
+                                    onAddToCart(productToAdd);
+                                  }
+                                  setProductSearchQuery("");
+                                  setIsProductSearchOpen(false);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <div className="grid grid-cols-[2fr_1fr_1fr_1fr_0.5fr_1fr_0.5fr] gap-x-2 items-center w-full text-xs py-1">
+                                  <span className="font-medium truncate" title={variant.name}>{variant.name}</span>
+                                  <span className="truncate" title={variant.color}>{variant.color}</span>
+                                  <span className="truncate" title={variant.quality || ''}>{variant.quality || 'N/A'}</span>
+                                  <span className="truncate" title={variant.size}>{variant.size}</span>
+                                  <span className="truncate" title={variant.unit}>{variant.unit}</span>
+                                  <span className="text-right truncate" title={variant.price.toLocaleString('vi-VN') + ' VNĐ'}>
+                                    {variant.price.toLocaleString('vi-VN')}
+                                  </span>
+                                  <span className="text-right truncate" title={'Tồn: ' + variant.quantity.toString()}>{variant.quantity}</span>
+                                </div>
+                              </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {productsGroupedByName.map(group => (
+                    <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
+                      <CardContent className="p-4 flex-grow">
+                        <Image
+                          src={group.firstVariant.image || `https://placehold.co/100x100.png`}
+                          alt={group.name}
+                          width={100}
+                          height={100}
+                          className="w-24 h-24 mx-auto rounded-full object-cover mb-2 aspect-square"
+                          data-ai-hint={`${group.name.split(' ')[0]} flower`}
+                          onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
+                        />
+                        <h4 className="font-semibold text-foreground">{group.name}</h4>
+                        <p className="text-xs text-muted-foreground">Tổng còn lại: {group.totalStock}</p>
+                      </CardContent>
+                      <CardFooter className="p-2">
+                        <Button
+                          onClick={() => openVariantSelector(group.name)}
+                          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+                          size="sm"
+                          disabled={group.totalStock <= 0}
+                        >
+                          Thêm
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                  {productsGroupedByName.length === 0 && (
+                      <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
           {/* Cart Area */}
           <Card>
@@ -467,7 +473,7 @@ export function SalesTab({
               {cart.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 px-3">Giỏ hàng trống</p>
               ) : (
-                <ScrollArea className="max-h-[calc(100vh-20rem)]">
+                <ScrollArea className="max-h-[calc(100vh-20rem)]"> {/* Adjust max-h if needed */}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -881,4 +887,3 @@ export function SalesTab({
     </>
   );
 }
-

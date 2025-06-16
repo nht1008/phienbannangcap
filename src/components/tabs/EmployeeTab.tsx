@@ -130,76 +130,67 @@ export function EmployeeTab({
   const [editFormData, setEditFormData] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
   const { toast } = useToast();
 
-  const [userAccessRequests, setUserAccessRequests] = useState<UserAccessRequest[]>([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
-  const [isReviewUserAccessRequestsDialogOpen, setIsReviewUserAccessRequestsDialogOpen] = useState(false);
+  const [employeeAccessRequests, setEmployeeAccessRequests] = useState<UserAccessRequest[]>([]);
+  const [isLoadingEmployeeRequests, setIsLoadingEmployeeRequests] = useState(false);
+  const [isReviewEmployeeRequestsDialogOpen, setIsReviewEmployeeRequestsDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [requestToReject, setRequestToReject] = useState<UserAccessRequest | null>(null);
 
 
   useEffect(() => {
     if (isCurrentUserAdmin) {
-      setIsLoadingRequests(true);
+      setIsLoadingEmployeeRequests(true);
       const requestsRef = ref(db, 'userAccessRequests');
       const unsubscribe = onValue(requestsRef, (snapshot) => {
         const data = snapshot.val();
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
-            if (data[key].status === 'pending') {
+            if (data[key].status === 'pending' && data[key].requestedRole === 'employee') {
               loadedRequests.push({ id: key, ...data[key] });
             }
           });
         }
-        setUserAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
-        setIsLoadingRequests(false);
+        setEmployeeAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
+        setIsLoadingEmployeeRequests(false);
       }, (error) => {
-        console.error("Error fetching user access requests:", error);
-        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu người dùng.", variant: "destructive" });
-        setIsLoadingRequests(false);
+        console.error("Error fetching employee access requests:", error);
+        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu nhân viên.", variant: "destructive" });
+        setIsLoadingEmployeeRequests(false);
       });
       return () => unsubscribe();
     }
   }, [isCurrentUserAdmin, toast]);
 
-  const handleApproveRequest = async (request: UserAccessRequest) => {
-    if (!isCurrentUserAdmin || !currentUser) return;
+  const handleApproveEmployeeRequest = async (request: UserAccessRequest) => {
+    if (!isCurrentUserAdmin || !currentUser || request.requestedRole !== 'employee') return;
     try {
       const updates: Record<string, any> = {};
       updates[`userAccessRequests/${request.id}/status`] = 'approved';
       updates[`userAccessRequests/${request.id}/reviewedBy`] = currentUser.uid;
       updates[`userAccessRequests/${request.id}/reviewDate`] = new Date().toISOString();
-
-      if (request.requestedRole === 'employee') {
-        updates[`employees/${request.id}`] = {
-          name: request.name,
-          email: request.email,
-          phone: request.phone || '',
-          address: request.address || '',
-          position: 'Nhân viên' as EmployeePosition,
-        };
-      } else if (request.requestedRole === 'customer') {
-         updates[`customers/${request.id}`] = {
-          name: request.name,
-          email: request.email,
-          phone: request.phone || '',
-          address: request.address || '',
-        };
-      }
+      updates[`employees/${request.id}`] = {
+        name: request.name,
+        email: request.email,
+        phone: request.phone || '',
+        address: request.address || '', // Employees might not have address as mandatory
+        position: 'Nhân viên' as EmployeePosition, // Default to 'Nhân viên'
+      };
+      
       await update(ref(db), updates);
-      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của ${request.name}.`, variant: "default" });
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của nhân viên ${request.name}.`, variant: "default" });
     } catch (error) {
-      console.error("Error approving request:", error);
-      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu.", variant: "destructive" });
+      console.error("Error approving employee request:", error);
+      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu nhân viên.", variant: "destructive" });
     }
   };
 
-  const openRejectDialog = (request: UserAccessRequest) => {
+  const openRejectEmployeeDialog = (request: UserAccessRequest) => {
     setRequestToReject(request);
     setRejectionReason("");
   };
 
-  const handleConfirmRejectRequest = async () => {
+  const handleConfirmRejectEmployeeRequest = async () => {
     if (!isCurrentUserAdmin || !currentUser || !requestToReject) return;
     try {
       await update(ref(db, `userAccessRequests/${requestToReject.id}`), {
@@ -341,11 +332,11 @@ export function EmployeeTab({
             <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
             {isCurrentUserAdmin && (
               <Button
-                onClick={() => setIsReviewUserAccessRequestsDialogOpen(true)}
+                onClick={() => setIsReviewEmployeeRequestsDialogOpen(true)}
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary/10"
               >
-                <Users className="mr-2 h-4 w-4" /> Xét duyệt Yêu cầu ({userAccessRequests.length})
+                <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên ({employeeAccessRequests.length})
               </Button>
             )}
         </div>
@@ -461,16 +452,16 @@ export function EmployeeTab({
           </div>
         </div>
 
-        {isCurrentUserAdmin && userAccessRequests.length > 0 && (
+        {isCurrentUserAdmin && employeeAccessRequests.length > 0 && (
           <>
             <Separator className="my-6"/>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của người dùng ({userAccessRequests.length})</CardTitle>
+                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của nhân viên ({employeeAccessRequests.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground">
-                        Hiện có {userAccessRequests.length} yêu cầu đang chờ xử lý. Nhấn nút "Xét duyệt Yêu cầu" ở trên để quản lý.
+                        Hiện có {employeeAccessRequests.length} yêu cầu 'Nhân viên' đang chờ xử lý. Nhấn nút "Xét duyệt nhân viên" ở trên để quản lý.
                     </p>
                 </CardContent>
             </Card>
@@ -789,21 +780,21 @@ export function EmployeeTab({
         </Dialog>
       )}
 
-      {/* Dialog for reviewing user access requests */}
+      {/* Dialog for reviewing employee access requests */}
       {isCurrentUserAdmin && (
-        <Dialog open={isReviewUserAccessRequestsDialogOpen} onOpenChange={setIsReviewUserAccessRequestsDialogOpen}>
+        <Dialog open={isReviewEmployeeRequestsDialogOpen} onOpenChange={setIsReviewEmployeeRequestsDialogOpen}>
             <DialogContent className="sm:max-w-5xl"> {/* Increased width for better table display */}
                 <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu truy cập ({userAccessRequests.length})</DialogTitle>
+                    <DialogTitle>Xét duyệt yêu cầu nhân viên ({employeeAccessRequests.length})</DialogTitle>
                     <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu truy cập từ người dùng.
+                        Duyệt hoặc từ chối các yêu cầu truy cập với vai trò nhân viên.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="mt-4">
-                    {isLoadingRequests ? (
+                    {isLoadingEmployeeRequests ? (
                         <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : userAccessRequests.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
+                    ) : employeeAccessRequests.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nhân viên nào đang chờ xử lý.</p>
                     ) : (
                         <ScrollArea className="max-h-[60vh]">
                             <Table>
@@ -811,7 +802,6 @@ export function EmployeeTab({
                                     <TableRow>
                                         <TableHead>Tên</TableHead>
                                         <TableHead>Email</TableHead>
-                                        <TableHead>Vai trò YC</TableHead>
                                         <TableHead>SĐT</TableHead>
                                         <TableHead>Địa chỉ</TableHead>
                                         <TableHead>Ngày YC</TableHead>
@@ -819,19 +809,18 @@ export function EmployeeTab({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {userAccessRequests.map(req => (
+                                    {employeeAccessRequests.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell>{req.name}</TableCell>
                                             <TableCell>{req.email}</TableCell>
-                                            <TableCell>{req.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</TableCell>
                                             <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
                                             <TableCell className="text-xs max-w-[150px] truncate" title={req.address || 'N/A'}>{req.address || 'N/A'}</TableCell>
                                             <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
                                             <TableCell className="text-center space-x-1">
-                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveRequest(req)}>
+                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveEmployeeRequest(req)}>
                                                     <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
                                                 </Button>
-                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => openRejectDialog(req)}>
+                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => openRejectEmployeeDialog(req)}>
                                                     <XCircle className="h-4 w-4 mr-1"/>Từ chối
                                                 </Button>
                                             </TableCell>
@@ -843,7 +832,7 @@ export function EmployeeTab({
                     )}
                 </div>
                 <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setIsReviewUserAccessRequestsDialogOpen(false)}>Đóng</Button>
+                    <Button variant="outline" onClick={() => setIsReviewEmployeeRequestsDialogOpen(false)}>Đóng</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -867,7 +856,7 @@ export function EmployeeTab({
             />
             <DialogFooter>
               <Button variant="outline" onClick={() => setRequestToReject(null)}>Hủy</Button>
-              <Button variant="destructive" onClick={handleConfirmRejectRequest}>Xác nhận từ chối</Button>
+              <Button variant="destructive" onClick={handleConfirmRejectEmployeeRequest}>Xác nhận từ chối</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

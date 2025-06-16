@@ -39,6 +39,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle as AlertDialogTitleComponent, // Renamed to avoid conflict
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from '@/components/ui/button';
@@ -161,6 +171,7 @@ interface FleurManagerLayoutContentProps {
   handleAddCustomer: (newCustomerData: Omit<Customer, "id">) => Promise<void>;
   handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, "id">) => Promise<void>;
   handleDeleteCustomer: (customerId: string) => Promise<void>;
+  handleDeleteDebt: (debtId: string) => void; // Changed from handleConfirmDeleteDebt
   handleSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
   handleSignOut: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<User | null>;
@@ -183,8 +194,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     availableDebtYears, filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
     handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
-    handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleSaveShopInfo,
-    handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
+    handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
+    handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
   } = props;
 
@@ -274,6 +285,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     invoices={invoicesData}
                     debts={debtsData}
                     numericDisplaySize={numericDisplaySize}
+                    onDeleteDebt={handleDeleteDebt}
                   />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData, cart, currentUser, numericDisplaySize,
@@ -283,7 +295,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct,
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
-      handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer,
+      handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
   ]);
@@ -505,6 +517,10 @@ export default function FleurManagerPage() {
   const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(false);
   const isAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
 
+  const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
+  const [isConfirmingDebtDelete, setIsConfirmingDebtDelete] = useState(false);
+
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       document.documentElement.setAttribute('data-overall-font-size', overallFontSize);
@@ -681,6 +697,43 @@ export default function FleurManagerPage() {
   const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
   const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isAdminUser = currentUser.email === ADMIN_EMAIL; const employeeName = isAdminUser ? ADMIN_NAME : inputName; const employeePosition = isAdminUser ? 'Chủ cửa hàng' : 'Nhân viên'; try { await updateUserProfileName(employeeName); const employeeDataForDb: Partial<Employee> = { name: employeeName, email: currentUser.email!, position: employeePosition, }; const employeeRef = ref(db, `employees/${currentUser.uid}`); await set(employeeRef, employeeDataForDb); toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." }); setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
 
+  const handleDeleteDebt = (debtId: string) => {
+    const debt = debtsData.find(d => d.id === debtId);
+    if (debt) {
+      setDebtToDelete(debt);
+      setIsConfirmingDebtDelete(true);
+    } else {
+      toast({ title: "Lỗi", description: "Không tìm thấy công nợ để xóa.", variant: "destructive" });
+    }
+  };
+
+  const handleConfirmDeleteDebt = async () => {
+    if (!debtToDelete) return;
+    try {
+      // Check if this debt is linked to an invoice
+      if (debtToDelete.invoiceId) {
+        const invoiceRef = ref(db, `invoices/${debtToDelete.invoiceId}`);
+        const invoiceSnapshot = await get(invoiceRef);
+        if (invoiceSnapshot.exists()) {
+          const invoiceData = invoiceSnapshot.val() as Invoice;
+          // If debtAmount matches the debt being deleted, clear it from invoice
+          if (invoiceData.debtAmount && invoiceData.debtAmount === debtToDelete.amount) {
+            await update(invoiceRef, { debtAmount: 0 }); // Or remove debtAmount field
+          }
+        }
+      }
+      await remove(ref(db, `debts/${debtToDelete.id}`));
+      toast({ title: "Thành công", description: `Công nợ cho "${debtToDelete.supplier}" đã được xóa.`, variant: "default" });
+    } catch (error) {
+      console.error("Error deleting debt:", error);
+      toast({ title: "Lỗi", description: "Không thể xóa công nợ. Vui lòng thử lại.", variant: "destructive" });
+    } finally {
+      setIsConfirmingDebtDelete(false);
+      setDebtToDelete(null);
+    }
+  };
+
+
   if (authLoading) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
   if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
   if (isSettingName) { return ( <SetNameDialog onNameSet={handleNameSet} /> ); }
@@ -735,6 +788,7 @@ export default function FleurManagerPage() {
         handleAddCustomer={handleAddCustomer}
         handleUpdateCustomer={handleUpdateCustomer}
         handleDeleteCustomer={handleDeleteCustomer}
+        handleDeleteDebt={handleDeleteDebt}
         handleSaveShopInfo={handleSaveShopInfo}
         handleSignOut={handleSignOut}
         signIn={signIn}
@@ -746,6 +800,27 @@ export default function FleurManagerPage() {
         handleInvoiceFilterChange={handleInvoiceFilterChange}
         handleDebtFilterChange={handleDebtFilterChange}
       />
+
+      {debtToDelete && (
+            <AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent>
+                        <AlertDialogDescription>
+                            Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?
+                            {debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}
+                            Hành động này không thể hoàn tác.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                            Xóa công nợ
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        )}
     </SidebarProvider>
   );
 }

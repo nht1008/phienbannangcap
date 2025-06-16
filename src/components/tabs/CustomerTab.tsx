@@ -132,7 +132,7 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
             placeholder="Địa chỉ" 
             value={formState.address} 
             onChange={(e) => handleInputChange(e, formSetter)} 
-            className="md:col-span-3 h-20 resize-none bg-card" 
+            className="md:col-span-3 h-44 resize-none bg-card" 
         />
         <div className="md:col-span-3 flex justify-end gap-2">
             {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>}

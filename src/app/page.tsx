@@ -75,6 +75,20 @@ interface SubmitItemToImport {
   cost: number;
 }
 
+// Explicitly type InvoiceCartItem as it's used in handleCreateInvoice
+interface InvoiceCartItem {
+  id: string;
+  name: string;
+  quantityInCart: number;
+  price: number;
+  costPrice?: number;
+  image: string;
+  color: string;
+  size: string;
+  unit: string;
+  itemDiscount?: number;
+}
+
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên';
 
@@ -511,21 +525,34 @@ export default function FleurManagerPage() {
     const discountNghin = parseFloat(discountNghinStr);
     const discountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
 
-    setCart(prevCart => prevCart.map(item => {
-      if (item.id === itemId) {
-        const itemOriginalTotal = item.price * item.quantityInCart;
-        if (discountVND < 0) {
-          toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" });
-          return { ...item, itemDiscount: 0 };
+    setCart(prevCart => {
+      let toastInfo: { title: string, description: string, variant: "destructive" } | null = null;
+      
+      const newCart = prevCart.map(item => {
+        if (item.id === itemId) {
+          const itemOriginalTotal = item.price * item.quantityInCart;
+          let newDiscountForItem = discountVND;
+
+          if (discountVND < 0) {
+            toastInfo = { title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" };
+            newDiscountForItem = 0;
+          } else if (discountVND > itemOriginalTotal) {
+            toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${itemOriginalTotal.toLocaleString('vi-VN')} VNĐ).`, variant: "destructive" };
+            newDiscountForItem = itemOriginalTotal;
+          }
+          return { ...item, itemDiscount: newDiscountForItem };
         }
-        if (discountVND > itemOriginalTotal) {
-          toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${itemOriginalTotal.toLocaleString('vi-VN')} VNĐ).`, variant: "destructive" });
-          return { ...item, itemDiscount: itemOriginalTotal };
-        }
-        return { ...item, itemDiscount: discountVND };
+        return item;
+      });
+
+      if (toastInfo) {
+        const finalToastInfo = toastInfo; // Capture for closure
+        setTimeout(() => {
+          toast(finalToastInfo);
+        }, 0);
       }
-      return item;
-    }));
+      return newCart;
+    });
   }, [toast, setCart]);
 
   const handleClearCart = useCallback(() => {
@@ -745,9 +772,19 @@ export default function FleurManagerPage() {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newFinalTotal;
           updates[`invoices/${invoiceId}/discount`] = newOverallInvoiceDiscount; 
-          await update(ref(db), updates);
+          // If there's a debt, and the new total is less than the original amount paid minus original debt,
+          // it implies the debt might need adjustment or the amount paid effectively changes.
+          // This part can get complex. For now, we assume debt record is handled separately or may need manual adjustment post-return.
+          // If the invoice total changes, but it was already paid off or partially paid, the debt logic needs careful review.
+          // A simple approach: If the invoice total becomes 0, clear any associated debt.
+          // If the new invoice total is still > 0, the debt remains as is, implying the customer still owes based on the *original* transaction's debt.
+          // Or, if the new total is less than original amount paid, it could mean refund is due or debt is reduced.
+          // For simplicity, we will NOT automatically adjust existing debt records here beyond deleting them if the whole invoice is effectively cancelled.
+          // The user might need to manually adjust debt or use a separate "refund" feature if money needs to be returned.
+          // The toast message reflects this:
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi trừ khi được xử lý riêng.", variant: "default" });
         }
+        await update(ref(db), updates); // Ensure updates are applied
         return true;
       }
       return false;
@@ -827,23 +864,30 @@ export default function FleurManagerPage() {
         updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
         updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       } else {
+        // When undoing, we still record who performed the undo action.
         updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; 
         updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       }
   
+      // If this debt is linked to an invoice, update the invoice's debtAmount and amountPaid
       if (originalDebt.invoiceId) {
         const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`);
         const invoiceSnapshot = await get(invoiceRef);
         if (invoiceSnapshot.exists()) {
           const currentInvoice = invoiceSnapshot.val() as Invoice;
           if (newStatus === 'Đã thanh toán' && !isUndoOperation) {
+            // When marking debt as paid
             updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0;
+            // Assume amountPaid should reflect the full invoice total if debt is cleared
             updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total; 
           } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) {
+             // When undoing payment (reverting to unpaid)
              updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount;
+             // Revert amountPaid on invoice: total - debt amount
              updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total - originalDebt.amount;
           }
         } else {
+          // Log if the linked invoice is not found, but proceed with debt update
           console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`);
         }
       }
@@ -876,11 +920,13 @@ export default function FleurManagerPage() {
       return;
     }
     try {
+      // Sanitize name for Firebase path (replace forbidden characters)
       const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_');
       if (sanitizedName !== name.trim()) {
+        // Optionally inform user about sanitization, or just proceed silently
         toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" });
       }
-      if (!sanitizedName) {
+      if (!sanitizedName) { // After sanitization, if name is empty
         toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" });
         return;
       }
@@ -905,7 +951,7 @@ export default function FleurManagerPage() {
   const handleSaveShopInfo = async (newInfo: ShopInfo) => {
     if (!isAdmin) {
         toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
-        throw new Error("Permission denied");
+        throw new Error("Permission denied"); // Prevent further execution
     }
     try {
         await set(ref(db, 'shopInfo'), newInfo);
@@ -913,9 +959,10 @@ export default function FleurManagerPage() {
     } catch (error: any) {
         console.error("Error updating shop info:", error);
         toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" });
-        throw error;
+        throw error; // Re-throw to be caught by calling component if needed
     }
   };
+
 
   const navItems = [
     { name: 'Bán hàng', icon: <SellIcon /> },
@@ -1258,6 +1305,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

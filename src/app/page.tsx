@@ -26,6 +26,7 @@ import { DebtTab } from '@/components/tabs/DebtTab';
 import { RevenueTab } from '@/components/tabs/RevenueTab';
 import { CustomerTab } from '@/components/tabs/CustomerTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
+import { OrdersTab } from '@/components/tabs/OrdersTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
@@ -74,7 +75,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -106,7 +107,7 @@ interface InvoiceCartItem {
 }
 
 
-type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên';
+type TabName = 'Bán hàng' | 'Kho hàng' | 'Đơn hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên';
 
 export interface ActivityDateTimeFilter {
   startDate: Date | null;
@@ -274,6 +275,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const baseNavItems = useMemo(() => [
     { name: 'Bán hàng' as TabName, icon: <SellIcon /> },
     { name: 'Kho hàng' as TabName, icon: <WarehouseIcon /> },
+    { name: 'Đơn hàng' as TabName, icon: <ShoppingCart /> },
     { name: 'Nhập hàng' as TabName, icon: <ImportIcon /> },
     { name: 'Hóa đơn' as TabName, icon: <InvoiceIconSvg /> },
     { name: 'Công nợ' as TabName, icon: <DebtIcon /> },
@@ -319,6 +321,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onDisposeProductItems={handleDisposeProductItems}
                     currentUser={currentUser}
                   />,
+    'Đơn hàng': <OrdersTab />,
     'Nhập hàng': <ImportTab
                     inventory={inventory}
                     onImportProducts={handleImportProducts}

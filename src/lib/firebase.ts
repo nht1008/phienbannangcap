@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
@@ -8,14 +9,14 @@ import { getAuth } from "firebase/auth"; // Thêm dòng này
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCMjrgJ7un02OQJ6BjPhFHBi_fUIENO9bA",
-  authDomain: "phienbannangcap-b3760.firebaseapp.com",
-  projectId: "phienbannangcap-b3760",
-  storageBucket: "phienbannangcap-b3760.firebasestorage.app",
-  messagingSenderId: "998324321483",
-  appId: "1:998324321483:web:9d699de4caa35132722f4e",
-  measurementId: "G-WTD2CGMVMS",
-  databaseURL: "https://phienbannangcap-b3760-default-rtdb.firebaseio.com"
+  apiKey: "AIzaSyATAeYnOkIHFS1diM35ZMvnObIEng5gGnw",
+  authDomain: "phienbannangcap.firebaseapp.com",
+  databaseURL: "https://phienbannangcap-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "phienbannangcap",
+  storageBucket: "phienbannangcap.firebasestorage.app",
+  messagingSenderId: "931462285955",
+  appId: "1:931462285955:web:ac19c5675db6f14bff69b6"
+  // measurementId is optional, so it can be removed if not provided or needed
 };
 
 // Initialize Firebase

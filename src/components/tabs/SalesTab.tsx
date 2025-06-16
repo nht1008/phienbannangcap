@@ -31,6 +31,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, formatPhoneNumber, normalizeStringForSearch } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface SalesTabProps {
@@ -101,6 +102,8 @@ export function SalesTab({
   const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', quality: '', size: '', unit: '' });
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
   const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] });
+  const { toast } = useToast();
+  const [maxPossibleOverallDiscountVND, setMaxPossibleOverallDiscountVND] = useState(0);
 
   const subtotalAfterItemDiscounts = useMemo(() =>
     cart.reduce((sum, item) => {
@@ -137,74 +140,114 @@ export function SalesTab({
   const actualAmountPaidVND = parsedAmountPaidNghin * 1000;
   const changeVND = actualAmountPaidVND - finalTotalAfterAllDiscounts;
 
-  const isEveryItemAtMaxPossibleDiscount = useMemo(() => {
-    if (cart.length === 0) return false;
-    return cart.every(item => {
-      const actualItemDiscount = item.itemDiscount || 0;
-      const itemLineTotal = item.price * item.quantityInCart;
+  useEffect(() => {
+    if (cart.length === 0) {
+      setMaxPossibleOverallDiscountVND(0);
+      return;
+    }
 
-      let maxPossibleDiscountForItem = itemLineTotal; // Default to full item price
+    let totalPotentialOverallDiscount = 0;
+    cart.forEach(item => {
+      const itemPriceAfterItemDiscount = (item.price * item.quantityInCart) - (item.itemDiscount || 0);
+      let itemFloorPriceTotal = 0; // Default: item can be discounted to 0 if no maxDiscountPerUnitVND
 
       if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND >= 0) {
-        const productSpecificMaxLineDiscount = item.maxDiscountPerUnitVND * item.quantityInCart;
-        maxPossibleDiscountForItem = Math.min(itemLineTotal, productSpecificMaxLineDiscount);
+        // The effective price per unit cannot go below (item.price - item.maxDiscountPerUnitVND)
+        const floorPricePerUnit = Math.max(0, item.price - item.maxDiscountPerUnitVND);
+        itemFloorPriceTotal = floorPricePerUnit * item.quantityInCart;
       }
       
-      return actualItemDiscount >= maxPossibleDiscountForItem;
+      const additionalDiscountRoomForItem = itemPriceAfterItemDiscount - itemFloorPriceTotal;
+      totalPotentialOverallDiscount += Math.max(0, additionalDiscountRoomForItem);
     });
-  }, [cart]);
+    
+    setMaxPossibleOverallDiscountVND(totalPotentialOverallDiscount);
 
-  useEffect(() => {
-    if (isEveryItemAtMaxPossibleDiscount && overallDiscountStr !== '' && overallDiscountStr !== '0') {
-        setOverallDiscountStr('0'); 
+  }, [cart, subtotalAfterItemDiscounts]);
+
+
+  const handleOverallDiscountChange = (value: string) => {
+    setOverallDiscountStr(value); 
+
+    const enteredNghin = parseFloat(value);
+
+    if (value === '' || value === '-' || isNaN(enteredNghin)) {
+      return;
     }
-  }, [isEveryItemAtMaxPossibleDiscount, overallDiscountStr]);
+
+    const enteredVND = enteredNghin * 1000;
+
+    if (enteredVND < 0) {
+      // Let min="0" handle immediate UI feedback, but state should reflect if it were possible
+      // For now, this path is less likely due to min="0"
+      return;
+    }
+
+    if (enteredVND > maxPossibleOverallDiscountVND) {
+      toast({
+        title: "Lỗi giảm giá chung",
+        description: `Giảm giá chung tối đa cho phép là ${(maxPossibleOverallDiscountVND / 1000).toLocaleString('vi-VN')}K.`,
+        variant: "destructive",
+      });
+      setOverallDiscountStr((maxPossibleOverallDiscountVND / 1000).toString());
+    }
+  };
 
 
   const handleOpenPaymentDialog = () => {
     if (cart.length === 0) return;
-    if (!areAllItemDiscountsValid) return;
+    if (!areAllItemDiscountsValid) return; // Toast for this is handled in onItemDiscountChange
 
     for (const cartItem of cart) {
       const stockItem = inventory.find(i => i.id === cartItem.id);
       if (!stockItem || stockItem.quantity < cartItem.quantityInCart) {
+        toast({ title: "Lỗi số lượng", description: `Không đủ số lượng cho sản phẩm "${cartItem.name}". Vui lòng kiểm tra lại giỏ hàng.`, variant: "destructive" });
         return;
       }
     }
 
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
-    setOverallDiscountStr(isEveryItemAtMaxPossibleDiscount ? '0' : '');
-    setAmountPaidStr(''); // Set to empty string
+    setOverallDiscountStr(''); // Reset overall discount on dialog open
+    setAmountPaidStr('');
     setCurrentPaymentMethod(paymentOptions[0]);
     setIsPaymentDialogOpen(true);
   };
 
   const handleConfirmCheckout = async () => {
     if (!currentUser) {
-      alert("Không tìm thấy thông tin người dùng hiện tại. Vui lòng thử đăng nhập lại.");
+      toast({ title: "Lỗi người dùng", description: "Không tìm thấy thông tin người dùng. Vui lòng thử đăng nhập lại.", variant: "destructive" });
       return;
     }
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
 
     if (actualOverallInvoiceDiscountVND < 0) {
-        alert("Số tiền giảm giá chung không thể âm.");
+        toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá chung không thể âm.", variant: "destructive" });
         return;
     }
+     if (actualOverallInvoiceDiscountVND > maxPossibleOverallDiscountVND) {
+      toast({
+        title: "Lỗi giảm giá chung",
+        description: `Giảm giá chung vượt quá giới hạn cho phép. Tối đa: ${(maxPossibleOverallDiscountVND / 1000).toLocaleString('vi-VN')}K.`,
+        variant: "destructive",
+      });
+      setOverallDiscountStr((maxPossibleOverallDiscountVND / 1000).toString()); // Correct it
+      return;
+    }
     if (actualAmountPaidVND < 0) {
-        alert("Số tiền khách trả không thể âm.");
+        toast({ title: "Lỗi thanh toán", description: "Số tiền khách trả không thể âm.", variant: "destructive" });
         return;
     }
 
     if (subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND) {
-        alert("Tổng giảm giá chung không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.");
+        toast({ title: "Lỗi giảm giá", description: "Tổng giảm giá chung không thể lớn hơn tổng tiền hàng (sau GG sản phẩm).", variant: "destructive" });
         return;
     }
 
     if (finalTotalAfterAllDiscounts > actualAmountPaidVND) {
       if (isGuest || currentPaymentMethod === 'Chuyển khoản') {
-        alert("Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.");
+        toast({ title: "Lỗi thanh toán", description: "Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.", variant: "destructive" });
         return;
       }
     }
@@ -256,7 +299,7 @@ export function SalesTab({
   const openVariantSelector = useCallback((productName: string) => {
     const variantsOfProduct = inventory.filter(p => p.name === productName && p.quantity > 0);
     if (variantsOfProduct.length === 0) {
-      alert(`Sản phẩm "${productName}" hiện đã hết hàng.`);
+      toast({ title: "Hết hàng", description: `Sản phẩm "${productName}" hiện đã hết các biến thể còn hàng.`, variant: "destructive" });
       return;
     }
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
@@ -264,7 +307,7 @@ export function SalesTab({
     setSelectedProductNameForVariants(productName);
     setVariantSelection({ color: colors[0] || '', quality: '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
-  }, [inventory]);
+  }, [inventory, toast]);
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
@@ -284,7 +327,7 @@ export function SalesTab({
   }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.quality]);
 
   useEffect(() => {
-    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality) {
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality !== undefined) { // Check quality is defined
       const variantsMatchingNameColorQuality = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
@@ -302,7 +345,7 @@ export function SalesTab({
   }, [selectedProductNameForVariants, variantSelection.color, variantSelection.quality, inventory, variantSelection.size]);
 
   useEffect(() => {
-    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size) {
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality !== undefined && variantSelection.size) { // Check quality & size
       const variantsMatchingNameColorQualitySize = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
@@ -336,8 +379,8 @@ export function SalesTab({
   };
 
   const handleAddVariantToCart = () => {
-    if (!selectedProductNameForVariants || !variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit) {
-      alert('Vui lòng chọn đầy đủ màu sắc, chất lượng, kích thước và đơn vị.');
+    if (!selectedProductNameForVariants || !variantSelection.color || variantSelection.quality === undefined || !variantSelection.size || !variantSelection.unit) {
+      toast({title: "Thiếu thông tin", description: "Vui lòng chọn đầy đủ màu sắc, chất lượng, kích thước và đơn vị.", variant: "destructive"});
       return;
     }
     const productToAdd = inventory.find(p =>
@@ -355,12 +398,12 @@ export function SalesTab({
       setSelectedProductNameForVariants(null);
       setVariantSelection({ color: '', quality: '', size: '', unit: '' });
     } else {
-      alert('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.');
+      toast({title: "Không tìm thấy", description: "Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.", variant: "destructive"});
     }
   };
 
   const selectedVariantDetails = useMemo(() => {
-    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size && variantSelection.unit) {
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality !== undefined && variantSelection.size && variantSelection.unit) {
       return inventory.find(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
@@ -690,7 +733,7 @@ export function SalesTab({
               <Select
                 value={variantSelection.size}
                 onValueChange={(value) => handleVariantSelectionChange('size', value)}
-                disabled={!variantSelection.color || !variantSelection.quality || availableVariants.sizes.length === 0}
+                disabled={!variantSelection.color || variantSelection.quality === undefined || availableVariants.sizes.length === 0}
               >
                 <SelectTrigger id="variant-size" className="bg-card">
                   <SelectValue placeholder="Chọn kích thước" />
@@ -707,7 +750,7 @@ export function SalesTab({
               <Select
                 value={variantSelection.unit}
                 onValueChange={(value) => handleVariantSelectionChange('unit', value)}
-                disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || availableVariants.units.length === 0}
+                disabled={!variantSelection.color || variantSelection.quality === undefined || !variantSelection.size || availableVariants.units.length === 0}
               >
                 <SelectTrigger id="variant-unit" className="bg-card">
                   <SelectValue placeholder="Chọn đơn vị" />
@@ -730,7 +773,7 @@ export function SalesTab({
             <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
             <Button
               onClick={handleAddVariantToCart}
-              disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
+              disabled={!variantSelection.color || variantSelection.quality === undefined || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Thêm vào giỏ
@@ -865,13 +908,15 @@ export function SalesTab({
                 id="overallDiscount"
                 type="number"
                 value={overallDiscountStr}
-                onChange={(e) => setOverallDiscountStr(e.target.value)}
+                onChange={(e) => handleOverallDiscountChange(e.target.value)}
                 min="0"
                 className="bg-card hide-number-spinners"
-                disabled={isEveryItemAtMaxPossibleDiscount && cart.length > 0}
+                disabled={maxPossibleOverallDiscountVND <= 0 && cart.length > 0}
               />
-               {isEveryItemAtMaxPossibleDiscount && cart.length > 0 && (
-                <p className="text-xs text-muted-foreground">Tất cả sản phẩm đã ở mức giảm giá tối đa. Không thể giảm thêm.</p>
+               {(maxPossibleOverallDiscountVND <= 0 && cart.length > 0) && (
+                <p className="text-xs text-muted-foreground">
+                  Không thể áp dụng giảm giá chung thêm do đã đạt giới hạn của sản phẩm hoặc giỏ hàng.
+                </p>
               )}
             </div>
 
@@ -919,7 +964,8 @@ export function SalesTab({
                 subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND ||
                 (customerNameForInvoice.trim().toLowerCase() === 'khách lẻ' && finalTotalAfterAllDiscounts > actualAmountPaidVND && currentPaymentMethod !== 'Chuyển khoản') || 
                 (currentPaymentMethod === 'Chuyển khoản' && finalTotalAfterAllDiscounts > actualAmountPaidVND) ||
-                !areAllItemDiscountsValid
+                !areAllItemDiscountsValid ||
+                (parseFloat(overallDiscountStr || "0") * 1000 > maxPossibleOverallDiscountVND) // Final check
               }
             >
               Xác nhận thanh toán

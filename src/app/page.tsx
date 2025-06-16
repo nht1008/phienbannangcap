@@ -155,6 +155,7 @@ interface FleurManagerLayoutContentProps {
   numericDisplaySize: NumericDisplaySize;
   setNumericDisplaySize: React.Dispatch<React.SetStateAction<NumericDisplaySize>>;
   isCurrentUserAdmin: boolean; 
+  currentUserEmployeeData: Employee | undefined;
   hasFullAccessRights: boolean; 
   availableInvoiceYears: string[];
   availableDebtYears: string[];
@@ -194,7 +195,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
-    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, hasFullAccessRights, availableInvoiceYears,
+    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, hasFullAccessRights, availableInvoiceYears,
     availableDebtYears, filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
     handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
@@ -206,7 +207,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
 
-  const navItems = useMemo(() => [
+  const baseNavItems = useMemo(() => [
     { name: 'Bán hàng' as TabName, icon: <SellIcon /> },
     { name: 'Kho hàng' as TabName, icon: <WarehouseIcon /> },
     { name: 'Nhập hàng' as TabName, icon: <ImportIcon /> },
@@ -216,6 +217,13 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     { name: 'Khách hàng' as TabName, icon: <CustomerIcon /> },
     { name: 'Nhân viên' as TabName, icon: <EmployeeIcon /> },
   ], []);
+
+  const navItems = useMemo(() => {
+    if (currentUserEmployeeData?.position === 'Nhân viên') {
+      return baseNavItems.filter(item => item.name !== 'Nhân viên' && item.name !== 'Doanh thu');
+    }
+    return baseNavItems;
+  }, [baseNavItems, currentUserEmployeeData]);
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
     'Bán hàng': <SalesTab
@@ -420,12 +428,12 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                 </Label>
                 <Input id="info-email" value={currentUser.email || 'Không có'} readOnly className="col-span-3 bg-muted/50" />
               </div>
-              {employeesData.find(emp => emp.id === currentUser.uid)?.position && (
+              {currentUserEmployeeData && (
                    <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="info-position" className="text-right">
                           Chức vụ
                       </Label>
-                      <Input id="info-position" value={employeesData.find(emp => emp.id === currentUser.uid)?.position} readOnly className="col-span-3 bg-muted/50" />
+                      <Input id="info-position" value={currentUserEmployeeData.position} readOnly className="col-span-3 bg-muted/50" />
                   </div>
               )}
             </div>
@@ -533,12 +541,12 @@ export default function FleurManagerPage() {
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
 
   const hasFullAccessRights = useMemo(() => {
-    if (!currentUser) return false; // No user, no rights
-    if (currentUser.email === ADMIN_EMAIL) return true; // Super admin has full rights
+    if (!currentUser) return false;
+    if (currentUser.email === ADMIN_EMAIL) return true;
     if (currentUserEmployeeData) {
       return currentUserEmployeeData.position === 'Quản lý' || currentUserEmployeeData.position === 'ADMIN';
     }
-    return false; // Default to no full access if not super admin and no employee record or not manager/admin
+    return false;
   }, [currentUser, currentUserEmployeeData]);
 
 
@@ -589,7 +597,6 @@ export default function FleurManagerPage() {
     });
 
     let unsubscribeShopInfo = () => {};
-    // Shop info is loaded if user has full access rights (ADMIN or Manager)
     if (hasFullAccessRights) { 
         setIsLoadingShopInfo(true);
         const shopInfoRef = ref(db, 'shopInfo');
@@ -615,7 +622,6 @@ export default function FleurManagerPage() {
             setIsLoadingShopInfo(false);
         });
     } else {
-        // If user does not have full access, set shopInfo to null and not loading
         setShopInfo(null);
         setIsLoadingShopInfo(false);
     }
@@ -807,7 +813,6 @@ export default function FleurManagerPage() {
       }
       await update(ref(db, `employees/${employeeId}`), updates);
       
-      // If admin is editing their own name (not possible with current UI flow for this button, but good for future)
       if (currentUser && employeeId === currentUser.uid && data.name !== currentUser.displayName) {
          await updateUserProfileName(data.name);
       }
@@ -818,6 +823,13 @@ export default function FleurManagerPage() {
       toast({ title: "Lỗi", description: "Không thể cập nhật thông tin nhân viên.", variant: "destructive" });
     }
   };
+
+  useEffect(() => {
+    if (currentUserEmployeeData?.position === 'Nhân viên' && (activeTab === 'Nhân viên' || activeTab === 'Doanh thu')) {
+        setActiveTab('Bán hàng');
+        toast({ title: "Thông báo", description: "Bạn không có quyền truy cập vào tab này.", variant: "default" });
+    }
+  }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
 
   if (authLoading) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
@@ -857,6 +869,7 @@ export default function FleurManagerPage() {
         numericDisplaySize={numericDisplaySize}
         setNumericDisplaySize={setNumericDisplaySize}
         isCurrentUserAdmin={isCurrentUserAdmin}
+        currentUserEmployeeData={currentUserEmployeeData}
         hasFullAccessRights={hasFullAccessRights}
         availableInvoiceYears={availableInvoiceYears}
         availableDebtYears={availableDebtYears}

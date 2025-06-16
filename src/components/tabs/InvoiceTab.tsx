@@ -129,7 +129,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
       const quantityToReturnNum = parseInt(detail.quantityToReturn);
       if (quantityToReturnNum > 0) {
         const originalItemDiscountPerUnit = detail.originalQuantityInCart > 0 ? (detail.itemDiscount || 0) / detail.originalQuantityInCart : 0;
-        // Per user request: refund = original price + discount they got (which is effectively original price)
         const effectivePricePerUnit = detail.price + originalItemDiscountPerUnit;
         totalRefund += effectivePricePerUnit * quantityToReturnNum;
       }
@@ -288,9 +287,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           </Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)} title="Hoàn trả sản phẩm">
-                            <Undo2 className="h-4 w-4" />
-                          </Button>
                           {hasFullAccessRights && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
                               <Trash2 className="h-4 w-4" />
@@ -355,7 +351,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   </Table>
                 </ScrollArea>
                 <Separator className="my-4" />
-                {/* Removed overall invoice discount display as it's no longer applicable here for individual invoice view */}
                 <div className="flex justify-between font-bold text-lg text-foreground">
                   <span>Tổng thanh toán HĐ:</span>
                   <span>{selectedInvoiceDetails.total.toLocaleString('vi-VN')} VNĐ</span>

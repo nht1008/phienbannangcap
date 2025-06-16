@@ -284,12 +284,12 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID HĐ</TableHead>
+                      <TableHead>ID Hóa đơn</TableHead>
                       <TableHead>Ngày tạo</TableHead>
                       <TableHead className="text-right">Tổng tiền</TableHead>
                       <TableHead>PT Thanh toán</TableHead>
                       <TableHead className="text-right text-destructive">Tiền nợ</TableHead>
-                      <TableHead className="text-center">Chi tiết HĐ</TableHead>
+                      <TableHead className="text-center">Chi tiết Hóa đơn</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -324,7 +324,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <Dialog open={isInvoiceDetailModalOpen} onOpenChange={closeInvoiceItemDetailsDialog}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle className="text-xl">Chi tiết sản phẩm HĐ #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
+              <DialogTitle className="text-xl">Chi tiết sản phẩm Hóa đơn #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
                 Khách hàng: {invoiceForDetailedView.customerName} <br />
                 Ngày: {new Date(invoiceForDetailedView.date).toLocaleString('vi-VN')}
@@ -358,12 +358,12 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               </div>
               {invoiceForDetailedView.discount && invoiceForDetailedView.discount > 0 && (
                 <div className="flex justify-between text-destructive">
-                  <span>Giảm giá chung HĐ:</span>
+                  <span>Giảm giá chung Hóa đơn:</span>
                   <span>-{invoiceForDetailedView.discount.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-lg text-primary">
-                <span>Tổng thanh toán HĐ:</span>
+                <span>Tổng thanh toán Hóa đơn:</span>
                 <span>{invoiceForDetailedView.total.toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="flex justify-between">
@@ -372,7 +372,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               </div>
               {invoiceForDetailedView.debtAmount && invoiceForDetailedView.debtAmount > 0 && (
                 <div className="flex justify-between text-destructive font-semibold">
-                  <span>Tiền nợ của HĐ này:</span>
+                  <span>Tiền nợ của Hóa đơn này:</span>
                   <span>{invoiceForDetailedView.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                 </div>
               )}
@@ -386,3 +386,4 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
+

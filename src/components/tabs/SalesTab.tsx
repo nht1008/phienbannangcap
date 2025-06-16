@@ -121,6 +121,13 @@ export function SalesTab({
     [cart]
   );
 
+  const areAllItemDiscountsValid = useMemo(() => {
+    return cart.every(item => {
+      const itemOriginalTotal = item.price * item.quantityInCart;
+      return (item.itemDiscount || 0) <= itemOriginalTotal;
+    });
+  }, [cart]);
+
   const parsedOverallDiscountNghin = parseFloat(overallDiscountStr) || 0;
   const actualOverallInvoiceDiscountVND = parsedOverallDiscountNghin * 1000;
 
@@ -146,7 +153,7 @@ export function SalesTab({
         return;
       }
       if ((cartItem.itemDiscount || 0) > (cartItem.price * cartItem.quantityInCart)) {
-        showLocalNotification(`Giảm giá cho sản phẩm "${cartItem.name}" không hợp lệ.`, 'error');
+        showLocalNotification(`Giảm giá cho sản phẩm "${cartItem.name}" không hợp lệ. Tổng giảm giá không được vượt quá tổng tiền của sản phẩm.`, 'error');
         return;
       }
     }
@@ -594,7 +601,7 @@ export function SalesTab({
               <Button
                 onClick={handleOpenPaymentDialog}
                 className="w-full bg-green-500 text-white hover:bg-green-600 text-lg py-3 h-auto"
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !areAllItemDiscountsValid}
               >
                 Thanh toán
               </Button>
@@ -887,3 +894,4 @@ export function SalesTab({
     </>
   );
 }
+

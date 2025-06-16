@@ -2,6 +2,7 @@
 export interface Product {
   id: string;
   name: string;
+  quality?: string; // Added
   quantity: number;
   price: number; // Selling price
   costPrice?: number; // Cost price / Original price
@@ -32,6 +33,7 @@ export interface Supplier {
 export interface InvoiceCartItem {
   id: string;
   name: string;
+  quality?: string; // Added
   quantityInCart: number;
   price: number; // Original selling price per unit
   costPrice?: number;
@@ -72,13 +74,14 @@ export interface Debt {
 export interface ItemToImport {
   name: string;
   color: string;
+  quality: string; // Added
   size: string;
   unit: string;
   quantity: number;
   cost: number; // Cost per unit in Nghin VND
 }
 
-export type ProductOptionType = 'productNames' | 'colors' | 'sizes' | 'units';
+export type ProductOptionType = 'productNames' | 'colors' | 'qualities' | 'sizes' | 'units'; // Added 'qualities'
 
 export interface Employee {
   id: string; // Firebase Auth UID
@@ -97,3 +100,4 @@ export interface ShopInfo {
   bankAccountNumber: string;
   bankName: string;
 }
+

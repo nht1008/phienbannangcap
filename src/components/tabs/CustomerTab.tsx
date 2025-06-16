@@ -338,6 +338,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     <p className="font-bold text-base text-primary mb-1.5">{item.name}</p>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground mb-2">
                         <p><span className="font-medium text-foreground/80">Màu sắc:</span> {item.color || 'N/A'}</p>
+                        <p><span className="font-medium text-foreground/80">Chất lượng:</span> {item.quality || 'N/A'}</p> {/* Added */}
                         <p><span className="font-medium text-foreground/80">Kích thước:</span> {item.size || 'N/A'}</p>
                         <p><span className="font-medium text-foreground/80">Đơn vị:</span> {item.unit || 'N/A'}</p>
                     </div>
@@ -391,3 +392,4 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
+

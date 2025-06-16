@@ -52,19 +52,22 @@ interface SalesTabProps {
   onAddToCart: (item: Product) => void;
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => void;
-  onClearCart: () => void; // Added for clearing cart after successful invoice
+  onClearCart: () => void; 
+  productQualityOptions: string[]; // Added
 }
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
 
 interface VariantSelection {
   color: string;
+  quality: string; // Added
   size: string;
   unit: string;
 }
 
 interface AvailableVariants {
   colors: string[];
+  qualities: string[]; // Added
   sizes: string[];
   units: string[];
 }
@@ -79,7 +82,8 @@ export function SalesTab({
     onAddToCart,
     onUpdateCartQuantity,
     onItemDiscountChange,
-    onClearCart
+    onClearCart,
+    productQualityOptions // Added
 }: SalesTabProps) {
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
@@ -96,9 +100,9 @@ export function SalesTab({
   const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
 
   const [selectedProductNameForVariants, setSelectedProductNameForVariants] = useState<string | null>(null);
-  const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', size: '', unit: '' });
+  const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', quality: '', size: '', unit: '' }); // Added quality
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
-  const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], sizes: [], units: [] });
+  const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] }); // Added qualities
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
@@ -185,7 +189,7 @@ export function SalesTab({
 
     const success = await onCreateInvoice(
         finalCustomerName,
-        cart, // Pass the cart from props (managed by FleurManagerPage)
+        cart, 
         subtotalAfterItemDiscounts,
         currentPaymentMethod,
         actualOverallInvoiceDiscountVND,
@@ -195,7 +199,6 @@ export function SalesTab({
         currentUser.displayName || currentUser.email || "Không rõ"
     );
     if (success) {
-      // Cart clearing is now handled by FleurManagerPage via onClearCart through onCreateInvoice
       setIsPaymentDialogOpen(false);
     }
   };
@@ -221,7 +224,7 @@ export function SalesTab({
       .filter(p => p.quantity > 0)
       .map(p => ({
         ...p,
-        displayLabel: `${p.name} ${p.color} ${p.size} ${p.unit} - Tồn: ${p.quantity}`
+        displayLabel: `${p.name} ${p.color} ${p.quality || ''} ${p.size} ${p.unit} - Tồn: ${p.quantity}`.replace(/\s\s+/g, ' ') // Added quality, replace multiple spaces
       }));
   }, [inventory]);
 
@@ -233,20 +236,38 @@ export function SalesTab({
       return;
     }
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
-    setAvailableVariants({ colors, sizes: [], units: [] });
+    setAvailableVariants({ colors, qualities: [], sizes: [], units: [] }); // Reset other variants
     setSelectedProductNameForVariants(productName);
-    setVariantSelection({ color: colors[0] || '', size: '', unit: '' });
+    setVariantSelection({ color: colors[0] || '', quality: '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
   }, [inventory, showLocalNotification]);
 
-  useEffect(() => {
+  useEffect(() => { // For Qualities
     if (selectedProductNameForVariants && variantSelection.color) {
       const variantsMatchingNameAndColor = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
         p.quantity > 0
       );
-      const sizes = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.size))).sort();
+      const qualities = Array.from(new Set(variantsMatchingNameAndColor.map(p => p.quality || ''))).sort();
+      setAvailableVariants(prev => ({ ...prev, qualities }));
+      const newQuality = qualities.length === 1 ? qualities[0] : (qualities.includes(variantSelection.quality) ? variantSelection.quality : (qualities[0] || ''));
+      setVariantSelection(prev => ({ ...prev, quality: newQuality, size: '', unit: '' }));
+    } else if (selectedProductNameForVariants) {
+        setAvailableVariants(prev => ({ ...prev, qualities: [], sizes: [], units: [] }));
+        setVariantSelection(prev => ({ ...prev, quality: '', size: '', unit: '' }));
+    }
+  }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.quality]);
+  
+  useEffect(() => { // For Sizes
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality) {
+      const variantsMatchingNameColorQuality = inventory.filter(p =>
+        p.name === selectedProductNameForVariants &&
+        p.color === variantSelection.color &&
+        p.quality === variantSelection.quality &&
+        p.quantity > 0
+      );
+      const sizes = Array.from(new Set(variantsMatchingNameColorQuality.map(p => p.size))).sort();
       setAvailableVariants(prev => ({ ...prev, sizes }));
       const newSize = sizes.length === 1 ? sizes[0] : (sizes.includes(variantSelection.size) ? variantSelection.size : (sizes[0] || ''));
       setVariantSelection(prev => ({ ...prev, size: newSize, unit: '' }));
@@ -254,17 +275,18 @@ export function SalesTab({
         setAvailableVariants(prev => ({ ...prev, sizes: [], units: [] }));
         setVariantSelection(prev => ({ ...prev, size: '', unit: '' }));
     }
-  }, [selectedProductNameForVariants, variantSelection.color, inventory, variantSelection.size]);
+  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.quality, inventory, variantSelection.size]);
 
-  useEffect(() => {
-    if (selectedProductNameForVariants && variantSelection.color && variantSelection.size) {
-      const variantsMatchingNameColorSize = inventory.filter(p =>
+  useEffect(() => { // For Units
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size) {
+      const variantsMatchingNameColorQualitySize = inventory.filter(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
+        p.quality === variantSelection.quality &&
         p.size === variantSelection.size &&
         p.quantity > 0
       );
-      const units = Array.from(new Set(variantsMatchingNameColorSize.map(p => p.unit))).sort();
+      const units = Array.from(new Set(variantsMatchingNameColorQualitySize.map(p => p.unit))).sort();
       setAvailableVariants(prev => ({ ...prev, units }));
       const newUnit = units.length === 1 ? units[0] : (units.includes(variantSelection.unit) ? variantSelection.unit : (units[0] || ''));
       setVariantSelection(prev => ({ ...prev, unit: newUnit }));
@@ -272,15 +294,16 @@ export function SalesTab({
         setAvailableVariants(prev => ({ ...prev, units: [] }));
         setVariantSelection(prev => ({ ...prev, unit: '' }));
     }
-  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.size, inventory, variantSelection.unit]);
+  }, [selectedProductNameForVariants, variantSelection.color, variantSelection.quality, variantSelection.size, inventory, variantSelection.unit]);
 
 
   const handleVariantSelectionChange = (field: keyof VariantSelection, value: string) => {
     setVariantSelection(prev => {
       const newState = { ...prev, [field]: value };
       if (field === 'color') {
-        newState.size = '';
-        newState.unit = '';
+        newState.quality = ''; newState.size = ''; newState.unit = '';
+      } else if (field === 'quality') {
+        newState.size = ''; newState.unit = '';
       } else if (field === 'size') {
         newState.unit = '';
       }
@@ -289,13 +312,14 @@ export function SalesTab({
   };
 
   const handleAddVariantToCart = () => {
-    if (!selectedProductNameForVariants || !variantSelection.color || !variantSelection.size || !variantSelection.unit) {
-      showLocalNotification('Vui lòng chọn đầy đủ màu sắc, kích thước và đơn vị.', 'error');
+    if (!selectedProductNameForVariants || !variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit) {
+      showLocalNotification('Vui lòng chọn đầy đủ màu sắc, chất lượng, kích thước và đơn vị.', 'error');
       return;
     }
     const productToAdd = inventory.find(p =>
       p.name === selectedProductNameForVariants &&
       p.color === variantSelection.color &&
+      p.quality === variantSelection.quality && // Added
       p.size === variantSelection.size &&
       p.unit === variantSelection.unit &&
       p.quantity > 0
@@ -305,17 +329,18 @@ export function SalesTab({
       onAddToCart(productToAdd);
       setIsVariantSelectorOpen(false);
       setSelectedProductNameForVariants(null);
-      setVariantSelection({ color: '', size: '', unit: '' });
+      setVariantSelection({ color: '', quality: '', size: '', unit: '' }); // Added quality
     } else {
       showLocalNotification('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.', 'error');
     }
   };
 
   const selectedVariantDetails = useMemo(() => {
-    if (selectedProductNameForVariants && variantSelection.color && variantSelection.size && variantSelection.unit) {
+    if (selectedProductNameForVariants && variantSelection.color && variantSelection.quality && variantSelection.size && variantSelection.unit) { // Added quality
       return inventory.find(p =>
         p.name === selectedProductNameForVariants &&
         p.color === variantSelection.color &&
+        p.quality === variantSelection.quality && // Added
         p.size === variantSelection.size &&
         p.unit === variantSelection.unit &&
         p.quantity > 0
@@ -347,7 +372,7 @@ export function SalesTab({
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                 <Command shouldFilter={false}>
                   <CommandInput
-                    placeholder="Gõ tên, màu, size hoặc đơn vị..."
+                    placeholder="Gõ tên, màu, chất lượng, size hoặc đơn vị..." // Added chất lượng
                     value={productSearchQuery}
                     onValueChange={setProductSearchQuery}
                   />
@@ -374,7 +399,7 @@ export function SalesTab({
                             }}
                           >
                             <div className="flex flex-col w-full">
-                              <span className="font-medium">{variant.name} {variant.color} {variant.size} {variant.unit}</span>
+                              <span className="font-medium">{variant.name} {variant.color} {variant.quality || ''} {variant.size} {variant.unit}</span>
                               <span className="text-xs text-muted-foreground">
                                 Giá: {variant.price.toLocaleString('vi-VN')} VNĐ - Tồn: {variant.quantity}
                               </span>
@@ -451,7 +476,7 @@ export function SalesTab({
                         />
                         <div className="flex-grow">
                             <p className="font-bold text-foreground text-lg leading-tight mb-0.5">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.color}, {item.size}, {item.unit}</p>
+                            <p className="text-xs text-muted-foreground">{item.color}, {item.quality || 'N/A'}, {item.size}, {item.unit}</p> {/* Added quality */}
                             <p className="text-sm text-muted-foreground mt-1">
                                 Đơn giá: <span className="font-semibold text-foreground/90">{item.price.toLocaleString('vi-VN')} VNĐ</span>
                             </p>
@@ -549,7 +574,7 @@ export function SalesTab({
       <Dialog open={isVariantSelectorOpen} onOpenChange={(isOpen) => {
         if (!isOpen) {
           setSelectedProductNameForVariants(null);
-          setVariantSelection({ color: '', size: '', unit: '' });
+          setVariantSelection({ color: '', quality: '', size: '', unit: '' }); // Added quality
         }
         setIsVariantSelectorOpen(isOpen);
       }}>
@@ -557,7 +582,7 @@ export function SalesTab({
           <DialogHeader>
             <DialogTitle>Chọn thuộc tính cho: {selectedProductNameForVariants}</DialogTitle>
             <DialogDescription>
-              Vui lòng chọn màu sắc, kích thước và đơn vị.
+              Vui lòng chọn màu sắc, chất lượng, kích thước và đơn vị. {/* Added quality */}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -579,11 +604,28 @@ export function SalesTab({
               </Select>
             </div>
             <div>
+              <Label htmlFor="variant-quality">Chất lượng</Label> {/* Added */}
+              <Select
+                value={variantSelection.quality}
+                onValueChange={(value) => handleVariantSelectionChange('quality', value)}
+                disabled={!variantSelection.color || availableVariants.qualities.length === 0}
+              >
+                <SelectTrigger id="variant-quality" className="bg-card">
+                  <SelectValue placeholder="Chọn chất lượng" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVariants.qualities.map(quality => (
+                    <SelectItem key={quality} value={quality}>{quality || 'N/A'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="variant-size">Kích thước</Label>
               <Select
                 value={variantSelection.size}
                 onValueChange={(value) => handleVariantSelectionChange('size', value)}
-                disabled={!variantSelection.color || availableVariants.sizes.length === 0}
+                disabled={!variantSelection.color || !variantSelection.quality || availableVariants.sizes.length === 0} // Added quality
               >
                 <SelectTrigger id="variant-size" className="bg-card">
                   <SelectValue placeholder="Chọn kích thước" />
@@ -600,7 +642,7 @@ export function SalesTab({
               <Select
                 value={variantSelection.unit}
                 onValueChange={(value) => handleVariantSelectionChange('unit', value)}
-                disabled={!variantSelection.color || !variantSelection.size || availableVariants.units.length === 0}
+                disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || availableVariants.units.length === 0} // Added quality
               >
                 <SelectTrigger id="variant-unit" className="bg-card">
                   <SelectValue placeholder="Chọn đơn vị" />
@@ -623,7 +665,7 @@ export function SalesTab({
             <Button variant="outline" onClick={() => setIsVariantSelectorOpen(false)}>Hủy</Button>
             <Button
               onClick={handleAddVariantToCart}
-              disabled={!variantSelection.color || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails}
+              disabled={!variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit || !selectedVariantDetails} // Added quality
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Thêm vào giỏ
@@ -813,5 +855,6 @@ export function SalesTab({
     </>
   );
 }
+
 
 

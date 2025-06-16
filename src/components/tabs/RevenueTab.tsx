@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import type { Invoice, CartItem } from '@/types';
+import type { Invoice, InvoiceCartItem } from '@/types'; // Added InvoiceCartItem
 import type { DateFilter } from '@/app/page';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
@@ -36,15 +36,15 @@ interface RevenueTabProps {
 const chartConfig = {
   doanhthu: {
     label: "Doanh thu",
-    color: "hsl(330, 85%, 60%)",
+    color: "hsl(330, 85%, 60%)", 
   },
   giagoc: {
     label: "Giá gốc",
-    color: "hsl(270, 70%, 75%)",
+    color: "hsl(270, 70%, 75%)", 
   },
   loinhuan: {
     label: "Lợi nhuận",
-    color: "hsl(130, 60%, 55%)",
+    color: "hsl(130, 60%, 55%)", 
   },
 } satisfies ChartConfig;
 
@@ -53,7 +53,7 @@ interface AggregatedRevenueData {
   giagoc: number;
 }
 
-const getDaysInMonth = (month: number, year: number): number => { // month is 1-indexed
+const getDaysInMonth = (month: number, year: number): number => { 
     return new Date(year, month, 0).getDate();
 };
 
@@ -63,7 +63,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
 
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
-    let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng.";
+    let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng. (Tính tất cả hóa đơn)"; // Updated description
     let aggregatedData: Record<string, AggregatedRevenueData> = {};
     let finalChartData: { name: string; doanhthu: number; giagoc: number; loinhuan: number }[] = [];
 
@@ -71,7 +71,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    const invoicesForChart = invoices; // Use all filtered invoices for chart
+    const invoicesForChart = invoices; 
 
     if (filterMonth !== 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
@@ -106,7 +106,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             }))
             .sort((a, b) => parseInt(a.name) - parseInt(b.name));
 
-    } else if (filterMonth !== 'all' /* && filterYear === 'all' */) {
+    } else if (filterMonth !== 'all' ) {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
         newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm. (Tính tất cả hóa đơn)`;
 
@@ -166,7 +166,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             }))
             .sort((a,b) => parseInt(a.name.substring(1)) - parseInt(b.name.substring(1)));
 
-    } else { // filterMonth === 'all' && filterYear === 'all'
+    } else { 
         newChartTitle = "Phân tích theo năm";
         newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Tính tất cả hóa đơn)";
         invoicesForChart.forEach(invoice => {
@@ -185,7 +185,6 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   }, [invoices, filterMonth, filterYear]);
 
 
-  // Calculations for summary cards - use all invoices within the filter period
   const totalRevenue = useMemo(() =>
     invoices.reduce((sum, inv) => sum + inv.total, 0),
     [invoices]
@@ -409,10 +408,10 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             <ScrollArea className="max-h-60">
               <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
               <ul className="space-y-1 pr-3">
-                {selectedInvoiceDetails.items.map((item: CartItem, index: number) => (
+                {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => ( // Use InvoiceCartItem
                   <li key={`${item.id}-${index}`} className="text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
+                      <span className="text-muted-foreground">{item.name} ({item.color}, {item.quality || 'N/A'}, {item.size}) x {item.quantityInCart} {item.unit}</span> {/* Added quality */}
                       <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
                     </div>
                     <div className="flex justify-between text-xs">
@@ -490,6 +489,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   );
 }
     
+
 
 
 

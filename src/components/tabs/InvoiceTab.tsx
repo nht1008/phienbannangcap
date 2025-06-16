@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import type { Invoice, CartItem } from '@/types';
+import type { Invoice, CartItem, InvoiceCartItem } from '@/types'; // Added InvoiceCartItem
 import type { DateFilter } from '@/app/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,7 @@ type ReturnItemDetail = {
   quantityToReturn: string;
   name: string;
   color: string;
+  quality?: string; // Added
   size: string;
   unit: string;
   price: number;
@@ -85,6 +86,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         quantityToReturn: "0",
         name: item.name,
         color: item.color,
+        quality: item.quality, // Added
         size: item.size,
         unit: item.unit,
         price: item.price,
@@ -280,9 +282,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <ScrollArea className="max-h-60">
                   <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
                   <ul className="space-y-1 pr-3">
-                    {selectedInvoiceDetails.items.map((item: CartItem, index: number) => (
+                    {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => ( // Use InvoiceCartItem
                       <li key={`${item.id}-${index}`} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.name} ({item.color}, {item.size}) x {item.quantityInCart} {item.unit}</span>
+                        <span className="text-muted-foreground">{item.name} ({item.color}, {item.quality || 'N/A'}, {item.size}) x {item.quantityInCart} {item.unit}</span> {/* Added quality */}
                         <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
                       </li>
                     ))}
@@ -374,7 +376,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <div className="space-y-4 py-2 pr-3">
                 {Object.entries(returnItemsState).map(([productId, itemData]) => (
                   <Card key={productId} className="p-3 bg-muted/30">
-                    <p className="font-semibold">{itemData.name} <span className="text-xs text-muted-foreground">({itemData.color}, {itemData.size})</span></p>
+                    <p className="font-semibold">{itemData.name} <span className="text-xs text-muted-foreground">({itemData.color}, {itemData.quality || 'N/A'}, {itemData.size})</span></p> {/* Added quality */}
                     <p className="text-sm text-muted-foreground">Đơn vị: {itemData.unit} - Giá: {itemData.price.toLocaleString('vi-VN')} VNĐ</p>
                     <p className="text-sm text-muted-foreground">Đã mua: {itemData.originalQuantityInCart}</p>
                     <div className="mt-2">
@@ -409,3 +411,4 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
+

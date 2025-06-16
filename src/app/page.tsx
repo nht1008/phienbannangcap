@@ -79,6 +79,7 @@ interface SubmitItemToImport {
 interface InvoiceCartItem {
   id: string;
   name: string;
+  quality?: string;
   quantityInCart: number;
   price: number;
   costPrice?: number;
@@ -130,6 +131,7 @@ export default function FleurManagerPage() {
 
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
+  const [productQualityOptions, setProductQualityOptions] = useState<string[]>([]); // Added
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
 
@@ -320,6 +322,7 @@ export default function FleurManagerPage() {
     if (!currentUser) return;
     const productNamesRef = ref(db, 'productOptions/productNames');
     const colorsRef = ref(db, 'productOptions/colors');
+    const qualitiesRef = ref(db, 'productOptions/qualities'); // Added
     const sizesRef = ref(db, 'productOptions/sizes');
     const unitsRef = ref(db, 'productOptions/units');
 
@@ -335,6 +338,13 @@ export default function FleurManagerPage() {
         setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)));
       } else {
         setColorOptions([]);
+      }
+    });
+     const unsubQualities = onValue(qualitiesRef, (snapshot) => { // Added
+      if (snapshot.exists()) {
+        setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)));
+      } else {
+        setProductQualityOptions([]);
       }
     });
     const unsubSizes = onValue(sizesRef, (snapshot) => {
@@ -355,6 +365,7 @@ export default function FleurManagerPage() {
     return () => {
       unsubProductNames();
       unsubColors();
+      unsubQualities(); // Added
       unsubSizes();
       unsubUnits();
     };
@@ -487,7 +498,7 @@ export default function FleurManagerPage() {
     const stockItem = inventory.find(i => i.id === item.id);
 
     if (!stockItem || stockItem.quantity <= 0) {
-      toast({ title: "Hết hàng", description: `Sản phẩm "${item.name} ${item.color} ${item.size} ${item.unit}" đã hết hàng!`, variant: "destructive" });
+      toast({ title: "Hết hàng", description: `Sản phẩm "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" đã hết hàng!`, variant: "destructive" });
       return;
     }
 
@@ -497,7 +508,7 @@ export default function FleurManagerPage() {
           cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
         ));
       } else {
-        toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${item.name} ${item.color} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, variant: "destructive" });
+        toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, variant: "destructive" });
       }
     } else {
       setCart(prevCart => [...prevCart, { ...item, quantityInCart: 1, itemDiscount: 0 }]);
@@ -524,10 +535,9 @@ export default function FleurManagerPage() {
   const handleItemDiscountChange = useCallback((itemId: string, discountNghinStr: string) => {
     const discountNghin = parseFloat(discountNghinStr);
     const discountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
+    let toastInfo: { title: string, description: string, variant: "destructive" } | null = null;
 
     setCart(prevCart => {
-      let toastInfo: { title: string, description: string, variant: "destructive" } | null = null;
-      
       const newCart = prevCart.map(item => {
         if (item.id === itemId) {
           const itemOriginalTotal = item.price * item.quantityInCart;
@@ -544,13 +554,10 @@ export default function FleurManagerPage() {
         }
         return item;
       });
-
-      if (toastInfo) {
-        const finalToastInfo = toastInfo; // Capture for closure
-        setTimeout(() => {
-          toast(finalToastInfo);
-        }, 0);
-      }
+       if (toastInfo) {
+          // Schedule toast to avoid direct state update during render
+          setTimeout(() => toast(toastInfo!), 0);
+        }
       return newCart;
     });
   }, [toast, setCart]);
@@ -606,6 +613,7 @@ export default function FleurManagerPage() {
       const itemsForDb: InvoiceCartItem[] = invoiceCartItems.map(item => ({
         id: item.id,
         name: item.name,
+        quality: item.quality,
         quantityInCart: item.quantityInCart,
         price: item.price,
         costPrice: item.costPrice ?? 0,
@@ -987,6 +995,7 @@ export default function FleurManagerPage() {
                     onUpdateCartQuantity={handleUpdateCartQuantity}
                     onItemDiscountChange={handleItemDiscountChange}
                     onClearCart={handleClearCart}
+                    productQualityOptions={productQualityOptions} // Added
                   />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
@@ -995,6 +1004,7 @@ export default function FleurManagerPage() {
                     onDeleteProduct={handleDeleteProduct}
                     productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
+                    productQualityOptions={productQualityOptions} // Added
                     sizeOptions={sizeOptions}
                     unitOptions={unitOptions}
                     onAddOption={handleAddProductOption}
@@ -1005,6 +1015,7 @@ export default function FleurManagerPage() {
                     onImportProducts={handleImportProducts}
                     productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
+                    productQualityOptions={productQualityOptions} // Added
                     sizeOptions={sizeOptions}
                     unitOptions={unitOptions}
                     currentUser={currentUser}
@@ -1048,7 +1059,7 @@ export default function FleurManagerPage() {
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData, shopInfo, cart,
       currentUser, numericDisplaySize,
-      productNameOptions, colorOptions, sizeOptions, unitOptions,
+      productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions, // Added productQualityOptions
       filteredInvoicesForRevenue, revenueFilter,
       filteredInvoicesForInvoiceTab, invoiceFilter,
       filteredDebtsForDebtTab, debtFilter,
@@ -1305,6 +1316,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

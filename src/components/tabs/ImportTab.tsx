@@ -15,11 +15,12 @@ interface LocalItemToImport {
   key: string;
   name: string;
   color: string;
+  quality: string; // Added
   size: string;
   unit: string;
   quantity: number;
   cost: number;
-  productId?: string | null; // undefined: not yet processed, null: processed and not found, string: processed and found
+  productId?: string | null; 
   error?: string;
 }
 
@@ -41,6 +42,7 @@ interface ImportTabProps {
   ) => Promise<boolean>;
   productNameOptions: string[];
   colorOptions: string[];
+  productQualityOptions: string[]; // Added
   sizeOptions: string[];
   unitOptions: string[];
   currentUser: User | null;
@@ -49,17 +51,19 @@ interface ImportTabProps {
 const createNewImportItem = (
     productNameOptions: string[],
     colorOptions: string[],
+    productQualityOptions: string[], // Added
     sizeOptions: string[],
     unitOptions: string[]
 ): LocalItemToImport => ({
     key: Date.now().toString() + Math.random().toString(36).substring(2, 7),
     name: productNameOptions[0] || '',
     color: colorOptions[0] || '',
+    quality: productQualityOptions[0] || '', // Added
     size: sizeOptions[0] || '',
     unit: unitOptions[0] || '',
     quantity: 1,
     cost: 0,
-    productId: undefined, // Needs to be calculated
+    productId: undefined, 
     error: undefined,
 });
 
@@ -69,12 +73,13 @@ export function ImportTab({
     onImportProducts,
     productNameOptions,
     colorOptions,
+    productQualityOptions, // Added
     sizeOptions,
     unitOptions,
     currentUser
 }: ImportTabProps) {
   const [itemsToImport, setItemsToImport] = useState<LocalItemToImport[]>(() => [
-    createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)
+    createNewImportItem(productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions)
   ]);
 
   const [localNotification, setLocalNotification] = useState<string | null>(null);
@@ -86,30 +91,31 @@ export function ImportTab({
   };
 
   useEffect(() => {
-    // Initialize or reset the first item if options become available and it's still in a default "empty" state
     if (
       itemsToImport.length === 1 &&
-      itemsToImport[0].name === '' && // Check against default empty name
-      (productNameOptions.length > 0 || colorOptions.length > 0 || sizeOptions.length > 0 || unitOptions.length > 0)
+      itemsToImport[0].name === '' && 
+      (productNameOptions.length > 0 || colorOptions.length > 0 || productQualityOptions.length > 0 || sizeOptions.length > 0 || unitOptions.length > 0)
     ) {
         const firstItemIsEmptyAndDefault =
             itemsToImport[0].name === '' &&
             itemsToImport[0].color === '' &&
+            itemsToImport[0].quality === '' && // Added
             itemsToImport[0].size === '' &&
             itemsToImport[0].unit === '';
 
         if (firstItemIsEmptyAndDefault) {
-             setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
+             setItemsToImport([createNewImportItem(productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions)]);
         }
     }
-  }, [productNameOptions, colorOptions, sizeOptions, unitOptions, itemsToImport]);
+  }, [productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions, itemsToImport]);
 
 
   const findMatchingProduct = useCallback((item: Omit<LocalItemToImport, 'key' | 'quantity' | 'cost' | 'productId' | 'error'>) => {
-    if (!item.name || !item.color || !item.size || !item.unit) return null;
+    if (!item.name || !item.color || !item.quality || !item.size || !item.unit) return null; // Added quality check
     return inventory.find(p =>
       p.name === item.name &&
       p.color === item.color &&
+      p.quality === item.quality && // Added quality match
       p.size === item.size &&
       p.unit === item.unit
     );
@@ -117,32 +123,24 @@ export function ImportTab({
 
   useEffect(() => {
     const nextItemsToImport = itemsToImport.map(item => {
-      // Determine new productId and error based on current item attributes and inventory
       const matchedProduct = findMatchingProduct(item);
       const newProductId = matchedProduct ? matchedProduct.id : null;
-      const newError = (item.name && item.color && item.size && item.unit && !matchedProduct)
+      const newError = (item.name && item.color && item.quality && item.size && item.unit && !matchedProduct) // Added quality check
         ? 'Sản phẩm không tồn tại trong kho.'
         : undefined;
 
-      // If the derived productId or error is different from the current one,
-      // it means this item needs to be updated. Return a new object.
       if (item.productId !== newProductId || item.error !== newError) {
         return { ...item, productId: newProductId, error: newError };
       }
-
-      // Otherwise, no change for this item, so return the original object
-      // to maintain reference equality if possible.
       return item;
     });
 
-    // Check if any item object reference has changed, or if array length changed.
-    // This implies that at least one item's data (productId or error) actually changed.
     let hasStateChanged = false;
     if (nextItemsToImport.length !== itemsToImport.length) {
       hasStateChanged = true;
     } else {
       for (let i = 0; i < nextItemsToImport.length; i++) {
-        if (nextItemsToImport[i] !== itemsToImport[i]) { // Reference check
+        if (nextItemsToImport[i] !== itemsToImport[i]) { 
           hasStateChanged = true;
           break;
         }
@@ -166,8 +164,7 @@ export function ImportTab({
                     updatedItemBase[field] = Number(value) < 0 ? 0 : parseFloat(value.toString()) ;
                 }
 
-                // When identifying attributes change, mark productId as undefined to force recalculation by useEffect
-                if (['name', 'color', 'size', 'unit'].includes(field)) {
+                if (['name', 'color', 'quality', 'size', 'unit'].includes(field)) { // Added quality
                     return { ...updatedItemBase, productId: undefined, error: undefined };
                 }
                 return updatedItemBase;
@@ -178,11 +175,11 @@ export function ImportTab({
   };
 
   const addItemField = () => {
-    if (inventory.length === 0 && productNameOptions.length === 0) { // Adjusted condition
+    if (inventory.length === 0 && productNameOptions.length === 0) { 
       showLocalNotification("Vui lòng thêm sản phẩm và các tùy chọn sản phẩm trong tab Kho hàng trước.", "error");
       return;
     }
-    setItemsToImport(prev => [...prev, createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
+    setItemsToImport(prev => [...prev, createNewImportItem(productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions)]);
   };
 
   const removeItemField = (keyToRemove: string) => {
@@ -214,7 +211,7 @@ export function ImportTab({
         } else if (itemsToImport.some(item => item.quantity <= 0 || item.cost < 0)) {
              showLocalNotification('Số lượng phải > 0 và giá nhập phải >= 0 cho tất cả sản phẩm.', 'error');
         }
-         else if (itemsToImport.some(item => !item.productId && item.name && item.color && item.size && item.unit)) {
+         else if (itemsToImport.some(item => !item.productId && item.name && item.color && item.quality && item.size && item.unit)) { // Added quality
             showLocalNotification('Một hoặc nhiều sản phẩm không tồn tại trong kho. Vui lòng kiểm tra lại.', 'error');
         } else if (itemsToImport.length === 0) {
             showLocalNotification('Vui lòng thêm ít nhất một sản phẩm để nhập hàng.', 'error');
@@ -241,11 +238,11 @@ export function ImportTab({
     );
 
     if (success) {
-      setItemsToImport([createNewImportItem(productNameOptions, colorOptions, sizeOptions, unitOptions)]);
+      setItemsToImport([createNewImportItem(productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions)]);
     }
   };
 
-  const allOptionsExist = productNameOptions.length > 0 && colorOptions.length > 0 && sizeOptions.length > 0 && unitOptions.length > 0;
+  const allOptionsExist = productNameOptions.length > 0 && colorOptions.length > 0 && productQualityOptions.length > 0 && sizeOptions.length > 0 && unitOptions.length > 0; // Added productQualityOptions
 
   return (
     <>
@@ -259,7 +256,7 @@ export function ImportTab({
 
                 {itemsToImport.map((item, index) => (
                     <Card key={item.key} className="p-4 bg-muted/50 relative">
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-0">
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-0"> {/* Adjusted grid for new field */}
                             <div>
                                 <label className="block mb-1 text-sm text-foreground">Tên sản phẩm (*)</label>
                                 <Select value={item.name} onValueChange={value => handleItemChange(index, 'name', value)} disabled={productNameOptions.length === 0}>
@@ -272,6 +269,13 @@ export function ImportTab({
                                 <Select value={item.color} onValueChange={value => handleItemChange(index, 'color', value)} disabled={colorOptions.length === 0}>
                                     <SelectTrigger className="w-full bg-card"><SelectValue placeholder="Chọn màu" /></SelectTrigger>
                                     <SelectContent>{colorOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <label className="block mb-1 text-sm text-foreground">Chất lượng (*)</label> {/* Added */}
+                                <Select value={item.quality} onValueChange={value => handleItemChange(index, 'quality', value)} disabled={productQualityOptions.length === 0}>
+                                    <SelectTrigger className="w-full bg-card"><SelectValue placeholder="Chọn chất lượng" /></SelectTrigger>
+                                    <SelectContent>{productQualityOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                             <div>
@@ -292,7 +296,7 @@ export function ImportTab({
                                 <label className="block mb-1 text-sm text-foreground">Số lượng (*)</label>
                                 <Input type="number" min="1" value={item.quantity.toString()} onChange={e => handleItemChange(index, 'quantity', parseInt(e.target.value))} className="w-full bg-card" required/>
                             </div>
-                            <div>
+                            <div className="lg:col-span-2"> {/* Adjusted span for cost to fill row on larger screens */}
                                 <label className="block mb-1 text-sm text-foreground">Giá nhập / đơn vị (Nghìn VND) (*)</label>
                                 <Input type="number" min="0" step="any" value={item.cost.toString()} onChange={e => handleItemChange(index, 'cost', parseFloat(e.target.value))} className="w-full bg-card" required/>
                             </div>
@@ -322,12 +326,12 @@ export function ImportTab({
                    + Thêm dòng sản phẩm nhập
                 </Button>
                 {!allOptionsExist && inventory.length > 0 && (
-                     <p className="text-xs text-center text-muted-foreground">Vui lòng định nghĩa đầy đủ các tùy chọn (Tên SP, Màu, Kích thước, Đơn vị) trong tab Kho hàng trước.</p>
+                     <p className="text-xs text-center text-muted-foreground">Vui lòng định nghĩa đầy đủ các tùy chọn (Tên SP, Màu, Chất lượng, Kích thước, Đơn vị) trong tab Kho hàng trước.</p>
                 )}
-                {inventory.length === 0 && !allOptionsExist && ( // show if no inventory AND not all options exist
+                {inventory.length === 0 && !allOptionsExist && ( 
                     <p className="text-xs text-center text-muted-foreground">Vui lòng thêm sản phẩm vào kho hàng và định nghĩa các tùy chọn sản phẩm trước khi nhập hàng.</p>
                 )}
-                 {inventory.length === 0 && allOptionsExist && ( // show if no inventory BUT all options exist
+                 {inventory.length === 0 && allOptionsExist && ( 
                     <p className="text-xs text-center text-muted-foreground">Vui lòng thêm sản phẩm vào kho hàng trước khi nhập hàng.</p>
                 )}
 
@@ -349,3 +353,4 @@ export function ImportTab({
     </>
   );
 }
+

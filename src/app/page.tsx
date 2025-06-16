@@ -183,6 +183,7 @@ interface FleurManagerLayoutContentProps {
   handleRevenueFilterChange: (newFilter: DateFilter) => void;
   handleInvoiceFilterChange: (newFilter: DateFilter) => void;
   handleDebtFilterChange: (newFilter: DateFilter) => void;
+  handleToggleAdminStatus: (employeeId: string, currentPosition: Employee['position']) => Promise<void>;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -197,7 +198,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
+    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleAdminStatus
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -287,6 +288,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     debts={debtsData}
                     numericDisplaySize={numericDisplaySize}
                     onDeleteDebt={handleDeleteDebt}
+                    onToggleAdminStatus={handleToggleAdminStatus}
+                    adminEmail={ADMIN_EMAIL}
                   />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData, cart, currentUser, numericDisplaySize,
@@ -298,7 +301,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
+      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleAdminStatus
   ]);
 
   return (
@@ -560,8 +563,6 @@ export default function FleurManagerPage() {
         if (!currentUser.displayName || !currentUserEmployeeRecord) {
             setIsSettingName(true);
         } else if (currentUser.email === ADMIN_EMAIL && currentUserEmployeeRecord && currentUserEmployeeRecord.position !== 'ADMIN') {
-            // If it's the admin user, they have an employee record, but their position is not 'ADMIN'
-            // This will force the SetNameDialog to appear, and handleNameSet will correct the position.
             setIsSettingName(true);
         }
         else {
@@ -735,6 +736,31 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleToggleAdminStatus = async (employeeId: string, currentPosition: Employee['position']) => {
+    if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
+      toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+      return;
+    }
+    const targetEmployee = employeesData.find(emp => emp.id === employeeId);
+    if (!targetEmployee || targetEmployee.email === ADMIN_EMAIL) {
+      toast({ title: "Lỗi", description: "Không thể thay đổi trạng thái của tài khoản này.", variant: "destructive" });
+      return;
+    }
+
+    const newPosition = currentPosition === 'ADMIN' ? 'Nhân viên' : 'ADMIN';
+    try {
+      await update(ref(db, `employees/${employeeId}`), { position: newPosition });
+      toast({
+        title: "Thành công",
+        description: `Đã cập nhật trạng thái của ${targetEmployee.name} thành ${newPosition}.`,
+        variant: "default"
+      });
+    } catch (error) {
+      console.error("Error toggling admin status:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái nhân viên.", variant: "destructive" });
+    }
+  };
+
 
   if (authLoading) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
   if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
@@ -801,6 +827,7 @@ export default function FleurManagerPage() {
         handleRevenueFilterChange={handleRevenueFilterChange}
         handleInvoiceFilterChange={handleInvoiceFilterChange}
         handleDebtFilterChange={handleDebtFilterChange}
+        handleToggleAdminStatus={handleToggleAdminStatus}
       />
 
       {debtToDelete && (
@@ -826,6 +853,7 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 
 
 

@@ -13,11 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, UserCog, UserX } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 interface ActivityDateTimeFilter {
@@ -82,6 +83,8 @@ interface EmployeeTabProps {
   debts: Debt[];
   numericDisplaySize: NumericDisplaySize;
   onDeleteDebt: (debtId: string) => void;
+  onToggleAdminStatus: (employeeId: string, currentPosition: Employee['position']) => Promise<void>;
+  adminEmail: string; // Add adminEmail prop
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -89,7 +92,7 @@ const minuteOptionsStart = ['00', '15', '30', '45'];
 const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
 
 
-export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt }: EmployeeTabProps) {
+export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt, onToggleAdminStatus, adminEmail }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
     const today = new Date();
@@ -103,17 +106,17 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     };
   });
 
-  const isAdmin = currentUser?.email === 'nthe1008@gmail.com';
+  const isAdmin = currentUser?.email === adminEmail;
 
   const displayEmployees = useMemo(() => {
     if (isAdmin) return employees;
-    const adminEmployee = employees.find(emp => emp.email === 'nthe1008@gmail.com');
+    const adminEmployee = employees.find(emp => emp.email === adminEmail);
     const selfEmployee = employees.find(emp => emp.id === currentUser?.uid);
     const result = [];
     if (adminEmployee) result.push(adminEmployee);
     if (selfEmployee && selfEmployee.id !== adminEmployee?.id) result.push(selfEmployee);
     return result;
-  }, [employees, currentUser, isAdmin]);
+  }, [employees, currentUser, isAdmin, adminEmail]);
 
   const employeeBaseInvoices = useMemo(() => {
     if (!selectedEmployee) return [];
@@ -230,7 +233,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                             {emp.position}
                           </span>
                         ) : emp.position === 'Nhân viên' ? (
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-500 text-white dark:bg-gray-600 dark:text-gray-100">
+                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-500 text-white dark:bg-gray-600 dark:text-gray-100">
                             {emp.position}
                           </span>
                         ) : (
@@ -240,7 +243,39 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       <TableCell>{emp.email}</TableCell>
                       <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
                       <TableCell className="text-center">
-                        {/* Placeholder for future actions */}
+                        {isAdmin && emp.email !== adminEmail && (emp.position === 'Nhân viên' || emp.position === 'ADMIN') && (
+                          <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent row click when button is clicked
+                                    onToggleAdminStatus(emp.id, emp.position);
+                                  }}
+                                >
+                                  {emp.position === 'Nhân viên' ? (
+                                    <UserCog className="h-4 w-4 text-blue-600" />
+                                  ) : (
+                                    <UserX className="h-4 w-4 text-orange-600" />
+                                  )}
+                                  <span className="sr-only">
+                                    {emp.position === 'Nhân viên' ? 'Ủy quyền Admin' : 'Thu hồi Admin'}
+                                  </span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>
+                                  {emp.position === 'Nhân viên'
+                                    ? 'Ủy quyền làm Quản trị viên'
+                                    : 'Thu hồi quyền Quản trị viên'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

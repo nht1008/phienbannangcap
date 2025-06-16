@@ -241,7 +241,6 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             
               <div className="mt-4 pt-4 border-t space-y-4">
-                {/* Start Date/Time Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1 sm:col-span-1">
                     <Label htmlFor="startDate">Từ ngày</Label>
@@ -290,7 +289,6 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   </div>
                 </div>
 
-                {/* End Date/Time Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1 sm:col-span-1">
                     <Label htmlFor="endDate">Đến ngày</Label>
@@ -340,7 +338,6 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   </div>
                 </div>
                 
-                {/* "Hôm nay" Button Row */}
                 <div>
                     <Button
                     onClick={handleSetTodayFilter}
@@ -353,43 +350,47 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <Card className="bg-success/10 border-[hsl(var(--success))]">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng tiền bán hàng</CardTitle>
-                    <CardDescription className="text-xs">(Tổng giá trị các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
-                  </CardContent>
-                </Card>
-                 <Card className="bg-chart-3/10 border-[hsl(var(--chart-3))]">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-[hsl(var(--chart-3))]">Tổng giao dịch</CardTitle>
-                    <CardDescription className="text-xs">Đây là tổng số tiền mà nhân viên đang cầm (không tính số tiền gốc đã đưa cho)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className={cn("font-bold text-[hsl(var(--chart-3))]", numericDisplaySize)}>{totalTransactions.toLocaleString('vi-VN')} VNĐ</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-success/10 border-[hsl(var(--success))]">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng thu nợ</CardTitle>
-                     <CardDescription className="text-xs">(Nợ được NV này xử lý "Đã TT", theo bộ lọc ngày tạo nợ)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-destructive/10 border-destructive">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-[hsl(var(--destructive))]">Tổng giảm giá</CardTitle>
-                     <CardDescription className="text-xs">(Tổng GG chung & GG sản phẩm trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className={cn("font-bold text-[hsl(var(--destructive))]", numericDisplaySize)}>{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
-                  </CardContent>
-                </Card>
+              <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="bg-success/10 border-[hsl(var(--success))]">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng tiền bán hàng</CardTitle>
+                      <CardDescription className="text-xs">(Tổng giá trị các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-success/10 border-[hsl(var(--success))]">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng thu nợ</CardTitle>
+                      <CardDescription className="text-xs">(Nợ được NV này xử lý "Đã TT", theo bộ lọc ngày tạo nợ)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalDebtCollectedByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-destructive/10 border-destructive">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold text-[hsl(var(--destructive))]">Tổng giảm giá</CardTitle>
+                      <CardDescription className="text-xs">(Tổng GG chung & GG sản phẩm trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className={cn("font-bold text-[hsl(var(--destructive))]", numericDisplaySize)}>{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                <div>
+                  <Card className="bg-chart-3/10 border-[hsl(var(--chart-3))]">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold text-[hsl(var(--chart-3))]">Tổng giao dịch</CardTitle>
+                      <CardDescription className="text-xs">Đây là tổng số tiền mà nhân viên đang cầm (không tính số tiền gốc đã đưa cho)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className={cn("font-bold text-[hsl(var(--chart-3))]", numericDisplaySize)}>{totalTransactions.toLocaleString('vi-VN')} VNĐ</p>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
 
               <div>

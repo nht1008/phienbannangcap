@@ -224,6 +224,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">STT</TableHead>
                     <TableHead>ID HĐ</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày</TableHead>
@@ -236,13 +237,14 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map(invoice => {
+                  {invoices.map((invoice, index) => {
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
                     const displayedAmount = (!hasDebt ? invoice.total : (invoice.amountPaid ?? 0));
                     const isCashPayment = invoice.paymentMethod === 'Tiền mặt';
                     const invoiceDate = new Date(invoice.date);
                     return (
                       <TableRow key={invoice.id}>
+                        <TableCell>{index + 1}</TableCell>
                         <TableCell>{invoice.id.substring(0,8)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>

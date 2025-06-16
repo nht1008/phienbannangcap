@@ -271,9 +271,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl">Lịch sử giao dịch của: {selectedCustomerForDetails.name}</DialogTitle>
-              <DialogDescription>
-                Số điện thoại: {formatPhoneNumber(selectedCustomerForDetails.phone)}
-                {selectedCustomerForDetails.address && ` | Địa chỉ: ${selectedCustomerForDetails.address}`}
+              <DialogDescription asChild>
+                <div>
+                  <p>Số điện thoại: {formatPhoneNumber(selectedCustomerForDetails.phone)}</p>
+                  {selectedCustomerForDetails.address && <p>Địa chỉ: {selectedCustomerForDetails.address}</p>}
+                </div>
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-4" />
@@ -284,6 +286,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">STT</TableHead>
                       <TableHead>ID Hóa đơn</TableHead>
                       <TableHead>Ngày</TableHead>
                       <TableHead>Giờ</TableHead>
@@ -294,10 +297,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customerInvoices.map(invoice => {
+                    {customerInvoices.map((invoice, index) => {
                       const invoiceDate = new Date(invoice.date);
                       return (
                         <TableRow key={invoice.id} className={invoice.debtAmount && invoice.debtAmount > 0 ? "bg-destructive/5" : ""}>
+                          <TableCell>{index + 1}</TableCell>
                           <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
                           <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
                           <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
@@ -355,8 +359,8 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoiceForDetailedView.items.map((item: InvoiceCartItem, index: number) => (
-                    <TableRow key={`${item.id}-${index}`}>
+                  {invoiceForDetailedView.items.map((item: InvoiceCartItem, idx: number) => (
+                    <TableRow key={`${item.id}-${idx}`}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.color || 'N/A'}</TableCell>
                       <TableCell>{item.quality || 'N/A'}</TableCell>

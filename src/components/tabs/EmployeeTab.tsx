@@ -241,8 +241,8 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             
               <div className="mt-4 pt-4 border-t space-y-4">
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
-                  <div className="space-y-1 sm:col-span-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
+                  <div className="space-y-1">
                     <Label htmlFor="startDate">Từ ngày</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -269,7 +269,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="space-y-1 sm:col-span-1">
+                  <div className="space-y-1">
                     <Label htmlFor="startHour">Giờ bắt đầu</Label>
                     <Select value={activityFilter.startHour} onValueChange={(value) => setActivityFilter(prev => ({...prev, startHour: value}))}>
                       <SelectTrigger id="startHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
@@ -278,7 +278,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1 sm:col-span-1">
+                  <div className="space-y-1">
                     <Label htmlFor="startMinute">Phút bắt đầu</Label>
                     <Select value={activityFilter.startMinute} onValueChange={(value) => setActivityFilter(prev => ({...prev, startMinute: value}))}>
                       <SelectTrigger id="startMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
@@ -290,7 +290,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
-                  <div className="space-y-1 sm:col-span-1">
+                  <div className="space-y-1">
                     <Label htmlFor="endDate">Đến ngày</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -318,7 +318,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <div className="space-y-1 sm:col-span-1">
+                  <div className="space-y-1">
                     <Label htmlFor="endHour">Giờ kết thúc</Label>
                     <Select value={activityFilter.endHour} onValueChange={(value) => setActivityFilter(prev => ({...prev, endHour: value}))}>
                       <SelectTrigger id="endHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
@@ -327,7 +327,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1 sm:col-span-1">
+                  <div className="space-y-1">
                     <Label htmlFor="endMinute">Phút kết thúc</Label>
                     <Select value={activityFilter.endMinute} onValueChange={(value) => setActivityFilter(prev => ({...prev, endMinute: value}))}>
                       <SelectTrigger id="endMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
@@ -402,6 +402,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">STT</TableHead>
                         <TableHead>ID HĐ</TableHead>
                         <TableHead>Khách hàng</TableHead>
                         <TableHead>Ngày</TableHead>
@@ -411,10 +412,11 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEmployeeInvoices.map(invoice => {
+                      {filteredEmployeeInvoices.map((invoice, index) => {
                         const invoiceDate = new Date(invoice.date);
                         return (
                           <TableRow key={invoice.id}>
+                            <TableCell>{index + 1}</TableCell>
                             <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
                             <TableCell>{invoice.customerName}</TableCell>
                             <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
@@ -441,6 +443,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">STT</TableHead>
                         <TableHead>ID HĐ</TableHead>
                         <TableHead>Khách hàng</TableHead>
                         <TableHead>Ngày</TableHead>
@@ -451,10 +454,11 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEmployeeDebts.map(debt => {
+                      {filteredEmployeeDebts.map((debt, index) => {
                         const debtDate = new Date(debt.date);
                         return (
                           <TableRow key={debt.id}>
+                            <TableCell>{index + 1}</TableCell>
                             <TableCell>{debt.invoiceId ? `${debt.invoiceId.substring(0, 8)}...` : 'N/A'}</TableCell>
                             <TableCell>{debt.supplier}</TableCell>
                             <TableCell>{debtDate.toLocaleDateString('vi-VN')}</TableCell>

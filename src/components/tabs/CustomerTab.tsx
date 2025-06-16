@@ -173,7 +173,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         />
         <div className="md:col-span-3 flex justify-end gap-2">
             {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>}
-            <Button type="submit" className="bg-green-500 text-white hover:bg-green-600">
+            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {isEditMode ? 'Lưu thay đổi' : 'Lưu khách hàng'}
             </Button>
         </div>
@@ -186,7 +186,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       <Card>
         <CardHeader className="p-6">
           <div className="flex justify-between items-center">
-              <CardTitle className="text-4xl font-bold">Danh sách khách hàng</CardTitle>
+              <CardTitle className="text-2xl font-bold">Danh sách khách hàng</CardTitle>
               <Button
                 onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
                 variant="default"
@@ -260,7 +260,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => { setIsConfirmingDelete(false); setCustomerToDelete(null); }}>Hủy</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Xóa</AlertDialogAction>
+                <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -335,14 +335,19 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               <div className="space-y-3 pr-2">
                 {invoiceForDetailedView.items.map((item: InvoiceCartItem, index: number) => (
                   <Card key={`${item.id}-${index}`} className="p-3 bg-muted/40">
-                    <p className="font-semibold text-base">{item.name} <span className="text-xs text-muted-foreground">({item.color}, {item.size}, {item.unit})</span></p>
-                    <div className="text-sm space-y-0.5 mt-1">
-                        <p>Số lượng: {item.quantityInCart}</p>
-                        <p>Đơn giá: {item.price.toLocaleString('vi-VN')} VNĐ</p>
+                    <p className="font-bold text-base text-primary mb-1.5">{item.name}</p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground mb-2">
+                        <p><span className="font-medium text-foreground/80">Màu sắc:</span> {item.color || 'N/A'}</p>
+                        <p><span className="font-medium text-foreground/80">Kích thước:</span> {item.size || 'N/A'}</p>
+                        <p><span className="font-medium text-foreground/80">Đơn vị:</span> {item.unit || 'N/A'}</p>
+                    </div>
+                    <div className="text-sm space-y-0.5">
+                        <p><span className="font-medium">Số lượng:</span> {item.quantityInCart}</p>
+                        <p><span className="font-medium">Đơn giá:</span> {item.price.toLocaleString('vi-VN')} VNĐ</p>
                         {item.itemDiscount && item.itemDiscount > 0 && (
-                           <p className="text-destructive">Đã giảm (SP): {item.itemDiscount.toLocaleString('vi-VN')} VNĐ</p>
+                           <p className="text-destructive"><span className="font-medium">Đã giảm (SP):</span> {item.itemDiscount.toLocaleString('vi-VN')} VNĐ</p>
                         )}
-                        <p className="font-medium text-primary">Thành tiền (SP): {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')} VNĐ</p>
+                        <p className="font-semibold text-accent">Thành tiền (SP): {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')} VNĐ</p>
                     </div>
                   </Card>
                 ))}
@@ -386,4 +391,3 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
-

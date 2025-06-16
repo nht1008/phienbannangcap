@@ -500,10 +500,12 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
-              <DialogDescription>
-                <div><strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName}</div>
-                <div><strong>Ngày tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleDateString('vi-VN')}</div>
-                <div><strong>Giờ tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+              <DialogDescription asChild>
+                <div>
+                  <div><strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName}</div>
+                  <div><strong>Ngày tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleDateString('vi-VN')}</div>
+                  <div><strong>Giờ tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+                </div>
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />

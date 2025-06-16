@@ -480,11 +480,11 @@ export function SalesTab({
               {cart.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 px-3">Giỏ hàng trống</p>
               ) : (
-                <ScrollArea className="max-h-[calc(100vh-20rem)]"> {/* Adjust max-h if needed */}
+                <ScrollArea className="max-h-[calc(100vh-20rem)]">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[150px]">Tên Sản phẩm</TableHead>
+                        <TableHead className="min-w-[150px]">Tên Sản phẩm</TableHead>
                         <TableHead className="min-w-[60px]">Màu</TableHead>
                         <TableHead className="min-w-[70px]">Chất lượng</TableHead>
                         <TableHead className="min-w-[70px]">K.Thước</TableHead>
@@ -601,7 +601,7 @@ export function SalesTab({
               <Button
                 onClick={handleOpenPaymentDialog}
                 className="w-full bg-green-500 text-white hover:bg-green-600 text-lg py-3 h-auto"
-                disabled={true}
+                disabled={cart.length === 0 || !areAllItemDiscountsValid}
               >
                 Thanh toán
               </Button>

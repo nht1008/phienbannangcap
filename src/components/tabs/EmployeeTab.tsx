@@ -327,12 +327,31 @@ export function EmployeeTab({
     setEditingEmployee(null);
   };
 
+  const handleReviewEmployeesClick = () => {
+    toast({
+      title: "Tính năng sắp ra mắt",
+      description: "Chức năng xét duyệt yêu cầu nhân viên đang được phát triển.",
+      variant: "default",
+    });
+  };
+
 
   return (
     <>
     <Card> 
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
+        <div className="flex justify-between items-center">
+            <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
+            {isCurrentUserAdmin && (
+              <Button
+                onClick={handleReviewEmployeesClick}
+                variant="outline"
+                className="border-primary text-primary hover:bg-primary/10"
+              >
+                <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên
+              </Button>
+            )}
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col space-y-6">
         <div>

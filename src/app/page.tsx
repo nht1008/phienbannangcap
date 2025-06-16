@@ -555,10 +555,16 @@ export default function FleurManagerPage() {
         }
         finalSortedEmployees = [...finalSortedEmployees, ...otherEmployees];
         setEmployeesData(finalSortedEmployees);
+
         const currentUserEmployeeRecord = finalSortedEmployees.find(emp => emp.id === currentUser.uid);
         if (!currentUser.displayName || !currentUserEmployeeRecord) {
             setIsSettingName(true);
-        } else {
+        } else if (currentUser.email === ADMIN_EMAIL && currentUserEmployeeRecord && currentUserEmployeeRecord.position !== 'ADMIN') {
+            // If it's the admin user, they have an employee record, but their position is not 'ADMIN'
+            // This will force the SetNameDialog to appear, and handleNameSet will correct the position.
+            setIsSettingName(true);
+        }
+        else {
             setIsSettingName(false);
         }
     });
@@ -691,7 +697,7 @@ export default function FleurManagerPage() {
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
   const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!isAdmin) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
   const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
-  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isAdminUser = currentUser.email === ADMIN_EMAIL; const employeeName = isAdminUser ? ADMIN_NAME : inputName; const employeePosition = isAdminUser ? 'Chủ cửa hàng' : 'Nhân viên'; try { await updateUserProfileName(employeeName); const employeeDataForDb: Partial<Employee> = { name: employeeName, email: currentUser.email!, position: employeePosition, }; const employeeRef = ref(db, `employees/${currentUser.uid}`); await set(employeeRef, employeeDataForDb); toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." }); setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
+  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isAdminUser = currentUser.email === ADMIN_EMAIL; const employeeName = isAdminUser ? ADMIN_NAME : inputName; const employeePosition = isAdminUser ? 'ADMIN' : 'Nhân viên'; try { await updateUserProfileName(employeeName); const employeeDataForDb: Partial<Employee> = { name: employeeName, email: currentUser.email!, position: employeePosition, }; const employeeRef = ref(db, `employees/${currentUser.uid}`); await set(employeeRef, employeeDataForDb); toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." }); setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
 
   const handleDeleteDebt = (debtId: string) => {
     const debt = debtsData.find(d => d.id === debtId);
@@ -820,5 +826,6 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+
 
 

@@ -88,7 +88,7 @@ export interface Employee {
   id: string; // Firebase Auth UID
   name: string;
   email: string;
-  position: 'Chủ cửa hàng' | 'Nhân viên';
+  position: 'Chủ cửa hàng' | 'Nhân viên' | 'ADMIN';
   phone?: string;
 }
 
@@ -101,3 +101,4 @@ export interface ShopInfo {
   bankAccountNumber: string;
   bankName: string;
 }
+

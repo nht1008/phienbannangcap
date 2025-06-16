@@ -224,7 +224,15 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       className={`cursor-pointer hover:bg-muted/50 ${selectedEmployee?.id === emp.id ? 'bg-primary/10' : ''}`}
                     >
                       <TableCell>{emp.name}</TableCell>
-                      <TableCell>{emp.position}</TableCell>
+                      <TableCell>
+                        {emp.position === 'ADMIN' ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-destructive text-destructive-foreground">
+                            {emp.position}
+                          </span>
+                        ) : (
+                          emp.position
+                        )}
+                      </TableCell>
                       <TableCell>{emp.email}</TableCell>
                       <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
                       <TableCell className="text-center">

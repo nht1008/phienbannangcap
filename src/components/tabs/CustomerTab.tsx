@@ -330,10 +330,12 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
           <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle className="text-xl">Chi tiết sản phẩm Hóa đơn #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
-              <DialogDescription>
-                <div>Khách hàng: {invoiceForDetailedView.customerName}</div>
-                <div>Ngày: {new Date(invoiceForDetailedView.date).toLocaleDateString('vi-VN')}</div>
-                <div>Giờ: {new Date(invoiceForDetailedView.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+              <DialogDescription asChild>
+                <div>
+                  <p>Khách hàng: {invoiceForDetailedView.customerName}</p>
+                  <p>Ngày: {new Date(invoiceForDetailedView.date).toLocaleDateString('vi-VN')}</p>
+                  <p>Giờ: {new Date(invoiceForDetailedView.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                </div>
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />

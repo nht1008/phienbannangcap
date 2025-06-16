@@ -229,8 +229,8 @@ interface FleurManagerLayoutContentProps {
   handleImportProducts: (supplierName: string | undefined, itemsToProcess: SubmitItemToImport[], totalImportCostVND: number, employeeId: string, employeeName: string) => Promise<boolean>;
   handleProcessInvoiceCancellationOrReturn: (invoiceId: string, operationType: "delete" | "return", itemsToReturnArray?: { productId: string; name: string; quantityToReturn: number; }[] | undefined) => Promise<boolean>;
   handleUpdateDebtStatus: (debtId: string, newStatus: "Chưa thanh toán" | "Đã thanh toán", employeeId: string, employeeName: string, isUndoOperation?: boolean) => Promise<void>;
-  handleAddCustomer: (newCustomerData: Omit<Customer, "id">) => Promise<void>;
-  handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, "id">) => Promise<void>;
+  handleAddCustomer: (newCustomerData: Omit<Customer, "id" | "email">) => Promise<void>;
+  handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, "id" | "email">) => Promise<void>;
   handleDeleteCustomer: (customerId: string) => Promise<void>;
   handleDeleteDebt: (debtId: string) => void; 
   handleSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
@@ -362,6 +362,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
                       hasFullAccessRights={hasFullAccessRights}
+                      currentUser={currentUser}
                     />,
     'Nhân viên': <EmployeeTab
                     employees={employeesData}
@@ -771,8 +772,8 @@ export default function FleurManagerPage() {
   const handleAddProduct = useCallback(async (newProductData: Omit<Product, 'id'>) => { try { const newProductRef = push(ref(db, 'inventory')); await set(newProductRef, { ...newProductData, price: newProductData.price, costPrice: newProductData.costPrice, maxDiscountPerUnitVND: newProductData.maxDiscountPerUnitVND }); toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" }); } catch (error) { console.error("Error adding product:", error); toast({ title: "Lỗi", description: "Không thể thêm sản phẩm. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
   const handleUpdateProduct = useCallback(async (productId: string, updatedProductData: Partial<Omit<Product, 'id'>>) => { try { await update(ref(db, `inventory/${productId}`), updatedProductData); toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating product:", error); toast({ title: "Lỗi", description: "Không thể cập nhật sản phẩm. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
   const handleDeleteProduct = useCallback(async (productId: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `inventory/${productId}`)); toast({ title: "Thành công", description: "Sản phẩm đã được xóa.", variant: "default" }); } catch (error) { console.error("Error deleting product:", error); toast({ title: "Lỗi", description: "Không thể xóa sản phẩm. Vui lòng thử lại.", variant: "destructive" }); } }, [toast, hasFullAccessRights]);
-  const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id'>) => { try { const newCustomerRef = push(ref(db, 'customers')); await set(newCustomerRef, newCustomerData); toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" }); } catch (error) { console.error("Error adding customer:", error); toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
-  const handleUpdateCustomer = useCallback(async (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => { try { await update(ref(db, `customers/${customerId}`), updatedCustomerData); toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating customer:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
+  const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id' | 'email'>) => { try { const newCustomerRef = push(ref(db, 'customers')); await set(newCustomerRef, newCustomerData); toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" }); } catch (error) { console.error("Error adding customer:", error); toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
+  const handleUpdateCustomer = useCallback(async (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email'>) => { try { await update(ref(db, `customers/${customerId}`), updatedCustomerData); toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating customer:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
   const handleDeleteCustomer = useCallback(async (customerId: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa khách hàng.", variant: "destructive" }); return; } try { await remove(ref(db, `customers/${customerId}`)); toast({ title: "Thành công", description: "Khách hàng đã được xóa.", variant: "default" }); } catch (error) { console.error("Error deleting customer:", error); toast({ title: "Lỗi", description: "Không thể xóa khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast, hasFullAccessRights]);
   
   const onAddToCart = useCallback((item: Product) => {
@@ -1209,7 +1210,11 @@ export default function FleurManagerPage() {
   }
   
   if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'approved') {
-     return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
+     // Check if customer is approved by checking customersData
+    const isApprovedCustomer = customersData.some(customer => customer.id === currentUser.uid && userAccessRequest?.status === 'approved' && userAccessRequest?.requestedRole === 'customer');
+    if (!isApprovedCustomer) {
+        return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
+    }
   }
 
 

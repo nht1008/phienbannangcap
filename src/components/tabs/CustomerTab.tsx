@@ -2,38 +2,42 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Customer, Invoice, InvoiceCartItem, Employee } from '@/types';
+import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest } from '@/types';
+import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
-import { formatPhoneNumber, cn } from '@/lib/utils';
+import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { db } from '@/lib/firebase';
+import { ref, onValue, update, set, serverTimestamp } from "firebase/database";
 
 interface CustomerTabProps {
   customers: Customer[];
   invoices: Invoice[];
-  onAddCustomer: (newCustomerData: Omit<Customer, 'id'>) => Promise<void>;
-  onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => Promise<void>;
+  onAddCustomer: (newCustomerData: Omit<Customer, 'id' | 'email'>) => Promise<void>;
+  onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email'>) => Promise<void>;
   onDeleteCustomer: (customerId: string) => Promise<void>;
   hasFullAccessRights: boolean;
+  currentUser: User | null;
 }
 
-const initialFormState: Omit<Customer, 'id'> = { name: '', phone: '', address: '' };
+const initialFormState: Omit<Customer, 'id' | 'email'> = { name: '', phone: '', address: '' };
 
-export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights }: CustomerTabProps) {
+export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights, currentUser }: CustomerTabProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id'>>(initialFormState);
+  const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id' | 'email'>>(initialFormState);
 
   const [isEditing, setIsEditing] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
-  const [editedCustomer, setEditedCustomer] = useState<Omit<Customer, 'id'>>(initialFormState);
+  const [editedCustomer, setEditedCustomer] = useState<Omit<Customer, 'id' | 'email'>>(initialFormState);
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -44,6 +48,84 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const [invoiceForDetailedView, setInvoiceForDetailedView] = useState<Invoice | null>(null);
   const [isInvoiceDetailModalOpen, setIsInvoiceDetailModalOpen] = useState(false);
+
+  const [customerAccessRequests, setCustomerAccessRequests] = useState<UserAccessRequest[]>([]);
+  const [isLoadingCustomerRequests, setIsLoadingCustomerRequests] = useState(false);
+  const [isReviewCustomerDialogOpen, setIsReviewCustomerDialogOpen] = useState(false);
+  const [customerRejectionReason, setCustomerRejectionReason] = useState("");
+  const [customerRequestToReject, setCustomerRequestToReject] = useState<UserAccessRequest | null>(null);
+
+
+  useEffect(() => {
+    if (hasFullAccessRights) {
+      setIsLoadingCustomerRequests(true);
+      const requestsRef = ref(db, 'userAccessRequests');
+      const unsubscribe = onValue(requestsRef, (snapshot) => {
+        const data = snapshot.val();
+        const loadedRequests: UserAccessRequest[] = [];
+        if (data) {
+          Object.keys(data).forEach(key => {
+            if (data[key].status === 'pending' && data[key].requestedRole === 'customer') {
+              loadedRequests.push({ id: key, ...data[key] });
+            }
+          });
+        }
+        setCustomerAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
+        setIsLoadingCustomerRequests(false);
+      }, (error) => {
+        console.error("Error fetching customer access requests:", error);
+        toast({ title: "Lỗi tải yêu cầu khách hàng", description: "Không thể tải danh sách yêu cầu.", variant: "destructive" });
+        setIsLoadingCustomerRequests(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [hasFullAccessRights, toast]);
+
+  const handleApproveCustomerRequest = async (request: UserAccessRequest) => {
+    if (!hasFullAccessRights || !currentUser) return;
+    try {
+      const updates: Record<string, any> = {};
+      updates[`userAccessRequests/${request.id}/status`] = 'approved';
+      updates[`userAccessRequests/${request.id}/reviewedBy`] = currentUser.uid;
+      updates[`userAccessRequests/${request.id}/reviewDate`] = new Date().toISOString();
+
+      updates[`customers/${request.id}`] = {
+        name: request.name,
+        email: request.email, // Store email for potential future use
+        phone: request.phone || '',
+        address: request.address || '',
+      };
+      
+      await update(ref(db), updates);
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.name}.`, variant: "default" });
+    } catch (error) {
+      console.error("Error approving customer request:", error);
+      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu khách hàng.", variant: "destructive" });
+    }
+  };
+
+  const openRejectCustomerDialog = (request: UserAccessRequest) => {
+    setCustomerRequestToReject(request);
+    setCustomerRejectionReason(""); // Reset reason
+  };
+
+  const handleConfirmRejectCustomerRequest = async () => {
+    if (!hasFullAccessRights || !currentUser || !customerRequestToReject) return;
+    try {
+      await update(ref(db, `userAccessRequests/${customerRequestToReject.id}`), {
+        status: 'rejected',
+        reviewedBy: currentUser.uid,
+        reviewDate: new Date().toISOString(),
+        rejectionReason: customerRejectionReason.trim() || "Không có lý do cụ thể.",
+      });
+      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.name}.`, variant: "default" });
+      setCustomerRequestToReject(null);
+      setCustomerRejectionReason("");
+    } catch (error) {
+      console.error("Error rejecting customer request:", error);
+      toast({ title: "Lỗi", description: "Không thể từ chối yêu cầu khách hàng.", variant: "destructive" });
+    }
+  };
 
 
   useEffect(() => {
@@ -58,7 +140,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     }
   }, [customerToEdit]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id'>>>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id' | 'email'>>>) => {
     const { name, value } = e.target;
     formSetter(prev => ({ ...prev, [name]: value }));
   };
@@ -132,24 +214,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     setIsInvoiceDetailModalOpen(false);
   };
 
-  const handleReviewCustomersClick = () => {
-    toast({
-      title: "Tính năng sắp ra mắt",
-      description: "Chức năng xét duyệt yêu cầu khách hàng đang được phát triển.",
-      variant: "default",
-    });
-  };
-
-  const customerInvoices = useMemo(() => {
-    if (!selectedCustomerForDetails) return [];
-    return invoices
-      .filter(invoice => invoice.customerName === selectedCustomerForDetails.name)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [selectedCustomerForDetails, invoices]);
-
   const renderCustomerForm = (
-    formState: Omit<Customer, 'id'>,
-    formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id'>>>,
+    formState: Omit<Customer, 'id' | 'email'>,
+    formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id' | 'email'>>>,
     handleSubmit: (e: React.FormEvent) => Promise<void>,
     isEditMode: boolean,
     onCancel?: () => void
@@ -199,11 +266,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               {hasFullAccessRights && (
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleReviewCustomersClick}
+                    onClick={() => setIsReviewCustomerDialogOpen(true)}
                     variant="outline"
                     className="border-primary text-primary hover:bg-primary/10"
                   >
-                    <Users className="mr-2 h-4 w-4" /> Xét duyệt khách hàng
+                    <Users className="mr-2 h-4 w-4" /> Xét duyệt khách hàng ({customerAccessRequests.length})
                   </Button>
                   <Button
                     onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
@@ -277,7 +344,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Xác nhận xóa khách hàng?</AlertDialogTitle>
+                <AlertDialogTitleComponent>Xác nhận xóa khách hàng?</AlertDialogTitleComponent>
                 <AlertDialogDescription>
                     Bạn có chắc chắn muốn xóa khách hàng "{customerToDelete.name}" không? Hành động này không thể hoàn tác.
                 </AlertDialogDescription>
@@ -303,7 +370,10 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-4" />
-            {customerInvoices.length === 0 ? (
+            {invoices
+              .filter(invoice => normalizeStringForSearch(invoice.customerName) === normalizeStringForSearch(selectedCustomerForDetails.name))
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .length === 0 ? (
               <p className="text-muted-foreground text-center py-4">Khách hàng này chưa có giao dịch nào.</p>
             ) : (
               <ScrollArea className="max-h-[60vh]">
@@ -321,7 +391,10 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customerInvoices.map((invoice, index) => {
+                    {invoices
+                      .filter(invoice => normalizeStringForSearch(invoice.customerName) === normalizeStringForSearch(selectedCustomerForDetails.name))
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((invoice, index) => {
                       const invoiceDate = new Date(invoice.date);
                       return (
                         <TableRow key={invoice.id} className={invoice.debtAmount && invoice.debtAmount > 0 ? "bg-destructive/5" : ""}>
@@ -432,6 +505,95 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             </div>
             <DialogFooter className="mt-4">
               <Button variant="outline" onClick={closeInvoiceItemDetailsDialog}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {hasFullAccessRights && (
+        <Dialog open={isReviewCustomerDialogOpen} onOpenChange={setIsReviewCustomerDialogOpen}>
+          <DialogContent className="sm:max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Xét duyệt yêu cầu khách hàng ({customerAccessRequests.length})</DialogTitle>
+              <DialogDescription>
+                Duyệt hoặc từ chối các yêu cầu truy cập với vai trò khách hàng.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              {isLoadingCustomerRequests ? (
+                <p>Đang tải danh sách yêu cầu...</p>
+              ) : customerAccessRequests.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
+              ) : (
+                <ScrollArea className="max-h-[60vh]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tên</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>SĐT</TableHead>
+                        <TableHead>Địa chỉ</TableHead>
+                        <TableHead>Ngày yêu cầu</TableHead>
+                        <TableHead className="text-center">Hành động</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customerAccessRequests.map((req) => (
+                        <TableRow key={req.id}>
+                          <TableCell>{req.name}</TableCell>
+                          <TableCell>{req.email}</TableCell>
+                          <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate" title={req.address}>{req.address || 'N/A'}</TableCell>
+                          <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
+                          <TableCell className="text-center space-x-2">
+                            <Button
+                              size="sm"
+                              className="bg-success hover:bg-success/90 h-7 px-2"
+                              onClick={() => handleApproveCustomerRequest(req)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />Duyệt
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2"
+                              onClick={() => openRejectCustomerDialog(req)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />Từ chối
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsReviewCustomerDialogOpen(false)}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {customerRequestToReject && (
+        <Dialog open={!!customerRequestToReject} onOpenChange={() => setCustomerRequestToReject(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Từ chối yêu cầu của {customerRequestToReject.name}?</DialogTitle>
+              <DialogDescription>
+                Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              value={customerRejectionReason}
+              onChange={(e) => setCustomerRejectionReason(e.target.value)}
+              placeholder="Nhập lý do từ chối (tùy chọn)..."
+              className="min-h-[100px]"
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCustomerRequestToReject(null)}>Hủy</Button>
+              <Button variant="destructive" onClick={handleConfirmRejectCustomerRequest}>Xác nhận từ chối</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

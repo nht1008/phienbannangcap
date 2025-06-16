@@ -322,7 +322,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
       {invoiceForDetailedView && (
         <Dialog open={isInvoiceDetailModalOpen} onOpenChange={closeInvoiceItemDetailsDialog}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl"> {/* Increased max-width for table */}
             <DialogHeader>
               <DialogTitle className="text-xl">Chi tiết sản phẩm Hóa đơn #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
@@ -332,27 +332,38 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             </DialogHeader>
             <Separator className="my-3" />
             <ScrollArea className="max-h-[50vh]">
-              <div className="space-y-3 pr-2">
-                {invoiceForDetailedView.items.map((item: InvoiceCartItem, index: number) => (
-                  <Card key={`${item.id}-${index}`} className="p-3 bg-muted/40">
-                    <p className="font-bold text-base text-primary mb-1.5">{item.name}</p>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground mb-2">
-                        <p><span className="font-medium text-foreground/80">Màu sắc:</span> {item.color || 'N/A'}</p>
-                        <p><span className="font-medium text-foreground/80">Chất lượng:</span> {item.quality || 'N/A'}</p> {/* Added */}
-                        <p><span className="font-medium text-foreground/80">Kích thước:</span> {item.size || 'N/A'}</p>
-                        <p><span className="font-medium text-foreground/80">Đơn vị:</span> {item.unit || 'N/A'}</p>
-                    </div>
-                    <div className="text-sm space-y-0.5">
-                        <p><span className="font-medium">Số lượng:</span> {item.quantityInCart}</p>
-                        <p><span className="font-medium">Đơn giá:</span> {item.price.toLocaleString('vi-VN')} VNĐ</p>
-                        {item.itemDiscount && item.itemDiscount > 0 && (
-                           <p className="text-destructive"><span className="font-medium">Đã giảm (SP):</span> {item.itemDiscount.toLocaleString('vi-VN')} VNĐ</p>
-                        )}
-                        <p className="font-semibold text-accent">Thành tiền (SP): {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')} VNĐ</p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Tên Sản phẩm</TableHead>
+                    <TableHead>Màu</TableHead>
+                    <TableHead>Chất lượng</TableHead>
+                    <TableHead>K.Thước</TableHead>
+                    <TableHead>ĐV</TableHead>
+                    <TableHead className="text-right">SL</TableHead>
+                    <TableHead className="text-right">Đơn giá</TableHead>
+                    <TableHead className="text-right">GG SP</TableHead>
+                    <TableHead className="text-right">Thành tiền</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoiceForDetailedView.items.map((item: InvoiceCartItem, index: number) => (
+                    <TableRow key={`${item.id}-${index}`}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.color || 'N/A'}</TableCell>
+                      <TableCell>{item.quality || 'N/A'}</TableCell>
+                      <TableCell>{item.size || 'N/A'}</TableCell>
+                      <TableCell>{item.unit || 'N/A'}</TableCell>
+                      <TableCell className="text-right">{item.quantityInCart}</TableCell>
+                      <TableCell className="text-right">{item.price.toLocaleString('vi-VN')}</TableCell>
+                      <TableCell className="text-right text-destructive">{(item.itemDiscount || 0).toLocaleString('vi-VN')}</TableCell>
+                      <TableCell className="text-right font-semibold text-primary">
+                        {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </ScrollArea>
             <Separator className="my-3" />
             <div className="space-y-1 text-sm">
@@ -392,4 +403,3 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
-

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import type { Invoice, CartItem, InvoiceCartItem } from '@/types'; // Added InvoiceCartItem
+import type { Invoice, CartItem, InvoiceCartItem } from '@/types';
 import type { DateFilter } from '@/app/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,7 +50,7 @@ type ReturnItemDetail = {
   quantityToReturn: string;
   name: string;
   color: string;
-  quality?: string; // Added
+  quality?: string; 
   size: string;
   unit: string;
   price: number;
@@ -86,7 +86,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         quantityToReturn: "0",
         name: item.name,
         color: item.color,
-        quality: item.quality, // Added
+        quality: item.quality,
         size: item.size,
         unit: item.unit,
         price: item.price,
@@ -270,7 +270,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
           {selectedInvoiceDetails && (
             <Dialog open={!!selectedInvoiceDetails} onOpenChange={(open) => !open && setSelectedInvoiceDetails(null)}>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="sm:max-w-2xl"> {/* Increased max-width for table */}
                 <DialogHeader>
                   <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
                   <DialogDescription>
@@ -281,14 +281,38 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <Separator className="my-4" />
                 <ScrollArea className="max-h-60">
                   <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
-                  <ul className="space-y-1 pr-3">
-                    {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => ( // Use InvoiceCartItem
-                      <li key={`${item.id}-${index}`} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.name} ({item.color}, {item.quality || 'N/A'}, {item.size}) x {item.quantityInCart} {item.unit}</span> {/* Added quality */}
-                        <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">Tên Sản phẩm</TableHead>
+                        <TableHead>Màu</TableHead>
+                        <TableHead>Chất lượng</TableHead>
+                        <TableHead>K.Thước</TableHead>
+                        <TableHead>ĐV</TableHead>
+                        <TableHead className="text-right">SL</TableHead>
+                        <TableHead className="text-right">Đơn giá</TableHead>
+                        <TableHead className="text-right">GG SP</TableHead>
+                        <TableHead className="text-right">Thành tiền</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => (
+                        <TableRow key={`${item.id}-${index}`}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>{item.color || 'N/A'}</TableCell>
+                          <TableCell>{item.quality || 'N/A'}</TableCell>
+                          <TableCell>{item.size || 'N/A'}</TableCell>
+                          <TableCell>{item.unit || 'N/A'}</TableCell>
+                          <TableCell className="text-right">{item.quantityInCart}</TableCell>
+                          <TableCell className="text-right">{item.price.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell className="text-right text-destructive">{(item.itemDiscount || 0).toLocaleString('vi-VN')}</TableCell>
+                          <TableCell className="text-right font-semibold text-primary">
+                            {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </ScrollArea>
                 <Separator className="my-4" />
                 {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
@@ -376,7 +400,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <div className="space-y-4 py-2 pr-3">
                 {Object.entries(returnItemsState).map(([productId, itemData]) => (
                   <Card key={productId} className="p-3 bg-muted/30">
-                    <p className="font-semibold">{itemData.name} <span className="text-xs text-muted-foreground">({itemData.color}, {itemData.quality || 'N/A'}, {itemData.size})</span></p> {/* Added quality */}
+                    <p className="font-semibold">{itemData.name} <span className="text-xs text-muted-foreground">({itemData.color}, {itemData.quality || 'N/A'}, {itemData.size})</span></p>
                     <p className="text-sm text-muted-foreground">Đơn vị: {itemData.unit} - Giá: {itemData.price.toLocaleString('vi-VN')} VNĐ</p>
                     <p className="text-sm text-muted-foreground">Đã mua: {itemData.originalQuantityInCart}</p>
                     <div className="mt-2">
@@ -411,4 +435,3 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
-

@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Tag, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -234,7 +234,7 @@ export function SalesTab({
       .filter(p => p.quantity > 0)
       .map(p => ({
         ...p,
-        displayLabel: `${p.name} ${p.color} ${p.quality || ''} ${p.size} ${p.unit} - Tồn: ${p.quantity}`.replace(/\s\s+/g, ' ')
+        displayLabel: `${p.name} ${p.color} ${p.quality || ''} ${p.size} ${p.unit} - Tồn: ${p.quantity} - Giá: ${p.price.toLocaleString('vi-VN')}`.replace(/\s\s+/g, ' ')
       }));
   }, [inventory]);
 
@@ -250,7 +250,7 @@ export function SalesTab({
     setSelectedProductNameForVariants(productName);
     setVariantSelection({ color: colors[0] || '', quality: '', size: '', unit: '' });
     setIsVariantSelectorOpen(true);
-  }, [inventory, showLocalNotification]);
+  }, [inventory]);
 
   useEffect(() => {
     if (selectedProductNameForVariants && variantSelection.color) {
@@ -484,14 +484,14 @@ export function SalesTab({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[150px]">Tên Sản phẩm</TableHead>
+                        <TableHead className="w-[150px]">Tên Sản phẩm</TableHead>
                         <TableHead className="min-w-[60px]">Màu</TableHead>
                         <TableHead className="min-w-[70px]">Chất lượng</TableHead>
                         <TableHead className="min-w-[70px]">K.Thước</TableHead>
                         <TableHead className="min-w-[50px]">ĐV</TableHead>
                         <TableHead className="text-center w-[120px]">SL</TableHead>
                         <TableHead className="text-right min-w-[80px]">Đơn giá</TableHead>
-                        <TableHead className="text-center w-[90px]">GG SP</TableHead>
+                        <TableHead className="text-center w-[90px]">GG SP (Nghìn VND)</TableHead>
                         <TableHead className="text-right min-w-[100px]">Thành tiền</TableHead>
                         <TableHead className="text-center w-[40px]">Xóa</TableHead>
                       </TableRow>
@@ -601,7 +601,7 @@ export function SalesTab({
               <Button
                 onClick={handleOpenPaymentDialog}
                 className="w-full bg-green-500 text-white hover:bg-green-600 text-lg py-3 h-auto"
-                disabled={cart.length === 0 || !areAllItemDiscountsValid}
+                disabled={true}
               >
                 Thanh toán
               </Button>
@@ -894,4 +894,3 @@ export function SalesTab({
     </>
   );
 }
-

@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import Image from 'next/image';
-import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Tag, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Tag } from 'lucide-react';
 import {
   Command,
   CommandEmpty,
@@ -105,8 +105,6 @@ export function SalesTab({
   const [variantSelection, setVariantSelection] = useState<VariantSelection>({ color: '', quality: '', size: '', unit: '' });
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
   const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] });
-
-  const [productPanelVisible, setProductPanelVisible] = useState(true);
 
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
@@ -359,27 +357,9 @@ export function SalesTab({
     <>
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
       <div className="p-4 md:p-6">
-        <div className="mb-4 hidden lg:flex justify-start">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setProductPanelVisible(!productPanelVisible)}
-            aria-label={productPanelVisible ? "Ẩn danh sách sản phẩm" : "Hiện danh sách sản phẩm"}
-            className="flex items-center"
-          >
-            {productPanelVisible ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
-            <span className="ml-2">{productPanelVisible ? "Ẩn DS Sản Phẩm" : "Hiện DS Sản Phẩm"}</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="flex flex-col gap-6">
           {/* Product Selection Area */}
-          <div
-            className={cn(
-              "space-y-6",
-              productPanelVisible ? "lg:col-span-3" : "lg:hidden"
-            )}
-          >
+          <div className="space-y-6">
             <div className="p-4 bg-muted/30 rounded-lg">
               <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
               <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
@@ -440,7 +420,7 @@ export function SalesTab({
 
             <div>
               <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {productsGroupedByName.map(group => (
                   <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
                     <CardContent className="p-4 flex-grow">
@@ -476,10 +456,7 @@ export function SalesTab({
           </div>
 
           {/* Cart Area */}
-          <Card className={cn(
-            "sticky top-6",
-            productPanelVisible ? "lg:col-span-2" : "lg:col-span-5"
-          )}>
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center text-xl">
                   <ShoppingCart className="mr-2 h-6 w-6 text-primary"/>
@@ -904,3 +881,4 @@ export function SalesTab({
     </>
   );
 }
+

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatPhoneNumber, cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2, Eye, ListChecks } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -132,6 +132,14 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     setIsInvoiceDetailModalOpen(false);
   };
 
+  const handleReviewCustomersClick = () => {
+    toast({
+      title: "Tính năng sắp ra mắt",
+      description: "Chức năng xét duyệt yêu cầu khách hàng đang được phát triển.",
+      variant: "default",
+    });
+  };
+
   const customerInvoices = useMemo(() => {
     if (!selectedCustomerForDetails) return [];
     return invoices
@@ -189,13 +197,22 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
           <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Danh sách khách hàng</CardTitle>
               {hasFullAccessRights && (
-                <Button
-                  onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
-                  variant="default"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm khách hàng'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleReviewCustomersClick}
+                    variant="outline"
+                    className="border-primary text-primary hover:bg-primary/10"
+                  >
+                    <Users className="mr-2 h-4 w-4" /> Xét duyệt khách hàng
+                  </Button>
+                  <Button
+                    onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
+                    variant="default"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                      <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm khách hàng'}
+                  </Button>
+                </div>
               )}
           </div>
         </CardHeader>

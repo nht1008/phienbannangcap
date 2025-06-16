@@ -376,10 +376,11 @@ export function SalesTab({
           {/* Product Selection Area */}
           <div
             className={cn(
+              "space-y-6",
               productPanelVisible ? "lg:col-span-3" : "lg:hidden"
             )}
           >
-            <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+            <div className="p-4 bg-muted/30 rounded-lg">
               <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
               <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
                 <PopoverTrigger asChild>
@@ -437,38 +438,40 @@ export function SalesTab({
               </Popover>
             </div>
 
-            <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {productsGroupedByName.map(group => (
-                <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
-                  <CardContent className="p-4 flex-grow">
-                    <Image
-                      src={group.firstVariant.image || `https://placehold.co/100x100.png`}
-                      alt={group.name}
-                      width={100}
-                      height={100}
-                      className="w-24 h-24 mx-auto rounded-full object-cover mb-2 aspect-square"
-                      data-ai-hint={`${group.name.split(' ')[0]} flower`}
-                      onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
-                    />
-                    <h4 className="font-semibold text-foreground">{group.name}</h4>
-                    <p className="text-xs text-muted-foreground">Tổng còn lại: {group.totalStock}</p>
-                  </CardContent>
-                  <CardFooter className="p-2">
-                    <Button
-                      onClick={() => openVariantSelector(group.name)}
-                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
-                      size="sm"
-                      disabled={group.totalStock <= 0}
-                    >
-                      Thêm
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-              {productsGroupedByName.length === 0 && (
-                  <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
-              )}
+            <div>
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {productsGroupedByName.map(group => (
+                  <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
+                    <CardContent className="p-4 flex-grow">
+                      <Image
+                        src={group.firstVariant.image || `https://placehold.co/100x100.png`}
+                        alt={group.name}
+                        width={100}
+                        height={100}
+                        className="w-24 h-24 mx-auto rounded-full object-cover mb-2 aspect-square"
+                        data-ai-hint={`${group.name.split(' ')[0]} flower`}
+                        onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
+                      />
+                      <h4 className="font-semibold text-foreground">{group.name}</h4>
+                      <p className="text-xs text-muted-foreground">Tổng còn lại: {group.totalStock}</p>
+                    </CardContent>
+                    <CardFooter className="p-2">
+                      <Button
+                        onClick={() => openVariantSelector(group.name)}
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-sm"
+                        size="sm"
+                        disabled={group.totalStock <= 0}
+                      >
+                        Thêm
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+                {productsGroupedByName.length === 0 && (
+                    <p className="text-muted-foreground col-span-full text-center py-4">Không có sản phẩm nào có sẵn trong kho.</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -491,7 +494,7 @@ export function SalesTab({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[120px]">Tên Sản phẩm</TableHead>
+                        <TableHead className="min-w-[150px]">Tên Sản phẩm</TableHead>
                         <TableHead className="min-w-[60px]">Màu</TableHead>
                         <TableHead className="min-w-[70px]">Chất lượng</TableHead>
                         <TableHead className="min-w-[70px]">K.Thước</TableHead>
@@ -535,15 +538,18 @@ export function SalesTab({
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
                                   onClick={() => onUpdateCartQuantity(item.id, (item.quantityInCart - 1).toString())}
+                                  disabled={item.quantityInCart <= 0}
                                   aria-label="Giảm số lượng"
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span
-                                  className="w-8 h-7 flex items-center justify-center text-center text-sm font-medium border border-input rounded-md bg-background"
-                                >
-                                  {item.quantityInCart}
-                                </span>
+                                <Input
+                                  type="number"
+                                  value={item.quantityInCart.toString()}
+                                  onChange={(e) => onUpdateCartQuantity(item.id, e.target.value)}
+                                  className="w-12 h-7 text-center text-sm hide-number-spinners px-1 bg-card"
+                                  min="0"
+                                />
                                 <Button
                                   type="button"
                                   variant="outline"

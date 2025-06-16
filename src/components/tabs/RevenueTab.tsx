@@ -61,7 +61,8 @@ const getDaysInMonth = (month: number, year: number): number => {
 };
 
 interface ProductPerformance {
-  id: string; // Concatenated key: name-color-quality-size-unit
+  id: string; 
+  key: string; // Concatenated key: name-color-quality-size-unit
   name: string;
   color: string;
   quality?: string;
@@ -227,7 +228,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
 
   const totalInvoicesCount = invoices.length;
 
-  const productSalesPerformanceInPeriod = useMemo(() => {
+  const productSalesPerformanceInPeriod = useMemo((): ProductPerformance[] => {
     const salesMap: Record<string, { sold: number; revenue: number; image: string; name: string; color: string; quality?: string; size: string; unit: string; }> = {};
 
     invoices.forEach(invoice => {
@@ -243,10 +244,10 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
 
     return inventory.map(invProduct => {
       const key = `${invProduct.name}-${invProduct.color}-${invProduct.quality || 'N/A'}-${invProduct.size}-${invProduct.unit}`;
-      const salesInfo = salesMap[key] || { sold: 0, revenue: 0, image: invProduct.image }; // Use invProduct.image if not sold
+      const salesInfo = salesMap[key] || { sold: 0, revenue: 0, image: invProduct.image };
       return {
-        id: invProduct.id, // Use inventory product id for direct reference if needed, or the key itself
-        key, // The composite key
+        id: invProduct.id,
+        key,
         name: invProduct.name,
         color: invProduct.color,
         quality: invProduct.quality,
@@ -568,7 +569,11 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                   <TableRow>
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="w-20">Ảnh</TableHead>
-                    <TableHead>Chi tiết Sản phẩm</TableHead>
+                    <TableHead>Tên Sản Phẩm</TableHead>
+                    <TableHead>Màu</TableHead>
+                    <TableHead>Chất lượng</TableHead>
+                    <TableHead>K.Thước</TableHead>
+                    <TableHead>ĐV</TableHead>
                     <TableHead className="text-right">SL Bán</TableHead>
                     <TableHead className="text-right">Doanh thu</TableHead>
                   </TableRow>
@@ -588,12 +593,11 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {product.color}, {product.quality || 'N/A'}, {product.size}, {product.unit}
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.color}</TableCell>
+                      <TableCell>{product.quality || 'N/A'}</TableCell>
+                      <TableCell>{product.size}</TableCell>
+                      <TableCell>{product.unit}</TableCell>
                       <TableCell className="text-right">{product.soldInPeriod}</TableCell>
                       <TableCell className="text-right">{product.revenueInPeriod.toLocaleString('vi-VN')} VNĐ</TableCell>
                     </TableRow>
@@ -620,7 +624,11 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                   <TableRow>
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="w-20">Ảnh</TableHead>
-                    <TableHead>Chi tiết Sản phẩm</TableHead>
+                    <TableHead>Tên Sản Phẩm</TableHead>
+                    <TableHead>Màu</TableHead>
+                    <TableHead>Chất lượng</TableHead>
+                    <TableHead>K.Thước</TableHead>
+                    <TableHead>ĐV</TableHead>
                     <TableHead className="text-right">Tồn Kho</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -639,12 +647,11 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {product.color}, {product.quality || 'N/A'}, {product.size}, {product.unit}
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.color}</TableCell>
+                      <TableCell>{product.quality || 'N/A'}</TableCell>
+                      <TableCell>{product.size}</TableCell>
+                      <TableCell>{product.unit}</TableCell>
                       <TableCell className="text-right">{product.currentStock}</TableCell>
                     </TableRow>
                   ))}
@@ -658,6 +665,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
   );
 }
     
+
 
 
 

@@ -497,7 +497,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
 
       {selectedInvoiceDetails && (
         <Dialog open={!!selectedInvoiceDetails} onOpenChange={(open) => !open && setSelectedInvoiceDetails(null)}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
               <DialogDescription asChild>

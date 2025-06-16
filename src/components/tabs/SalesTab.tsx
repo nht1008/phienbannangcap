@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, formatPhoneNumber, normalizeStringForSearch } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 
@@ -455,107 +457,116 @@ export function SalesTab({
                 Giỏ hàng ({cart.reduce((acc, item) => acc + item.quantityInCart, 0)})
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 max-h-[calc(100vh-20rem)] overflow-y-auto pr-2">
+          <CardContent className="p-0">
             {cart.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">Giỏ hàng trống</p>
+              <p className="text-muted-foreground text-center py-8 px-3">Giỏ hàng trống</p>
             ) : (
-              cart.map(item => {
-                const itemOriginalTotal = item.price * item.quantityInCart;
-                const itemFinalTotal = itemOriginalTotal - (item.itemDiscount || 0);
-                return (
-                <Card key={item.id} className="p-3.5 bg-muted/30 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3.5">
-                        <Image
-                            src={item.image || `https://placehold.co/60x60.png`}
-                            alt={item.name}
-                            width={60}
-                            height={60}
-                            className="w-16 h-16 rounded-md object-cover aspect-square border"
-                            data-ai-hint={`${item.name.split(' ')[0]} flower`}
-                            onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/60x60.png')}
-                        />
-                        <div className="flex-grow">
-                            <p className="font-bold text-foreground text-lg leading-tight mb-0.5">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.color}, {item.quality || 'N/A'}, {item.size}, {item.unit}</p> {/* Added quality */}
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Đơn giá: <span className="font-semibold text-foreground/90">{item.price.toLocaleString('vi-VN')} VNĐ</span>
-                            </p>
-                        </div>
-                         <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive/80 self-start shrink-0"
-                            onClick={() => onUpdateCartQuantity(item.id, '0')}
-                            aria-label="Xóa sản phẩm khỏi giỏ hàng"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <div className="flex items-center justify-between mt-2.5">
-                        <div className="flex items-center gap-1">
-                            <Label htmlFor={`qty-display-${item.id}`} className="text-sm font-medium mr-1">SL:</Label>
-                            <Button
+              <ScrollArea className="max-h-[calc(100vh-20rem)]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[150px]">Sản phẩm</TableHead>
+                      <TableHead className="text-center w-[130px]">SL</TableHead>
+                      <TableHead className="text-right">Đơn giá</TableHead>
+                      <TableHead className="text-center w-[100px]">GG SP</TableHead>
+                      <TableHead className="text-right">Thành tiền</TableHead>
+                      <TableHead className="text-center w-[50px]">Xóa</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cart.map(item => {
+                      const itemOriginalTotal = item.price * item.quantityInCart;
+                      const itemFinalTotal = itemOriginalTotal - (item.itemDiscount || 0);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="py-2">
+                            <div className="flex items-center gap-2">
+                              <Image
+                                src={item.image || `https://placehold.co/40x40.png`}
+                                alt={item.name}
+                                width={40}
+                                height={40}
+                                className="w-10 h-10 rounded-md object-cover aspect-square border"
+                                data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                                onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png')}
+                              />
+                              <div>
+                                <p className="font-semibold text-foreground text-sm leading-tight">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">{item.color}, {item.quality || 'N/A'}, {item.size}, {item.unit}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center py-2 align-middle">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 shrink-0"
+                                className="h-7 w-7 shrink-0"
                                 onClick={() => onUpdateCartQuantity(item.id, (item.quantityInCart - 1).toString())}
                                 aria-label="Giảm số lượng"
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                            <span
-                                id={`qty-display-${item.id}`}
-                                className="w-10 h-8 flex items-center justify-center text-center text-base font-medium border border-input rounded-md bg-background"
-                            >
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span
+                                className="w-8 h-7 flex items-center justify-center text-center text-sm font-medium border border-input rounded-md bg-background"
+                              >
                                 {item.quantityInCart}
-                            </span>
-                            <Button
+                              </span>
+                              <Button
                                 type="button"
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 shrink-0"
+                                className="h-7 w-7 shrink-0"
                                 onClick={() => onUpdateCartQuantity(item.id, (item.quantityInCart + 1).toString())}
                                 disabled={item.quantityInCart >= (inventory.find(p => p.id === item.id)?.quantity ?? 0)}
                                 aria-label="Tăng số lượng"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right py-2 align-middle">{item.price.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell className="text-center py-2 align-middle">
+                            <Input
+                                id={`item-discount-${item.id}`}
+                                type="number"
+                                value={typeof item.itemDiscount === 'number' ? (item.itemDiscount / 1000).toString() : ""}
+                                onChange={(e) => onItemDiscountChange(item.id, e.target.value)}
+                                min="0"
+                                step="0.1"
+                                className="h-8 w-full bg-card text-xs p-1 hide-number-spinners text-center"
+                                placeholder="GG"
+                            />
+                          </TableCell>
+                          <TableCell className={cn("text-right py-2 align-middle font-semibold",(item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary")}>
+                            {itemFinalTotal.toLocaleString('vi-VN')}
+                            {(item.itemDiscount || 0) > 0 && (
+                                <p className="text-xs text-destructive font-normal normal-case">
+                                    (từ {itemOriginalTotal.toLocaleString('vi-VN')})
+                                </p>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center py-2 align-middle">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive/80"
+                              onClick={() => onUpdateCartQuantity(item.id, '0')}
+                              aria-label="Xóa sản phẩm khỏi giỏ hàng"
                             >
-                                <Plus className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                        </div>
-                        <p className={cn(
-                            "font-bold",
-                             numericDisplaySize,
-                            (item.itemDiscount || 0) > 0 ? "text-green-600" : "text-primary"
-                            )}>
-                            {itemFinalTotal.toLocaleString('vi-VN')} VNĐ
-                        </p>
-                    </div>
-                    {(item.itemDiscount || 0) > 0 && (
-                        <p className="text-xs text-destructive text-right mt-1">
-                            (Đã giảm: {(item.itemDiscount || 0).toLocaleString('vi-VN')} VNĐ từ {itemOriginalTotal.toLocaleString('vi-VN')} VNĐ)
-                        </p>
-                    )}
-                     <div className="mt-2 flex items-center gap-2">
-                        <Label htmlFor={`item-discount-${item.id}`} className="text-sm whitespace-nowrap flex items-center">
-                           <Tag className="h-3 w-3 mr-1 text-destructive"/> GG SP (Nghìn VND):
-                        </Label>
-                        <Input
-                            id={`item-discount-${item.id}`}
-                            type="number"
-                            value={typeof item.itemDiscount === 'number' ? (item.itemDiscount / 1000).toString() : ""}
-                            onChange={(e) => onItemDiscountChange(item.id, e.target.value)}
-                            min="0"
-                            step="0.1"
-                            className="h-8 w-full bg-card text-sm p-2 hide-number-spinners"
-                            placeholder="Nhập giảm giá"
-                        />
-                    </div>
-                </Card>
-                );
-              })
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t">
+          <CardFooter className="flex flex-col gap-3 mt-auto pt-4 border-t px-3 pb-3">
             <div className={cn("flex justify-between font-bold w-full text-foreground", numericDisplaySize)}>
               <span>Tổng cộng:</span>
               <span>{subtotalAfterItemDiscounts.toLocaleString('vi-VN')} VNĐ</span>
@@ -855,6 +866,7 @@ export function SalesTab({
     </>
   );
 }
+
 
 
 

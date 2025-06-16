@@ -351,7 +351,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   <Card className="bg-success/10 border-[hsl(var(--success))]">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng tiền bán hàng</CardTitle>
@@ -380,7 +380,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                     </CardContent>
                   </Card>
                 </div>
-                <div>
+                <div className="col-span-1 sm:col-span-2 md:col-span-3">
                   <Card className="bg-chart-3/10 border-[hsl(var(--chart-3))]">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg font-semibold text-[hsl(var(--chart-3))]">Tổng giao dịch</CardTitle>
@@ -441,6 +441,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>ID HĐ</TableHead>
                         <TableHead>Khách hàng</TableHead>
                         <TableHead>Ngày</TableHead>
                         <TableHead>Giờ</TableHead>
@@ -454,6 +455,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         const debtDate = new Date(debt.date);
                         return (
                           <TableRow key={debt.id}>
+                            <TableCell>{debt.invoiceId ? `${debt.invoiceId.substring(0, 8)}...` : 'N/A'}</TableCell>
                             <TableCell>{debt.supplier}</TableCell>
                             <TableCell>{debtDate.toLocaleDateString('vi-VN')}</TableCell>
                             <TableCell>{debtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</TableCell>

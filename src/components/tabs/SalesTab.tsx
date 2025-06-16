@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { NotificationDialog } from '@/components/shared/NotificationDialog';
+// NotificationDialog is removed as we rely on global toasts for item discount errors
 import Image from 'next/image';
 import { ChevronsUpDown, Check, PlusCircle, Trash2, ShoppingCart, Minus, Plus, Tag, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
@@ -53,7 +53,7 @@ interface SalesTabProps {
   cart: CartItem[];
   onAddToCart: (item: Product) => void;
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
-  onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
+  onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean; // Returns true if input was invalid
   onClearCart: () => void;
   productQualityOptions: string[];
 }
@@ -87,8 +87,7 @@ export function SalesTab({
     onClearCart,
     productQualityOptions
 }: SalesTabProps) {
-  const [localNotification, setLocalNotification] = useState<string | null>(null);
-  const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
+  // Removed localNotification and localNotificationType states related to item discount errors
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [customerNameForInvoice, setCustomerNameForInvoice] = useState('Khách lẻ');
@@ -106,11 +105,7 @@ export function SalesTab({
   const [isVariantSelectorOpen, setIsVariantSelectorOpen] = useState(false);
   const [availableVariants, setAvailableVariants] = useState<AvailableVariants>({ colors: [], qualities: [], sizes: [], units: [] });
 
-
-  const showLocalNotification = (message: string, type: 'success' | 'error') => {
-    setLocalNotification(message);
-    setLocalNotificationType(type);
-  };
+  // showLocalNotification function is removed as it's no longer used for item discount errors
 
   const subtotalAfterItemDiscounts = useMemo(() =>
     cart.reduce((sum, item) => {
@@ -124,8 +119,8 @@ export function SalesTab({
   const areAllItemDiscountsValid = useMemo(() => {
     return cart.every(item => {
       const itemOriginalTotal = item.price * item.quantityInCart;
-      return (item.itemDiscount === undefined || item.itemDiscount === null || item.itemDiscount >= 0) &&
-             (item.itemDiscount === undefined || item.itemDiscount === null || item.itemDiscount <= itemOriginalTotal);
+      const discount = item.itemDiscount || 0;
+      return discount >= 0 && discount <= itemOriginalTotal;
     });
   }, [cart]);
 
@@ -144,24 +139,27 @@ export function SalesTab({
 
   const handleOpenPaymentDialog = () => {
     if (cart.length === 0) {
-      showLocalNotification("Giỏ hàng trống!", 'error');
+      // This button is typically disabled if cart is empty, so this is defensive.
+      // Global toast for empty cart might be handled by page.tsx or higher if needed.
+      return;
+    }
+    if (!areAllItemDiscountsValid) {
+      // A global toast from page.tsx (onItemDiscountChange) should have already
+      // informed the user about the invalid item discount that was auto-corrected.
+      // So, we just don't open the dialog here.
       return;
     }
     for (const cartItem of cart) {
       const stockItem = inventory.find(i => i.id === cartItem.id);
       if (!stockItem || stockItem.quantity < cartItem.quantityInCart) {
-        showLocalNotification(`Sản phẩm "${cartItem.name}" không đủ số lượng trong kho! (Còn: ${stockItem?.quantity ?? 0})`, 'error');
-        return;
-      }
-      if ((cartItem.itemDiscount || 0) > (cartItem.price * cartItem.quantityInCart)) {
-        showLocalNotification(`Giảm giá cho sản phẩm "${cartItem.name}" không hợp lệ. Tổng giảm giá không được vượt quá tổng tiền của sản phẩm.`, 'error');
+        // This scenario should be rare if buttons are disabled correctly, but good to have a check.
+        // A global toast should handle this if page.tsx's onAddToCart/onUpdateCartQuantity can show one.
+        // For now, we'll prevent opening if this state is somehow reached.
+        // Consider using global toast here: toast({ title: "Lỗi Kho Hàng", description: `Sản phẩm "${cartItem.name}" không đủ số lượng.`, variant: "destructive" });
         return;
       }
     }
-    if (!areAllItemDiscountsValid) {
-        showLocalNotification('Vui lòng kiểm tra lại giảm giá cho các sản phẩm trong giỏ hàng.', 'error');
-        return;
-    }
+
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
     setOverallDiscountStr('');
@@ -172,32 +170,31 @@ export function SalesTab({
 
   const handleConfirmCheckout = async () => {
     if (!currentUser) {
-      showLocalNotification("Không tìm thấy thông tin người dùng hiện tại. Vui lòng thử đăng nhập lại.", "error");
+      // This should ideally be handled by a global toast from a higher context if possible
+      // For now, an alert or preventing action is fine.
+      alert("Không tìm thấy thông tin người dùng hiện tại. Vui lòng thử đăng nhập lại.");
       return;
     }
     const finalCustomerName = customerNameForInvoice.trim() === '' ? 'Khách lẻ' : customerNameForInvoice.trim();
     const isGuest = finalCustomerName.toLowerCase() === 'khách lẻ';
 
     if (actualOverallInvoiceDiscountVND < 0) {
-        showLocalNotification("Số tiền giảm giá chung không thể âm.", "error");
+        alert("Số tiền giảm giá chung không thể âm.");
         return;
     }
     if (actualAmountPaidVND < 0) {
-        showLocalNotification("Số tiền khách trả không thể âm.", "error");
+        alert("Số tiền khách trả không thể âm.");
         return;
     }
 
     if (subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND) {
-        showLocalNotification("Tổng giảm giá chung không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.", "error");
+        alert("Tổng giảm giá chung không thể lớn hơn tổng tiền hàng sau khi đã giảm giá từng sản phẩm.");
         return;
     }
 
     if (finalTotalAfterAllDiscounts > actualAmountPaidVND) {
       if (isGuest || currentPaymentMethod === 'Chuyển khoản') {
-        showLocalNotification(
-          "Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.",
-          "error"
-        );
+        alert("Khách lẻ hoặc thanh toán Chuyển khoản không được phép nợ. Vui lòng thanh toán đủ.");
         return;
       }
     }
@@ -215,6 +212,9 @@ export function SalesTab({
     );
     if (success) {
       setIsPaymentDialogOpen(false);
+      // Clear overall discount and amount paid for next transaction
+      setOverallDiscountStr('');
+      setAmountPaidStr('');
     }
   };
 
@@ -247,7 +247,8 @@ export function SalesTab({
   const openVariantSelector = useCallback((productName: string) => {
     const variantsOfProduct = inventory.filter(p => p.name === productName && p.quantity > 0);
     if (variantsOfProduct.length === 0) {
-      showLocalNotification(`Sản phẩm "${productName}" hiện đã hết hàng.`, 'error');
+      // Consider global toast here too if page.tsx provides it via props.
+      alert(`Sản phẩm "${productName}" hiện đã hết hàng.`);
       return;
     }
     const colors = Array.from(new Set(variantsOfProduct.map(p => p.color))).sort();
@@ -328,7 +329,7 @@ export function SalesTab({
 
   const handleAddVariantToCart = () => {
     if (!selectedProductNameForVariants || !variantSelection.color || !variantSelection.quality || !variantSelection.size || !variantSelection.unit) {
-      showLocalNotification('Vui lòng chọn đầy đủ màu sắc, chất lượng, kích thước và đơn vị.', 'error');
+      alert('Vui lòng chọn đầy đủ màu sắc, chất lượng, kích thước và đơn vị.');
       return;
     }
     const productToAdd = inventory.find(p =>
@@ -346,7 +347,7 @@ export function SalesTab({
       setSelectedProductNameForVariants(null);
       setVariantSelection({ color: '', quality: '', size: '', unit: '' });
     } else {
-      showLocalNotification('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.', 'error');
+      alert('Không tìm thấy sản phẩm phù hợp hoặc đã hết hàng.');
     }
   };
 
@@ -365,20 +366,16 @@ export function SalesTab({
   }, [inventory, selectedProductNameForVariants, variantSelection]);
 
   const handleItemDiscountInputChange = (itemId: string, discountStr: string) => {
-    const wasInvalidInput = onItemDiscountChange(itemId, discountStr);
-    if (wasInvalidInput) {
-      showLocalNotification("Giá trị Giảm giá không được lớn hơn tổng số tiền", "error");
-    } else {
-      if (localNotification === "Giá trị Giảm giá không được lớn hơn tổng số tiền") {
-        setLocalNotification(null);
-      }
-    }
+    // The onItemDiscountChange prop (from page.tsx) handles validation,
+    // cart update, and showing a global toast if the input was invalid.
+    // SalesTab doesn't need to show its own local notification for this specific error.
+    onItemDiscountChange(itemId, discountStr);
   };
 
 
   return (
     <>
-      <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
+      {/* NotificationDialog removed as local notifications for item discounts are no longer used here */}
       <div className="p-4 md:p-6">
         <div className="flex flex-col gap-6">
           {/* Product Selection Area */}
@@ -626,7 +623,7 @@ export function SalesTab({
               <Button
                 onClick={handleOpenPaymentDialog}
                 className="w-full bg-green-500 text-white hover:bg-green-600 text-lg py-3 h-auto"
-                disabled={cart.length === 0 || !areAllItemDiscountsValid || (localNotification !== null && localNotificationType === 'error')}
+                disabled={cart.length === 0 || !areAllItemDiscountsValid}
               >
                 Thanh toán
               </Button>
@@ -909,7 +906,13 @@ export function SalesTab({
               type="button"
               onClick={handleConfirmCheckout}
               className="w-full bg-green-500 text-white hover:bg-green-600"
-              disabled={finalTotalAfterAllDiscounts < 0 || subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND || (localNotification !== null && localNotificationType === 'error')}
+              disabled={
+                finalTotalAfterAllDiscounts < 0 || // Should not happen if overall discount is validated
+                subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND || // Overall discount too high
+                (customerNameForInvoice.trim().toLowerCase() === 'khách lẻ' && finalTotalAfterAllDiscounts > actualAmountPaidVND && currentPaymentMethod !== 'Chuyển khoản') || // Guest debt not allowed for non-cash
+                (currentPaymentMethod === 'Chuyển khoản' && finalTotalAfterAllDiscounts > actualAmountPaidVND) || // Transfer payment cannot have debt
+                !areAllItemDiscountsValid // Safety net: ensure item discounts are valid before final checkout
+              }
             >
               Xác nhận thanh toán
             </Button>
@@ -919,6 +922,3 @@ export function SalesTab({
     </>
   );
 }
-
-
-

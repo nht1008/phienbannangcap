@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Employee, Invoice, Debt } from '@/types';
 import type { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,46 +10,57 @@ import { formatPhoneNumber, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { Calendar } from "@/components/ui/calendar";
+import { format, startOfDay, endOfDay, parse } from 'date-fns';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
-import { Trash2 } from 'lucide-react';
 
-// Định nghĩa DateFilter và các hàm tiện ích liên quan trực tiếp ở đây hoặc import nếu đã chuyển ra utils
-interface DateFilter {
-  day: string;
-  month: string;
-  year: string;
+
+interface ActivityDateTimeFilter {
+  startDate: Date | null;
+  endDate: Date | null;
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
 }
 
-const getCurrentDateFilter = (includeDay: boolean = true): DateFilter => {
-  const now = new Date();
-  return {
-    day: includeDay ? now.getDate().toString() : 'all',
-    month: (now.getMonth() + 1).toString(),
-    year: now.getFullYear().toString(),
-  };
-};
-
-const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
-
-const filterDataByDateRange = <T extends { date: string }>(
+const filterActivityByDateTimeRange = <T extends { date: string }>(
   data: T[],
-  filter: DateFilter
+  filter: ActivityDateTimeFilter
 ): T[] => {
   if (!data) return [];
-  const {day, month, year} = filter;
+  
+  const { startDate, endDate, startTime, endTime } = filter;
+
+  if (!startDate || !endDate) {
+    return data; // Or an empty array if incomplete range should show nothing
+  }
+
+  const getCombinedDateTime = (dateInput: Date, timeStr: string): Date => {
+    const newDate = new Date(dateInput); // Clone the date
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      newDate.setHours(hours, minutes, timeStr.endsWith(':59') ? 59 : 0, timeStr.endsWith(':59:999') ? 999 : 0);
+    }
+    return newDate;
+  };
+
+  let effectiveStartDate = getCombinedDateTime(startDate, startTime);
+  let effectiveEndDate = getCombinedDateTime(endDate, endTime);
+  
+  // Ensure endDate is after startDate if times make them cross over on the same day
+  if (effectiveEndDate < effectiveStartDate && startDate.toDateString() === endDate.toDateString()) {
+     // If end time is earlier than start time on the same day, adjust end date to be end of selected day for logical range.
+     // Or, could swap them, or show an error. For simplicity, let's make end time effectively 23:59:59.999 for that day.
+     effectiveEndDate = endOfDay(endDate);
+  }
+
+
   return data.filter(item => {
-    const itemDate = new Date(item.date);
-    const itemDay = itemDate.getDate().toString();
-    const itemMonth = (itemDate.getMonth() + 1).toString();
-    const itemYear = itemDate.getFullYear().toString();
-
-    const dayMatch = day === 'all' || day === itemDay;
-    const monthMatch = month === 'all' || month === itemMonth;
-    const yearMatch = year === 'all' || year === itemYear;
-
-    return dayMatch && monthMatch && yearMatch;
+    const itemDateTime = new Date(item.date);
+    return itemDateTime >= effectiveStartDate && itemDateTime <= effectiveEndDate;
   });
 };
 
@@ -60,12 +71,20 @@ interface EmployeeTabProps {
   invoices: Invoice[];
   debts: Debt[];
   numericDisplaySize: NumericDisplaySize;
-  onDeleteDebt: (debtId: string) => void; // New prop for deleting debt
+  onDeleteDebt: (debtId: string) => void;
 }
 
 export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [activityFilter, setActivityFilter] = useState<DateFilter>(() => getCurrentDateFilter(true)); 
+  const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
+    const today = new Date();
+    return {
+      startDate: startOfDay(today),
+      endDate: endOfDay(today),
+      startTime: '00:00',
+      endTime: '23:59',
+    };
+  });
 
   const isAdmin = currentUser?.email === 'nthe1008@gmail.com';
 
@@ -86,7 +105,6 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
 
   const employeeBaseDebts = useMemo(() => {
     if (!selectedEmployee) return [];
-    // Debts created OR last updated by the employee
     return debts.filter(debt => 
                         debt.createdEmployeeId === selectedEmployee.id || 
                         debt.lastUpdatedEmployeeId === selectedEmployee.id
@@ -94,21 +112,13 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
   }, [debts, selectedEmployee]);
 
   const filteredEmployeeInvoices = useMemo(() => {
-    return filterDataByDateRange(employeeBaseInvoices, activityFilter);
+    return filterActivityByDateTimeRange(employeeBaseInvoices, activityFilter);
   }, [employeeBaseInvoices, activityFilter]);
 
   const filteredEmployeeDebts = useMemo(() => {
-    return filterDataByDateRange(employeeBaseDebts, activityFilter);
+    return filterActivityByDateTimeRange(employeeBaseDebts, activityFilter);
   }, [employeeBaseDebts, activityFilter]);
   
-  const availableActivityYears = useMemo(() => {
-    if (!selectedEmployee) return [new Date().getFullYear().toString()];
-    const invoiceYears = new Set(employeeBaseInvoices.map(inv => new Date(inv.date).getFullYear().toString()));
-    const debtYears = new Set(employeeBaseDebts.map(debt => new Date(debt.date).getFullYear().toString()));
-    const allYears = Array.from(new Set([...invoiceYears, ...debtYears])).sort((a, b) => parseInt(b) - parseInt(a));
-    return allYears.length > 0 ? allYears : [new Date().getFullYear().toString()];
-  }, [employeeBaseInvoices, employeeBaseDebts, selectedEmployee]);
-
   const totalSalesByEmployee = useMemo(() => {
     return filteredEmployeeInvoices.reduce((sum, inv) => sum + inv.total, 0);
   }, [filteredEmployeeInvoices]);
@@ -117,13 +127,11 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     if (!selectedEmployee) return 0;
     return filteredEmployeeDebts.reduce((sum, debt) => {
       if (debt.status === 'Đã thanh toán' && debt.lastUpdatedEmployeeId === selectedEmployee.id) {
-        // The filter for date is already applied by filteredEmployeeDebts using debt.date (creation date)
         return sum + debt.amount;
       }
       return sum;
     }, 0);
   }, [filteredEmployeeDebts, selectedEmployee]);
-
 
   const totalDiscountsByEmployee = useMemo(() => {
     return filteredEmployeeInvoices.reduce((sum, inv) => {
@@ -133,20 +141,30 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     }, 0);
   }, [filteredEmployeeInvoices]);
 
-
   const handleSelectEmployee = (employee: Employee) => {
     if (isAdmin || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
-        setActivityFilter(getCurrentDateFilter(true)); 
+        const today = new Date();
+        setActivityFilter({
+          startDate: startOfDay(today),
+          endDate: endOfDay(today),
+          startTime: '00:00',
+          endTime: '23:59',
+        }); 
     } else {
         setSelectedEmployee(null); 
     }
   };
 
-  const handleActivityFilterChange = (newFilter: Partial<DateFilter>) => {
-    setActivityFilter(prev => ({ ...prev, ...newFilter }));
+  const handleSetTodayFilter = () => {
+    const today = new Date();
+    setActivityFilter({
+      startDate: startOfDay(today),
+      endDate: endOfDay(today),
+      startTime: '00:00',
+      endTime: '23:59',
+    });
   };
-
 
   return (
     <Card> 
@@ -197,66 +215,84 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <CardTitle className="text-xl font-semibold">Nhật ký hoạt động của: {selectedEmployee.name}</CardTitle>
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             
-              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 pt-4 border-t items-end">
-                <div>
-                  <Label htmlFor="activity-filter-day" className="text-sm">Ngày</Label>
-                  <Select
-                    value={activityFilter.day}
-                    onValueChange={(value) => handleActivityFilterChange({ day: value })}
-                  >
-                    <SelectTrigger id="activity-filter-day" className="w-full sm:w-28 bg-card h-9">
-                      <SelectValue placeholder="Ngày" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả ngày</SelectItem>
-                      {Array.from({ length: 31 }, (_, i) => (
-                        <SelectItem key={i + 1} value={(i + 1).toString()}>
-                          {i + 1}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div className="space-y-1">
+                  <Label htmlFor="startDate">Từ ngày</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="startDate"
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-card",
+                          !activityFilter.startDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {activityFilter.startDate ? format(activityFilter.startDate, "dd/MM/yyyy") : <span>Chọn ngày</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={activityFilter.startDate ?? undefined}
+                        onSelect={(date) => setActivityFilter(prev => ({ ...prev, startDate: date ? startOfDay(date) : null }))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <div>
-                  <Label htmlFor="activity-filter-month" className="text-sm">Tháng</Label>
-                  <Select
-                    value={activityFilter.month}
-                    onValueChange={(value) => handleActivityFilterChange({ month: value })}
-                  >
-                    <SelectTrigger id="activity-filter-month" className="w-full sm:w-32 bg-card h-9">
-                      <SelectValue placeholder="Tháng" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả tháng</SelectItem>
-                      {Array.from({ length: 12 }, (_, i) => (
-                        <SelectItem key={i + 1} value={(i + 1).toString()}>
-                          Tháng {i + 1}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-1">
+                  <Label htmlFor="startTime">Từ giờ</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={activityFilter.startTime}
+                    onChange={(e) => setActivityFilter(prev => ({ ...prev, startTime: e.target.value }))}
+                    className="bg-card h-9"
+                  />
                 </div>
-                <div>
-                  <Label htmlFor="activity-filter-year" className="text-sm">Năm</Label>
-                  <Select
-                    value={activityFilter.year}
-                    onValueChange={(value) => handleActivityFilterChange({ year: value })}
-                  >
-                    <SelectTrigger id="activity-filter-year" className="w-full sm:w-32 bg-card h-9">
-                      <SelectValue placeholder="Năm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả năm</SelectItem>
-                      {availableActivityYears.map(year => (
-                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-1">
+                  <Label htmlFor="endDate">Đến ngày</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="endDate"
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-card",
+                          !activityFilter.endDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {activityFilter.endDate ? format(activityFilter.endDate, "dd/MM/yyyy") : <span>Chọn ngày</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={activityFilter.endDate ?? undefined}
+                        onSelect={(date) => setActivityFilter(prev => ({ ...prev, endDate: date ? endOfDay(date) : null }))}
+                        disabled={(date) => activityFilter.startDate ? date < activityFilter.startDate : false}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="endTime">Đến giờ</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={activityFilter.endTime}
+                    onChange={(e) => setActivityFilter(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="bg-card h-9"
+                  />
                 </div>
                 <Button
-                  onClick={() => setActivityFilter(getCurrentDateFilter(true))}
+                  onClick={handleSetTodayFilter}
                   variant="outline"
-                  className="h-9"
+                  className="h-9 w-full lg:w-auto"
                 >
                   Hôm nay
                 </Button>

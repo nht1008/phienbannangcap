@@ -618,7 +618,6 @@ export default function FleurManagerPage() {
         toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, variant: "destructive" });
       }
     } else {
-      // When adding, include maxDiscountPerUnitVND from inventory
       setCart(prevCart => [...prevCart, { ...item, quantityInCart: 1, itemDiscount: 0, maxDiscountPerUnitVND: stockItem.maxDiscountPerUnitVND }]);
     }
   }, [cart, inventory, toast, setCart]);
@@ -627,45 +626,46 @@ export default function FleurManagerPage() {
   
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     const discountNghin = parseFloat(discountNghinStr);
-    const discountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
+    const rawDiscountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
     let toastInfo: { title: string, description: string, variant: "destructive" } | null = null;
     let inputWasInvalid = false;
 
     setCart(prevCart => {
-      const newCart = prevCart.map(item => {
-        if (item.id === itemId) {
-          const itemOriginalTotal = item.price * item.quantityInCart;
-          let newDiscountForItem = discountVND;
-          
-          // New check: against maxDiscountPerUnitVND if it exists
-          if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND !== null) {
-            const maxAllowedLineItemDiscount = item.maxDiscountPerUnitVND * item.quantityInCart;
-            if (discountVND > maxAllowedLineItemDiscount) {
-               toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho "${item.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" };
-               newDiscountForItem = maxAllowedLineItemDiscount;
-               inputWasInvalid = true;
+        const newCart = prevCart.map(item => {
+            if (item.id === itemId) {
+                const itemOriginalTotal = item.price * item.quantityInCart;
+                let newDiscountForItem = rawDiscountVND;
+
+                if (newDiscountForItem < 0) {
+                    toastInfo = { title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" };
+                    newDiscountForItem = 0;
+                    inputWasInvalid = true;
+                } else {
+                    if (item.maxDiscountPerUnitVND !== undefined && item.maxDiscountPerUnitVND !== null && item.maxDiscountPerUnitVND >= 0) {
+                        const maxAllowedLineItemDiscount = item.maxDiscountPerUnitVND * item.quantityInCart;
+                        if (newDiscountForItem > maxAllowedLineItemDiscount) {
+                            toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho "${item.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" };
+                            newDiscountForItem = maxAllowedLineItemDiscount;
+                            inputWasInvalid = true;
+                        }
+                    }
+                    if (newDiscountForItem > itemOriginalTotal) {
+                        if (!toastInfo) { 
+                            toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" };
+                        }
+                        newDiscountForItem = itemOriginalTotal;
+                        inputWasInvalid = true; 
+                    }
+                }
+                return { ...item, itemDiscount: newDiscountForItem };
             }
-          }
+            return item;
+        });
 
-
-          if (discountVND < 0) {
-            toastInfo = { title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" };
-            newDiscountForItem = 0;
-            inputWasInvalid = true;
-          } else if (discountVND > itemOriginalTotal) { // This check should ideally come after the maxDiscountPerUnitVND check or be combined
-            toastInfo = { title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal/1000).toLocaleString('vi-VN')}K).`, variant: "destructive" };
-            newDiscountForItem = itemOriginalTotal;
-            inputWasInvalid = true;
-          }
-          return { ...item, itemDiscount: newDiscountForItem };
+        if (toastInfo) {
+            setTimeout(() => toast(toastInfo!), 0);
         }
-        return item;
-      });
-
-      if (toastInfo) {
-        setTimeout(() => toast(toastInfo!), 0);
-      }
-      return newCart;
+        return newCart;
     });
     return inputWasInvalid;
   }, [toast, setCart]);
@@ -749,3 +749,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

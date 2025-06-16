@@ -43,7 +43,7 @@ interface InventoryTabProps {
   onDeleteProduct: (productId: string) => Promise<void>;
   productNameOptions: string[];
   colorOptions: string[];
-  productQualityOptions: string[]; // Added
+  productQualityOptions: string[];
   sizeOptions: string[];
   unitOptions: string[];
   onAddOption: (type: ProductOptionType, name: string) => Promise<void>;
@@ -58,7 +58,7 @@ export function InventoryTab({
   onDeleteProduct,
   productNameOptions,
   colorOptions,
-  productQualityOptions, // Added
+  productQualityOptions,
   sizeOptions,
   unitOptions,
   onAddOption,
@@ -87,7 +87,7 @@ export function InventoryTab({
       ...initialFormProductState,
       name: productNameOptions.length > 0 ? productNameOptions[0] : '',
       color: colorOptions.length > 0 ? colorOptions[0] : '',
-      quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '', // Added
+      quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
       size: sizeOptions.length > 0 ? sizeOptions[0] : '',
       unit: unitOptions.length > 0 ? unitOptions[0] : '',
       image: `https://placehold.co/100x100.png`, // Default placeholder
@@ -99,7 +99,7 @@ export function InventoryTab({
             ...currentFormState,
             name: currentFormState.name || defaultState.name,
             color: currentFormState.color || defaultState.color,
-            quality: currentFormState.quality || defaultState.quality, // Added
+            quality: currentFormState.quality || defaultState.quality,
             size: currentFormState.size || defaultState.size,
             unit: currentFormState.unit || defaultState.unit,
             image: currentFormState.image || defaultState.image,
@@ -115,7 +115,7 @@ export function InventoryTab({
         setEditedItem({
             name: productToEdit.name,
             color: productToEdit.color,
-            quality: productToEdit.quality || (productQualityOptions.length > 0 ? productQualityOptions[0] : ''), // Added
+            quality: productToEdit.quality || (productQualityOptions.length > 0 ? productQualityOptions[0] : ''),
             size: productToEdit.size,
             unit: productToEdit.unit,
             quantity: productToEdit.quantity.toString(),
@@ -184,7 +184,7 @@ export function InventoryTab({
       costPrice: (parseFloat(newItem.costPrice) || 0) * 1000, 
       image: newItem.image || `https://placehold.co/100x100.png`,
       color: newItem.color,
-      quality: newItem.quality, // Added
+      quality: newItem.quality,
       size: newItem.size,
       unit: newItem.unit,
     };
@@ -193,7 +193,7 @@ export function InventoryTab({
         ...initialFormProductState, 
         name: productNameOptions.length > 0 ? productNameOptions[0] : '',
         color: colorOptions.length > 0 ? colorOptions[0] : '',
-        quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '', // Added
+        quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
         size: sizeOptions.length > 0 ? sizeOptions[0] : '',
         unit: unitOptions.length > 0 ? unitOptions[0] : '',
         image: `https://placehold.co/100x100.png`,
@@ -225,7 +225,7 @@ export function InventoryTab({
       costPrice: (parseFloat(editedItem.costPrice) || 0) * 1000,
       image: editedItem.image || `https://placehold.co/100x100.png`,
       color: editedItem.color,
-      quality: editedItem.quality, // Added
+      quality: editedItem.quality,
       size: editedItem.size,
       unit: editedItem.unit,
     };
@@ -265,7 +265,7 @@ export function InventoryTab({
   const getOptionsForType = (type: ProductOptionType | null): string[] => {
     if (type === 'productNames') return productNameOptions;
     if (type === 'colors') return colorOptions;
-    if (type === 'qualities') return productQualityOptions; // Added
+    if (type === 'qualities') return productQualityOptions;
     if (type === 'sizes') return sizeOptions;
     if (type === 'units') return unitOptions;
     return [];
@@ -274,7 +274,7 @@ export function InventoryTab({
   const getOptionDialogTitle = (type: ProductOptionType | null): string => {
     if (type === 'productNames') return 'Quản lý Tên sản phẩm';
     if (type === 'colors') return 'Quản lý Màu sắc';
-    if (type === 'qualities') return 'Quản lý Chất lượng'; // Added
+    if (type === 'qualities') return 'Quản lý Chất lượng';
     if (type === 'sizes') return 'Quản lý Kích thước';
     if (type === 'units') return 'Quản lý Đơn vị';
     return 'Quản lý tùy chọn';
@@ -323,7 +323,7 @@ export function InventoryTab({
                 </Select>
             </div>
             <div>
-                <label className="text-sm text-foreground">Chất lượng (*)</label> {/* Added */}
+                <label className="text-sm text-foreground">Chất lượng (*)</label>
                 <Select value={formState.quality} onValueChange={(value) => handleSelectChange('quality', value, formSetter)} required disabled={productQualityOptions.length === 0}>
                     <SelectTrigger className="w-full bg-card">
                         <SelectValue placeholder="Chọn chất lượng (*)" />
@@ -422,7 +422,7 @@ export function InventoryTab({
                     disabled={
                         (productNameOptions.length > 0 && !formState.name) || productNameOptions.length === 0 ||
                         (colorOptions.length > 0 && !formState.color) || colorOptions.length === 0 ||
-                        (productQualityOptions.length > 0 && !formState.quality) || productQualityOptions.length === 0 || // Added
+                        (productQualityOptions.length > 0 && !formState.quality) || productQualityOptions.length === 0 ||
                         (sizeOptions.length > 0 && !formState.size) || sizeOptions.length === 0 ||
                         (unitOptions.length > 0 && !formState.unit) || unitOptions.length === 0
                     }
@@ -447,7 +447,7 @@ export function InventoryTab({
             <Button onClick={() => openOptionsDialog('colors')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Màu sắc
             </Button>
-            <Button onClick={() => openOptionsDialog('qualities')} variant="outline" size="sm"> {/* Added */}
+            <Button onClick={() => openOptionsDialog('qualities')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Chất lượng
             </Button>
             <Button onClick={() => openOptionsDialog('sizes')} variant="outline" size="sm">
@@ -488,15 +488,17 @@ export function InventoryTab({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Sản phẩm</TableHead>
-                <TableHead>Màu sắc</TableHead>
-                <TableHead>Chất lượng</TableHead> {/* Added */}
-                <TableHead>Kích thước</TableHead>
-                <TableHead>Đơn vị</TableHead>
-                <TableHead className="text-right">Số lượng</TableHead>
-                <TableHead className="text-right">Giá gốc</TableHead>
-                <TableHead className="text-right">Giá bán</TableHead>
-                <TableHead className="text-center">Hành động</TableHead>
+                {[
+                  <TableHead key="h-product">Sản phẩm</TableHead>,
+                  <TableHead key="h-color">Màu sắc</TableHead>,
+                  <TableHead key="h-quality">Chất lượng</TableHead>,
+                  <TableHead key="h-size">Kích thước</TableHead>,
+                  <TableHead key="h-unit">Đơn vị</TableHead>,
+                  <TableHead key="h-quantity" className="text-right">Số lượng</TableHead>,
+                  <TableHead key="h-costPrice" className="text-right">Giá gốc</TableHead>,
+                  <TableHead key="h-price" className="text-right">Giá bán</TableHead>,
+                  <TableHead key="h-actions" className="text-center">Hành động</TableHead>,
+                ]}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -518,7 +520,7 @@ export function InventoryTab({
                     {item.name}
                   </TableCell>
                   <TableCell>{item.color || 'N/A'}</TableCell>
-                  <TableCell>{item.quality || 'N/A'}</TableCell> {/* Added */}
+                  <TableCell>{item.quality || 'N/A'}</TableCell>
                   <TableCell>{item.size || 'N/A'}</TableCell>
                   <TableCell>{item.unit}</TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
@@ -536,7 +538,7 @@ export function InventoryTab({
               ))}
               {inventory.length === 0 && !isAddingProduct && !isEditingProduct && (
                 <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-10">Chưa có sản phẩm nào. Hãy thêm sản phẩm mới.</TableCell> {/* Updated colSpan */}
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-10">Chưa có sản phẩm nào. Hãy thêm sản phẩm mới.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -587,8 +589,10 @@ export function InventoryTab({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tên tùy chọn</TableHead>
-                      <TableHead className="text-right">Xóa</TableHead>
+                      {[
+                        <TableHead key="opt-name">Tên tùy chọn</TableHead>,
+                        <TableHead key="opt-delete" className="text-right">Xóa</TableHead>,
+                      ]}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -618,4 +622,5 @@ export function InventoryTab({
     
 
     
+
 

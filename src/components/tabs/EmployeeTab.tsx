@@ -351,7 +351,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         <TableHead>Ngày tạo nợ</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead>Người thực hiện</TableHead>
+                        <TableHead>Thực hiện</TableHead>
                         <TableHead className="text-center">Hành động</TableHead>
                       </TableRow>
                     </TableHeader>

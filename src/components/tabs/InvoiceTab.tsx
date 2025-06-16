@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import type { Invoice, CartItem, InvoiceCartItem } from '@/types';
+import type { Invoice, CartItem, InvoiceCartItem, Employee } from '@/types';
 import type { DateFilter } from '@/app/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,7 @@ interface InvoiceTabProps {
   filter: DateFilter;
   onFilterChange: (newFilter: DateFilter) => void;
   availableYears: string[];
+  hasFullAccessRights: boolean;
 }
 
 type ReturnItemDetail = {
@@ -57,7 +58,7 @@ type ReturnItemDetail = {
   itemDiscount?: number;
 };
 
-export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears }: InvoiceTabProps) {
+export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears, hasFullAccessRights }: InvoiceTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
@@ -264,12 +265,16 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           </Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)} title="Hoàn trả sản phẩm">
-                            <Undo2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {hasFullAccessRights && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:text-accent/80" onClick={() => openReturnItemsDialog(invoice)} title="Hoàn trả sản phẩm">
+                                <Undo2 className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -381,7 +386,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         </CardContent>
       </Card>
 
-      {invoiceToDelete && (
+      {invoiceToDelete && hasFullAccessRights && (
         <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => !open && setInvoiceToDelete(null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
@@ -403,7 +408,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         </AlertDialog>
       )}
 
-      {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && (
+      {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && hasFullAccessRights && (
         <Dialog open={isReturnItemsDialogOpen} onOpenChange={setIsReturnItemsDialogOpen}>
           <DialogContent className="sm:max-w-3xl">
             <DialogHeader>

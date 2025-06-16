@@ -568,7 +568,7 @@ export function EmployeeTab({
                         <TableHead>Giờ</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
-                        <TableHead className="text-center">Hành động</TableHead>
+                        {isCurrentUserAdmin && <TableHead className="text-center">Hành động</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -594,17 +594,19 @@ export function EmployeeTab({
                                 {debt.status}
                               </span>
                             </TableCell>
-                            <TableCell className="text-center">
-                              <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7 text-destructive hover:text-destructive/80"
-                                  onClick={() => onDeleteDebt(debt.id)}
-                                  title="Xóa công nợ"
-                              >
-                                  <Trash2 className="h-4 w-4"/>
-                              </Button>
-                            </TableCell>
+                            {isCurrentUserAdmin && (
+                              <TableCell className="text-center">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7 text-destructive hover:text-destructive/80"
+                                    onClick={() => onDeleteDebt(debt.id)}
+                                    title="Xóa công nợ"
+                                >
+                                    <Trash2 className="h-4 w-4"/>
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         );
                       })}

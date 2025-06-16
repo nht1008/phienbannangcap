@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Customer, Invoice, InvoiceCartItem } from '@/types';
+import type { Customer, Invoice, InvoiceCartItem, Employee } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,11 +22,12 @@ interface CustomerTabProps {
   onAddCustomer: (newCustomerData: Omit<Customer, 'id'>) => Promise<void>;
   onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => Promise<void>;
   onDeleteCustomer: (customerId: string) => Promise<void>;
+  hasFullAccessRights: boolean;
 }
 
 const initialFormState: Omit<Customer, 'id'> = { name: '', phone: '', address: '' };
 
-export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer }: CustomerTabProps) {
+export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights }: CustomerTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id'>>(initialFormState);
 
@@ -187,17 +188,19 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <CardHeader className="p-6">
           <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Danh sách khách hàng</CardTitle>
-              <Button
-                onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
-                variant="default"
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                  <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm khách hàng'}
-              </Button>
+              {hasFullAccessRights && (
+                <Button
+                  onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
+                  variant="default"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                    <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm khách hàng'}
+                </Button>
+              )}
           </div>
         </CardHeader>
         <CardContent>
-          {isAdding && renderCustomerForm(newCustomer, setNewCustomer, handleAdd, false, () => setIsAdding(false))}
+          {isAdding && hasFullAccessRights && renderCustomerForm(newCustomer, setNewCustomer, handleAdd, false, () => setIsAdding(false))}
 
           <div className="overflow-x-auto mt-4">
             <Table>
@@ -219,12 +222,16 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openCustomerDetailsDialog(customer)}>
                             <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(customer)}>
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(customer)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {hasFullAccessRights && (
+                          <>
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(customer)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(customer)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -237,7 +244,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         </CardContent>
       </Card>
 
-      {isEditing && customerToEdit && (
+      {isEditing && customerToEdit && hasFullAccessRights && (
         <Dialog open={isEditing} onOpenChange={(open) => { if (!open) { setIsEditing(false); setCustomerToEdit(null); }}}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
@@ -249,7 +256,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         </Dialog>
       )}
 
-      {customerToDelete && (
+      {customerToDelete && hasFullAccessRights && (
         <AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
             <AlertDialogContent>
                 <AlertDialogHeader>

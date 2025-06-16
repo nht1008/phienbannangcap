@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Product, ProductOptionType } from '@/types';
+import type { Product, ProductOptionType, Employee } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,6 +56,7 @@ interface InventoryTabProps {
   unitOptions: string[];
   onAddOption: (type: ProductOptionType, name: string) => Promise<void>;
   onDeleteOption: (type: ProductOptionType, name: string) => Promise<void>;
+  hasFullAccessRights: boolean;
 }
 
 
@@ -70,7 +71,8 @@ export function InventoryTab({
   sizeOptions,
   unitOptions,
   onAddOption,
-  onDeleteOption 
+  onDeleteOption,
+  hasFullAccessRights
 }: InventoryTabProps) {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newItem, setNewItem] = useState<FormProduct>(initialFormProductState);
@@ -543,31 +545,33 @@ export function InventoryTab({
             <Button onClick={() => openOptionsDialog('units')} variant="outline" size="sm">
               <Settings className="mr-1 h-3 w-3" /> Đơn vị
             </Button>
-            <Button 
-                onClick={() => { 
-                    const isCurrentlyAdding = !isAddingProduct;
-                    setIsAddingProduct(isCurrentlyAdding); 
-                    if (isCurrentlyAdding) {
-                        setIsEditingProduct(false); 
-                        setProductToEdit(null);
-                        setEditedImagePreview(null); 
-                        setImagePreview(newItem.image || `https://placehold.co/100x100.png`);
-                    } else {
-                        setImagePreview(null);
-                    }
-                }} 
-                variant="default" 
-                className="bg-primary text-primary-foreground hover:bg-primary/90" 
-                size="sm"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" /> {isAddingProduct ? 'Hủy thêm mới' : 'Thêm sản phẩm'}
-            </Button>
+            {hasFullAccessRights && (
+              <Button 
+                  onClick={() => { 
+                      const isCurrentlyAdding = !isAddingProduct;
+                      setIsAddingProduct(isCurrentlyAdding); 
+                      if (isCurrentlyAdding) {
+                          setIsEditingProduct(false); 
+                          setProductToEdit(null);
+                          setEditedImagePreview(null); 
+                          setImagePreview(newItem.image || `https://placehold.co/100x100.png`);
+                      } else {
+                          setImagePreview(null);
+                      }
+                  }} 
+                  variant="default" 
+                  className="bg-primary text-primary-foreground hover:bg-primary/90" 
+                  size="sm"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" /> {isAddingProduct ? 'Hủy thêm mới' : 'Thêm sản phẩm'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        {isAddingProduct && renderProductForm(newItem, setNewItem, handleAddItem, false, imagePreview)}
-        {isEditingProduct && productToEdit && renderProductForm(editedItem, setEditedItem, handleUpdateExistingProduct, true, editedImagePreview)}
+        {isAddingProduct && hasFullAccessRights && renderProductForm(newItem, setNewItem, handleAddItem, false, imagePreview)}
+        {isEditingProduct && productToEdit && hasFullAccessRights && renderProductForm(editedItem, setEditedItem, handleUpdateExistingProduct, true, editedImagePreview)}
 
         <div className="mt-6 mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <CardTitle className="text-center sm:text-left">Danh sách sản phẩm</CardTitle>
@@ -635,15 +639,19 @@ export function InventoryTab({
                         : 'Không GH'}
                   </TableCell>
                   <TableCell className="text-center space-x-1">
-                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleOpenSetMaxDiscountDialog(item)} title="Giới hạn giảm giá">
-                        <BadgePercent className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)} title="Sửa sản phẩm">
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(item)} title="Xóa sản phẩm">
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {hasFullAccessRights && (
+                      <>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleOpenSetMaxDiscountDialog(item)} title="Giới hạn giảm giá">
+                            <BadgePercent className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)} title="Sửa sản phẩm">
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(item)} title="Xóa sản phẩm">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -685,16 +693,18 @@ export function InventoryTab({
                 Thêm mới hoặc xóa các tùy chọn {currentOptionType === 'productNames' ? 'tên sản phẩm' : currentOptionType === 'colors' ? 'màu sắc' : currentOptionType === 'qualities' ? 'chất lượng' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'}.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleAddNewOption} className="flex items-center gap-2 mt-4">
-              <Input
-                type="text"
-                value={newOptionName}
-                onChange={(e) => setNewOptionName(e.target.value)}
-                placeholder={`Tên ${currentOptionType === 'productNames' ? 'sản phẩm' : currentOptionType === 'colors' ? 'màu' : currentOptionType === 'qualities' ? 'chất lượng' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'} mới`}
-                className="flex-grow"
-              />
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Thêm</Button>
-            </form>
+            {hasFullAccessRights && (
+              <form onSubmit={handleAddNewOption} className="flex items-center gap-2 mt-4">
+                <Input
+                  type="text"
+                  value={newOptionName}
+                  onChange={(e) => setNewOptionName(e.target.value)}
+                  placeholder={`Tên ${currentOptionType === 'productNames' ? 'sản phẩm' : currentOptionType === 'colors' ? 'màu' : currentOptionType === 'qualities' ? 'chất lượng' : currentOptionType === 'sizes' ? 'kích thước' : 'đơn vị'} mới`}
+                  className="flex-grow"
+                />
+                <Button type="submit" size="sm" className="bg-primary text-primary-foreground">Thêm</Button>
+              </form>
+            )}
             <div className="mt-4 max-h-60 overflow-y-auto">
               {getOptionsForType(currentOptionType).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Chưa có tùy chọn nào.</p>
@@ -704,19 +714,21 @@ export function InventoryTab({
                     <TableRow>
                       {[
                         <TableHead key="opt-name">Tên tùy chọn</TableHead>,
-                        <TableHead key="opt-delete" className="text-right">Xóa</TableHead>,
-                      ]}
+                        hasFullAccessRights && <TableHead key="opt-delete" className="text-right">Xóa</TableHead>,
+                      ].filter(Boolean)}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {getOptionsForType(currentOptionType).map(option => (
                       <TableRow key={option}>
                         <TableCell>{option}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => onDeleteOption(currentOptionType, option)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
+                        {hasFullAccessRights && (
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => onDeleteOption(currentOptionType, option)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -757,13 +769,16 @@ export function InventoryTab({
                   min="0"
                   step="any"
                   className="bg-card"
+                  disabled={!hasFullAccessRights}
                 />
                 <p className="text-xs text-muted-foreground mt-1">Nhập 0 nếu không muốn giới hạn hoặc không cho phép giảm giá.</p>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => {setIsSetMaxDiscountDialogOpen(false); setProductToSetMaxDiscount(null);}}>Hủy</Button>
-              <Button onClick={handleSaveMaxDiscount} className="bg-primary text-primary-foreground">Lưu giới hạn</Button>
+              {hasFullAccessRights && (
+                <Button onClick={handleSaveMaxDiscount} className="bg-primary text-primary-foreground">Lưu giới hạn</Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

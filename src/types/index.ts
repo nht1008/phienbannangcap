@@ -84,11 +84,13 @@ export interface ItemToImport {
 
 export type ProductOptionType = 'productNames' | 'colors' | 'qualities' | 'sizes' | 'units'; // Added 'qualities'
 
+export type EmployeePosition = 'Nhân viên' | 'ADMIN' | 'Quản lý';
+
 export interface Employee {
   id: string; // Firebase Auth UID
   name: string;
   email: string;
-  position: 'Chủ cửa hàng' | 'Nhân viên' | 'ADMIN';
+  position: EmployeePosition;
   phone?: string;
 }
 
@@ -101,4 +103,3 @@ export interface ShopInfo {
   bankAccountNumber: string;
   bankName: string;
 }
-

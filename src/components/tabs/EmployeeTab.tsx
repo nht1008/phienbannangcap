@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Employee, Invoice, Debt } from '@/types';
+import type { Employee, Invoice, Debt, EmployeePosition } from '@/types';
 import type { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -83,8 +83,9 @@ interface EmployeeTabProps {
   debts: Debt[];
   numericDisplaySize: NumericDisplaySize;
   onDeleteDebt: (debtId: string) => void;
-  onToggleAdminStatus: (employeeId: string, currentPosition: Employee['position']) => Promise<void>;
-  adminEmail: string; // Add adminEmail prop
+  onToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
+  adminEmail: string;
+  isCurrentUserAdmin: boolean; // True if the logged-in user is the super admin (ADMIN_EMAIL)
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -92,7 +93,7 @@ const minuteOptionsStart = ['00', '15', '30', '45'];
 const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
 
 
-export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt, onToggleAdminStatus, adminEmail }: EmployeeTabProps) {
+export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt, onToggleEmployeeRole, adminEmail, isCurrentUserAdmin }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
     const today = new Date();
@@ -106,17 +107,16 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     };
   });
 
-  const isAdmin = currentUser?.email === adminEmail;
-
   const displayEmployees = useMemo(() => {
-    if (isAdmin) return employees;
+    if (isCurrentUserAdmin) return employees; // Super admin sees all
+    // Non-super admin (Manager or Employee) sees Admin and self
     const adminEmployee = employees.find(emp => emp.email === adminEmail);
     const selfEmployee = employees.find(emp => emp.id === currentUser?.uid);
     const result = [];
     if (adminEmployee) result.push(adminEmployee);
     if (selfEmployee && selfEmployee.id !== adminEmployee?.id) result.push(selfEmployee);
     return result;
-  }, [employees, currentUser, isAdmin, adminEmail]);
+  }, [employees, currentUser, isCurrentUserAdmin, adminEmail]);
 
   const employeeBaseInvoices = useMemo(() => {
     if (!selectedEmployee) return [];
@@ -166,7 +166,8 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
   }, [totalSalesByEmployee, totalDebtCollectedByEmployee]);
 
   const handleSelectEmployee = (employee: Employee) => {
-    if (isAdmin || employee.id === currentUser?.uid) {
+    // Super admin can select anyone. Others can select Admin or self.
+    if (isCurrentUserAdmin || employee.email === adminEmail || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
         const today = new Date();
         setActivityFilter({
@@ -205,6 +206,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>STT</TableHead>
                   <TableHead>Họ và tên</TableHead>
                   <TableHead>Chức vụ</TableHead>
                   <TableHead>Email</TableHead>
@@ -215,21 +217,26 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <TableBody>
                 {displayEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                       Chưa có nhân viên nào trong danh sách.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  displayEmployees.map(emp => (
+                  displayEmployees.map((emp, index) => (
                     <TableRow 
                       key={emp.id} 
                       onClick={() => handleSelectEmployee(emp)}
                       className={`cursor-pointer hover:bg-muted/50 ${selectedEmployee?.id === emp.id ? 'bg-primary/10' : ''}`}
                     >
+                      <TableCell>{index + 1}</TableCell>
                       <TableCell>{emp.name}</TableCell>
                       <TableCell>
                         {emp.position === 'ADMIN' ? (
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-destructive text-destructive-foreground">
+                            {emp.position}
+                          </span>
+                        ) : emp.position === 'Quản lý' ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-sky-500 text-white dark:bg-sky-600 dark:text-sky-100">
                             {emp.position}
                           </span>
                         ) : emp.position === 'Nhân viên' ? (
@@ -243,7 +250,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       <TableCell>{emp.email}</TableCell>
                       <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
                       <TableCell className="text-center">
-                        {isAdmin && emp.email !== adminEmail && (emp.position === 'Nhân viên' || emp.position === 'ADMIN') && (
+                        {isCurrentUserAdmin && emp.email !== adminEmail && (emp.position === 'Nhân viên' || emp.position === 'Quản lý') && (
                           <TooltipProvider delayDuration={0}>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -252,25 +259,22 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={(e) => {
-                                    e.stopPropagation(); // Prevent row click when button is clicked
-                                    onToggleAdminStatus(emp.id, emp.position);
+                                    e.stopPropagation(); 
+                                    onToggleEmployeeRole(emp.id, emp.position);
                                   }}
                                 >
                                   {emp.position === 'Nhân viên' ? (
                                     <UserCog className="h-4 w-4 text-blue-600" />
-                                  ) : (
+                                  ) : ( // emp.position === 'Quản lý'
                                     <UserX className="h-4 w-4 text-orange-600" />
                                   )}
-                                  <span className="sr-only">
-                                    {emp.position === 'Nhân viên' ? 'Ủy quyền Admin' : 'Thu hồi Admin'}
-                                  </span>
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent side="top">
                                 <p>
                                   {emp.position === 'Nhân viên'
-                                    ? 'Ủy quyền làm Quản trị viên'
-                                    : 'Thu hồi quyền Quản trị viên'}
+                                    ? 'Nâng cấp thành Quản lý'
+                                    : 'Hạ cấp thành Nhân viên'}
                                 </p>
                               </TooltipContent>
                             </Tooltip>
@@ -549,4 +553,3 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     </Card>
   );
 }
-

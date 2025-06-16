@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
@@ -54,8 +54,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
+  TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
@@ -154,7 +154,8 @@ interface FleurManagerLayoutContentProps {
   setOverallFontSize: React.Dispatch<React.SetStateAction<OverallFontSize>>;
   numericDisplaySize: NumericDisplaySize;
   setNumericDisplaySize: React.Dispatch<React.SetStateAction<NumericDisplaySize>>;
-  isAdmin: boolean;
+  isAdmin: boolean; // Super admin (based on ADMIN_EMAIL)
+  hasFullAccessRights: boolean; // Admin or Manager
   availableInvoiceYears: string[];
   availableDebtYears: string[];
   filteredInvoicesForRevenue: Invoice[];
@@ -183,7 +184,7 @@ interface FleurManagerLayoutContentProps {
   handleRevenueFilterChange: (newFilter: DateFilter) => void;
   handleInvoiceFilterChange: (newFilter: DateFilter) => void;
   handleDebtFilterChange: (newFilter: DateFilter) => void;
-  handleToggleAdminStatus: (employeeId: string, currentPosition: Employee['position']) => Promise<void>;
+  handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -192,13 +193,13 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
-    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isAdmin, availableInvoiceYears,
+    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isAdmin, hasFullAccessRights, availableInvoiceYears,
     availableDebtYears, filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
     handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleAdminStatus
+    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -288,20 +289,21 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     debts={debtsData}
                     numericDisplaySize={numericDisplaySize}
                     onDeleteDebt={handleDeleteDebt}
-                    onToggleAdminStatus={handleToggleAdminStatus}
+                    onToggleEmployeeRole={handleToggleEmployeeRole}
                     adminEmail={ADMIN_EMAIL}
+                    isCurrentUserAdmin={isAdmin}
                   />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData, cart, currentUser, numericDisplaySize,
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
-      filteredDebtsForDebtTab, debtFilter, availableInvoiceYears, availableDebtYears,
+      filteredDebtsForDebtTab, debtFilter, availableInvoiceYears, availableDebtYears, isAdmin,
       handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct,
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleAdminStatus
+      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole
   ]);
 
   return (
@@ -438,7 +440,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
         onNumericDisplaySizeChange={setNumericDisplaySize}
         shopInfo={shopInfo}
         onSaveShopInfo={handleSaveShopInfo}
-        isAdmin={isAdmin}
+        hasAdminOrManagerRights={hasFullAccessRights}
         isLoadingShopInfo={isLoadingShopInfo}
       />
 
@@ -519,10 +521,17 @@ export default function FleurManagerPage() {
   const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>('text-2xl');
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(false);
-  const isAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
-
+  
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
   const [isConfirmingDebtDelete, setIsConfirmingDebtDelete] = useState(false);
+
+  const isAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
+  const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
+
+  const hasFullAccessRights = useMemo(() => {
+    if (!currentUser || !currentUserEmployeeData) return false;
+    return currentUser.email === ADMIN_EMAIL || currentUserEmployeeData.position === 'ADMIN' || currentUserEmployeeData.position === 'Quản lý';
+  }, [currentUser, currentUserEmployeeData, ADMIN_EMAIL]);
 
 
   useEffect(() => {
@@ -549,12 +558,13 @@ export default function FleurManagerPage() {
                 loadedEmployees.push({ id: key, ...data[key] });
             });
         }
-        const adminUser = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
+        const adminDbEntry = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
         let otherEmployees = loadedEmployees.filter(emp => emp.email !== ADMIN_EMAIL);
         otherEmployees.sort((a, b) => a.name.localeCompare(b.name));
+        
         let finalSortedEmployees: Employee[] = [];
-        if (adminUser) {
-            finalSortedEmployees.push(adminUser);
+        if (adminDbEntry) {
+            finalSortedEmployees.push(adminDbEntry);
         }
         finalSortedEmployees = [...finalSortedEmployees, ...otherEmployees];
         setEmployeesData(finalSortedEmployees);
@@ -563,17 +573,18 @@ export default function FleurManagerPage() {
         if (!currentUser.displayName || !currentUserEmployeeRecord) {
             setIsSettingName(true);
         } else if (currentUser.email === ADMIN_EMAIL && currentUserEmployeeRecord && currentUserEmployeeRecord.position !== 'ADMIN') {
-            setIsSettingName(true);
+             setIsSettingName(true); // Force name set if super admin is not marked as ADMIN in DB
         }
         else {
             setIsSettingName(false);
         }
     });
 
-    if (isAdmin) {
+    let unsubscribeShopInfo = () => {};
+    if (hasFullAccessRights) { // Changed from isAdmin to hasFullAccessRights
         setIsLoadingShopInfo(true);
         const shopInfoRef = ref(db, 'shopInfo');
-        const unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
+        unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
             const defaultInvoiceSettings = {
                 showShopLogoOnInvoice: true,
                 showShopAddressOnInvoice: true,
@@ -594,10 +605,9 @@ export default function FleurManagerPage() {
             toast({ title: "Lỗi tải thông tin cửa hàng", description: error.message, variant: "destructive" });
             setIsLoadingShopInfo(false);
         });
-        return () => { unsubscribeEmployees(); unsubscribeShopInfo(); };
     }
-    return () => { unsubscribeEmployees(); };
-  }, [currentUser, authLoading, isAdmin, toast]);
+    return () => { unsubscribeEmployees(); unsubscribeShopInfo(); };
+  }, [currentUser, authLoading, hasFullAccessRights, toast]);
 
 
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
@@ -696,9 +706,9 @@ export default function FleurManagerPage() {
   const handleUpdateDebtStatus = useCallback(async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', employeeId: string, employeeName: string, isUndoOperation: boolean = false) => { try { const debtRef = ref(db, `debts/${debtId}`); const snapshot = await get(debtRef); if (!snapshot.exists()) { toast({ title: "Lỗi", description: "Không tìm thấy công nợ.", variant: "destructive" }); return; } const originalDebt = snapshot.val() as Debt; const originalStatus = originalDebt.status; const updates: { [key: string]: any } = {}; updates[`debts/${debtId}/status`] = newStatus; if (!isUndoOperation) { updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ'; } else { updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ'; } if (originalDebt.invoiceId) { const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`); const invoiceSnapshot = await get(invoiceRef); if (invoiceSnapshot.exists()) { const currentInvoice = invoiceSnapshot.val() as Invoice; if (newStatus === 'Đã thanh toán' && !isUndoOperation) { updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0; updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total; } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) { updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount; updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total - originalDebt.amount; } } else { console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`); } } await update(ref(db), updates); if (!isUndoOperation) { toast({ title: "Thành công", description: "Trạng thái công nợ đã được cập nhật.", variant: "default", }); } else { toast({ title: "Hoàn tác thành công", description: `Trạng thái công nợ đã được đổi lại thành "${originalStatus}".`, variant: "default", }); } } catch (error) { console.error("Error updating debt status:", error); toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" }); } }, [toast]);
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!name.trim()) { toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" }); return; } try { const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_'); if (sanitizedName !== name.trim()) { toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" }); } if (!sanitizedName) { toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" }); return; } await set(ref(db, `productOptions/${type}/${sanitizedName}`), true); toast({ title: "Thành công", description: `Tùy chọn ${sanitizedName} đã được thêm.`, variant: "default" }); } catch (error) { console.error(`Error adding product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
-  const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!isAdmin) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
+  const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
   const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
-  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isAdminUser = currentUser.email === ADMIN_EMAIL; const employeeName = isAdminUser ? ADMIN_NAME : inputName; const employeePosition = isAdminUser ? 'ADMIN' : 'Nhân viên'; try { await updateUserProfileName(employeeName); const employeeDataForDb: Partial<Employee> = { name: employeeName, email: currentUser.email!, position: employeePosition, }; const employeeRef = ref(db, `employees/${currentUser.uid}`); await set(employeeRef, employeeDataForDb); toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." }); setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
+  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; const employeePosition: EmployeePosition = isSuperAdminEmail ? 'ADMIN' : 'Nhân viên'; try { await updateUserProfileName(employeeName); const employeeDataForDb: Partial<Employee> = { name: employeeName, email: currentUser.email!, position: employeePosition, }; const employeeRef = ref(db, `employees/${currentUser.uid}`); await set(employeeRef, employeeDataForDb); toast({ title: "Thành công", description: "Thông tin của bạn đã được cập nhật." }); setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
 
   const handleDeleteDebt = (debtId: string) => {
     const debt = debtsData.find(d => d.id === debtId);
@@ -736,28 +746,37 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleToggleAdminStatus = async (employeeId: string, currentPosition: Employee['position']) => {
+  const handleToggleEmployeeRole = async (employeeId: string, currentPosition: EmployeePosition) => {
     if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
     }
     const targetEmployee = employeesData.find(emp => emp.id === employeeId);
     if (!targetEmployee || targetEmployee.email === ADMIN_EMAIL) {
-      toast({ title: "Lỗi", description: "Không thể thay đổi trạng thái của tài khoản này.", variant: "destructive" });
+      toast({ title: "Lỗi", description: "Không thể thay đổi vai trò của tài khoản này.", variant: "destructive" });
       return;
     }
 
-    const newPosition = currentPosition === 'ADMIN' ? 'Nhân viên' : 'ADMIN';
+    let newPosition: EmployeePosition;
+    if (currentPosition === 'Nhân viên') {
+      newPosition = 'Quản lý';
+    } else if (currentPosition === 'Quản lý') {
+      newPosition = 'Nhân viên';
+    } else { // Should not happen for non-ADMIN_EMAIL users if logic is correct
+      toast({ title: "Lỗi", description: "Thao tác không hợp lệ cho vai trò hiện tại.", variant: "destructive" });
+      return;
+    }
+    
     try {
       await update(ref(db, `employees/${employeeId}`), { position: newPosition });
       toast({
         title: "Thành công",
-        description: `Đã cập nhật trạng thái của ${targetEmployee.name} thành ${newPosition}.`,
+        description: `Đã cập nhật vai trò của ${targetEmployee.name} thành ${newPosition}.`,
         variant: "default"
       });
     } catch (error) {
-      console.error("Error toggling admin status:", error);
-      toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái nhân viên.", variant: "destructive" });
+      console.error("Error toggling employee role:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật vai trò nhân viên.", variant: "destructive" });
     }
   };
 
@@ -799,6 +818,7 @@ export default function FleurManagerPage() {
         numericDisplaySize={numericDisplaySize}
         setNumericDisplaySize={setNumericDisplaySize}
         isAdmin={isAdmin}
+        hasFullAccessRights={hasFullAccessRights}
         availableInvoiceYears={availableInvoiceYears}
         availableDebtYears={availableDebtYears}
         filteredInvoicesForRevenue={filteredInvoicesForRevenue}
@@ -827,7 +847,7 @@ export default function FleurManagerPage() {
         handleRevenueFilterChange={handleRevenueFilterChange}
         handleInvoiceFilterChange={handleInvoiceFilterChange}
         handleDebtFilterChange={handleDebtFilterChange}
-        handleToggleAdminStatus={handleToggleAdminStatus}
+        handleToggleEmployeeRole={handleToggleEmployeeRole}
       />
 
       {debtToDelete && (
@@ -853,7 +873,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-
-
-
-

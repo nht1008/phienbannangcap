@@ -42,7 +42,7 @@ interface SettingsDialogProps {
   onNumericDisplaySizeChange: (size: NumericDisplaySize) => void;
   shopInfo: ShopInfo | null;
   onSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
-  isAdmin: boolean;
+  hasAdminOrManagerRights: boolean; // Changed from isAdmin
   isLoadingShopInfo: boolean;
 }
 
@@ -58,7 +58,7 @@ export function SettingsDialog({
   onNumericDisplaySizeChange,
   shopInfo,
   onSaveShopInfo,
-  isAdmin,
+  hasAdminOrManagerRights, // Changed from isAdmin
   isLoadingShopInfo
 }: SettingsDialogProps) {
   const [currentOverallSize, setCurrentOverallSize] = useState<OverallFontSize>(overallFontSize);
@@ -123,7 +123,7 @@ export function SettingsDialog({
 
   const handleSaveShopInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) {
+    if (!hasAdminOrManagerRights) { // Changed from isAdmin
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
     }
@@ -145,7 +145,7 @@ export function SettingsDialog({
         <DialogHeader>
           <DialogTitle className="text-2xl">Cài đặt hiển thị & Thông tin</DialogTitle>
           <DialogDescription>
-            Tùy chỉnh giao diện và cập nhật thông tin cửa hàng (nếu bạn là Quản trị viên).
+            Tùy chỉnh giao diện và cập nhật thông tin cửa hàng (nếu bạn là Quản trị viên hoặc Quản lý).
           </DialogDescription>
         </DialogHeader>
 
@@ -195,11 +195,11 @@ export function SettingsDialog({
             </div>
           </section>
 
-          {isAdmin && (
+          {hasAdminOrManagerRights && ( // Changed from isAdmin
             <>
               <Separator />
               <section>
-                <h3 className="text-lg font-semibold mb-3 text-primary">Thông tin cửa hàng (Quản trị viên)</h3>
+                <h3 className="text-lg font-semibold mb-3 text-primary">Thông tin cửa hàng (Quản trị viên/Quản lý)</h3>
                 {isLoadingShopInfo ? (
                   <p>Đang tải thông tin cửa hàng...</p>
                 ) : (
@@ -220,7 +220,7 @@ export function SettingsDialog({
                   </div>
                   
                   <div>
-                    <Label htmlFor="shopLogoFile" className="mb-1 block">Logo cửa hàng (Tối đa {MAX_LOGO_SIZE_MB}MB)</Label>
+                    <Label htmlFor="shopLogoFile" className="mb-1 block">Logo cửa hàng (Tối đa ${MAX_LOGO_SIZE_MB}MB)</Label>
                     <div className="flex items-center gap-4">
                         <Input 
                             id="shopLogoFile" 

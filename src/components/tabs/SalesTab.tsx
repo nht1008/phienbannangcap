@@ -355,8 +355,8 @@ export function SalesTab({
   return (
     <>
       <NotificationDialog message={localNotification} type={localNotificationType} onClose={() => setLocalNotification(null)} />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4 md:p-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 p-4 md:p-6">
+        <div className="lg:col-span-3">
           <div className="mb-6 p-4 bg-muted/30 rounded-lg">
             <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
             <Popover open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen}>
@@ -416,7 +416,7 @@ export function SalesTab({
           </div>
 
           <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {productsGroupedByName.map(group => (
               <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
                 <CardContent className="p-4 flex-grow">
@@ -450,7 +450,7 @@ export function SalesTab({
           </div>
         </div>
 
-        <Card className="sticky top-6">
+        <Card className="sticky top-6 lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
                 <ShoppingCart className="mr-2 h-6 w-6 text-primary"/>
@@ -871,3 +871,4 @@ export function SalesTab({
     </>
   );
 }
+

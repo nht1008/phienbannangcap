@@ -366,9 +366,9 @@ export function SalesTab({
   const handleItemDiscountInputChange = (itemId: string, discountStr: string) => {
     const wasInvalidInput = onItemDiscountChange(itemId, discountStr); 
     if (wasInvalidInput) {
-      showLocalNotification("Giá trị giảm giá đã được tự động điều chỉnh. Vui lòng kiểm tra lại.", "error");
+      showLocalNotification("Giá trị Giảm giá không được lớn hơn tổng số tiền", "error");
     } else {
-      if (localNotification && localNotification.includes("giảm giá")) {
+      if (localNotification && localNotification.includes("Giảm giá")) {
         setLocalNotification(null);
       }
     }

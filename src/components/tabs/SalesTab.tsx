@@ -429,7 +429,7 @@ export function SalesTab({
                                 }}
                                 className="cursor-pointer"
                               >
-                               <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 items-center w-full text-xs py-1">
+                               <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_minmax(4.5rem,auto)_minmax(3.5rem,auto)] gap-x-2 items-center w-full text-xs py-1">
                                   <Image
                                     src={variant.image || `https://placehold.co/24x24.png`}
                                     alt={variant.name}

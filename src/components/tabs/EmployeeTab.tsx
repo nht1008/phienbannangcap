@@ -132,6 +132,7 @@ export function EmployeeTab({
 
   const [userAccessRequests, setUserAccessRequests] = useState<UserAccessRequest[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [isReviewUserAccessRequestsDialogOpen, setIsReviewUserAccessRequestsDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [requestToReject, setRequestToReject] = useState<UserAccessRequest | null>(null);
 
@@ -327,14 +328,6 @@ export function EmployeeTab({
     setEditingEmployee(null);
   };
 
-  const handleReviewEmployeesClick = () => {
-    toast({
-      title: "Tính năng sắp ra mắt",
-      description: "Chức năng xét duyệt yêu cầu nhân viên đang được phát triển.",
-      variant: "default",
-    });
-  };
-
 
   return (
     <>
@@ -344,11 +337,11 @@ export function EmployeeTab({
             <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
             {isCurrentUserAdmin && (
               <Button
-                onClick={handleReviewEmployeesClick}
+                onClick={() => setIsReviewUserAccessRequestsDialogOpen(true)}
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary/10"
               >
-                <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên
+                <Users className="mr-2 h-4 w-4" /> Xét duyệt Yêu cầu ({userAccessRequests.length})
               </Button>
             )}
         </div>
@@ -464,55 +457,17 @@ export function EmployeeTab({
           </div>
         </div>
 
-        {isCurrentUserAdmin && (
+        {isCurrentUserAdmin && userAccessRequests.length > 0 && (
           <>
             <Separator className="my-6"/>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của người dùng</CardTitle>
+                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của người dùng ({userAccessRequests.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {isLoadingRequests ? (
-                        <p className="text-muted-foreground">Đang tải yêu cầu...</p>
-                    ) : userAccessRequests.length === 0 ? (
-                        <p className="text-muted-foreground">Không có yêu cầu nào đang chờ xử lý.</p>
-                    ) : (
-                        <ScrollArea className="h-72">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Tên</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Vai trò YC</TableHead>
-                                        <TableHead>SĐT</TableHead>
-                                        <TableHead>Địa chỉ</TableHead>
-                                        <TableHead>Ngày YC</TableHead>
-                                        <TableHead className="text-center">Hành động</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {userAccessRequests.map(req => (
-                                        <TableRow key={req.id}>
-                                            <TableCell>{req.name}</TableCell>
-                                            <TableCell>{req.email}</TableCell>
-                                            <TableCell>{req.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</TableCell>
-                                            <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
-                                            <TableCell>{req.address || 'N/A'}</TableCell>
-                                            <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
-                                            <TableCell className="text-center space-x-2">
-                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveRequest(req)}>
-                                                    <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
-                                                </Button>
-                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => openRejectDialog(req)}>
-                                                    <XCircle className="h-4 w-4 mr-1"/>Từ chối
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                        Hiện có {userAccessRequests.length} yêu cầu đang chờ xử lý. Nhấn nút "Xét duyệt Yêu cầu" ở trên để quản lý.
+                    </p>
                 </CardContent>
             </Card>
           </>
@@ -830,6 +785,67 @@ export function EmployeeTab({
         </Dialog>
       )}
 
+      {/* Dialog for reviewing user access requests */}
+      {isCurrentUserAdmin && (
+        <Dialog open={isReviewUserAccessRequestsDialogOpen} onOpenChange={setIsReviewUserAccessRequestsDialogOpen}>
+            <DialogContent className="sm:max-w-5xl"> {/* Increased width for better table display */}
+                <DialogHeader>
+                    <DialogTitle>Xét duyệt yêu cầu truy cập ({userAccessRequests.length})</DialogTitle>
+                    <DialogDescription>
+                        Duyệt hoặc từ chối các yêu cầu truy cập từ người dùng.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="mt-4">
+                    {isLoadingRequests ? (
+                        <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
+                    ) : userAccessRequests.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
+                    ) : (
+                        <ScrollArea className="max-h-[60vh]">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Tên</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Vai trò YC</TableHead>
+                                        <TableHead>SĐT</TableHead>
+                                        <TableHead>Địa chỉ</TableHead>
+                                        <TableHead>Ngày YC</TableHead>
+                                        <TableHead className="text-center">Hành động</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {userAccessRequests.map(req => (
+                                        <TableRow key={req.id}>
+                                            <TableCell>{req.name}</TableCell>
+                                            <TableCell>{req.email}</TableCell>
+                                            <TableCell>{req.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</TableCell>
+                                            <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                                            <TableCell className="text-xs max-w-[150px] truncate" title={req.address || 'N/A'}>{req.address || 'N/A'}</TableCell>
+                                            <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
+                                            <TableCell className="text-center space-x-1">
+                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveRequest(req)}>
+                                                    <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
+                                                </Button>
+                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => openRejectDialog(req)}>
+                                                    <XCircle className="h-4 w-4 mr-1"/>Từ chối
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    )}
+                </div>
+                <DialogFooter className="mt-4">
+                    <Button variant="outline" onClick={() => setIsReviewUserAccessRequestsDialogOpen(false)}>Đóng</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Dialog for rejection reason */}
       {requestToReject && (
         <Dialog open={!!requestToReject} onOpenChange={() => setRequestToReject(null)}>
           <DialogContent>

@@ -147,7 +147,7 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="p-6">
           <div className="flex justify-between items-center">
               <CardTitle className="text-4xl font-bold">Danh sách khách hàng</CardTitle>
               <Button 
@@ -189,7 +189,7 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
                   </TableRow>
                 ))}
                 {customers.length === 0 && !isAdding && !isEditing && (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -228,3 +228,4 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
     </>
   );
 }
+

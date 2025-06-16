@@ -185,6 +185,7 @@ interface FleurManagerLayoutContentProps {
   handleInvoiceFilterChange: (newFilter: DateFilter) => void;
   handleDebtFilterChange: (newFilter: DateFilter) => void;
   handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
+  handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -199,7 +200,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole
+    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
+    handleUpdateEmployeeInfo
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -290,6 +292,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     numericDisplaySize={numericDisplaySize}
                     onDeleteDebt={handleDeleteDebt}
                     onToggleEmployeeRole={handleToggleEmployeeRole}
+                    onUpdateEmployeeInfo={handleUpdateEmployeeInfo}
                     adminEmail={ADMIN_EMAIL}
                     isCurrentUserAdmin={isCurrentUserAdmin}
                   />,
@@ -303,7 +306,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole
+      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
+      handleUpdateEmployeeInfo
   ]);
 
   return (
@@ -785,6 +789,36 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleUpdateEmployeeInfo = async (employeeId: string, data: { name: string; phone?: string }) => {
+    if (!isCurrentUserAdmin) {
+      toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+      return;
+    }
+    const targetEmployee = employeesData.find(emp => emp.id === employeeId);
+    if (!targetEmployee || targetEmployee.email === ADMIN_EMAIL) {
+      toast({ title: "Lỗi", description: "Không thể chỉnh sửa thông tin của tài khoản này.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const updates: Partial<Employee> = { name: data.name };
+      if (data.phone !== undefined) {
+        updates.phone = data.phone;
+      }
+      await update(ref(db, `employees/${employeeId}`), updates);
+      
+      // If admin is editing their own name (not possible with current UI flow for this button, but good for future)
+      if (currentUser && employeeId === currentUser.uid && data.name !== currentUser.displayName) {
+         await updateUserProfileName(data.name);
+      }
+
+      toast({ title: "Thành công", description: `Thông tin của ${data.name} đã được cập nhật.` });
+    } catch (error) {
+      console.error("Error updating employee info:", error);
+      toast({ title: "Lỗi", description: "Không thể cập nhật thông tin nhân viên.", variant: "destructive" });
+    }
+  };
+
 
   if (authLoading) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
   if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
@@ -853,6 +887,7 @@ export default function FleurManagerPage() {
         handleInvoiceFilterChange={handleInvoiceFilterChange}
         handleDebtFilterChange={handleDebtFilterChange}
         handleToggleEmployeeRole={handleToggleEmployeeRole}
+        handleUpdateEmployeeInfo={handleUpdateEmployeeInfo}
       />
 
       {debtToDelete && (

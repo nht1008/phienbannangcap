@@ -10,15 +10,18 @@ import { formatPhoneNumber, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Trash2, UserCog, UserX } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface ActivityDateTimeFilter {
@@ -84,6 +87,7 @@ interface EmployeeTabProps {
   numericDisplaySize: NumericDisplaySize;
   onDeleteDebt: (debtId: string) => void;
   onToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
+  onUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
   adminEmail: string;
   isCurrentUserAdmin: boolean; 
 }
@@ -93,7 +97,18 @@ const minuteOptionsStart = ['00', '15', '30', '45'];
 const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
 
 
-export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt, onToggleEmployeeRole, adminEmail, isCurrentUserAdmin }: EmployeeTabProps) {
+export function EmployeeTab({ 
+    employees, 
+    currentUser, 
+    invoices, 
+    debts, 
+    numericDisplaySize, 
+    onDeleteDebt, 
+    onToggleEmployeeRole,
+    onUpdateEmployeeInfo,
+    adminEmail, 
+    isCurrentUserAdmin 
+}: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
     const today = new Date();
@@ -106,6 +121,12 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
       endMinute: '59',
     };
   });
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editFormData, setEditFormData] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
+  const { toast } = useToast();
+
 
   const displayEmployees = useMemo(() => {
     if (isCurrentUserAdmin) return employees; 
@@ -193,7 +214,33 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     });
   };
 
+  const handleOpenEditModal = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditFormData({ name: employee.name, phone: employee.phone || '' });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveEmployeeInfo = async () => {
+    if (!editingEmployee || !editFormData.name.trim()) {
+      toast({ title: "Lỗi", description: "Tên nhân viên không được để trống.", variant: "destructive" });
+      return;
+    }
+    await onUpdateEmployeeInfo(editingEmployee.id, {
+      name: editFormData.name.trim(),
+      phone: editFormData.phone.trim() || undefined
+    });
+    setIsEditModalOpen(false);
+    setEditingEmployee(null);
+  };
+
+
   return (
+    <>
     <Card> 
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
@@ -247,7 +294,29 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       </TableCell>
                       <TableCell>{emp.email}</TableCell>
                       <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center space-x-1">
+                        {isCurrentUserAdmin && emp.email !== adminEmail && (
+                           <TooltipProvider delayDuration={0}>
+                                <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={(e) => {
+                                        e.stopPropagation(); 
+                                        handleOpenEditModal(emp);
+                                    }}
+                                    >
+                                    <Pencil className="h-4 w-4 text-yellow-600" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p>Sửa thông tin nhân viên</p>
+                                </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                         {isCurrentUserAdmin && emp.email !== adminEmail && (emp.position === 'Nhân viên' || emp.position === 'Quản lý') && (
                           <TooltipProvider delayDuration={0}>
                             <Tooltip>
@@ -549,6 +618,53 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
         )}
       </CardContent>
     </Card>
+
+    {isEditModalOpen && editingEmployee && (
+        <Dialog open={isEditModalOpen} onOpenChange={() => { setIsEditModalOpen(false); setEditingEmployee(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa thông tin nhân viên</DialogTitle>
+              <DialogDescription>
+                Cập nhật tên và số điện thoại cho {editingEmployee.name}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Tên
+                </Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  value={editFormData.name}
+                  onChange={handleEditFormChange}
+                  className="col-span-3 bg-card"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-phone" className="text-right">
+                  Số điện thoại
+                </Label>
+                <Input
+                  id="edit-phone"
+                  name="phone"
+                  value={editFormData.phone}
+                  onChange={handleEditFormChange}
+                  className="col-span-3 bg-card"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); }}>
+                Hủy
+              </Button>
+              <Button onClick={handleSaveEmployeeInfo} className="bg-primary text-primary-foreground">Lưu thay đổi</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 

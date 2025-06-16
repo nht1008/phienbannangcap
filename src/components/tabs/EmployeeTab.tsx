@@ -206,12 +206,13 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   <TableHead>Chức vụ</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Số điện thoại</TableHead>
+                  <TableHead className="text-center">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {displayEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
                       Chưa có nhân viên nào trong danh sách.
                     </TableCell>
                   </TableRow>
@@ -226,6 +227,9 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                       <TableCell>{emp.position}</TableCell>
                       <TableCell>{emp.email}</TableCell>
                       <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
+                      <TableCell className="text-center">
+                        {/* Placeholder for future actions */}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -241,7 +245,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             
               <div className="mt-4 pt-4 border-t space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1">
                     <Label htmlFor="startDate">Từ ngày</Label>
                     <Popover>
@@ -288,7 +292,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                     </Select>
                   </div>
                 </div>
-
+                
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1">
                     <Label htmlFor="endDate">Đến ngày</Label>

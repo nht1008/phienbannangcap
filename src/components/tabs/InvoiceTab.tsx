@@ -404,11 +404,11 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   <TableRow>
                     <TableHead className="min-w-[120px]">Sản phẩm</TableHead>
                     <TableHead>Màu</TableHead>
-                    <TableHead>CL</TableHead>
-                    <TableHead>K.Thước</TableHead>
-                    <TableHead>ĐV</TableHead>
-                    <TableHead className="text-right">Giá</TableHead>
-                    <TableHead className="text-center">Đã mua</TableHead>
+                    <TableHead>Chất lượng</TableHead>
+                    <TableHead>Kích thước</TableHead>
+                    <TableHead>Đơn vị</TableHead>
+                    <TableHead className="text-right">Đơn giá</TableHead>
+                    <TableHead className="text-center">Số lượng mua</TableHead>
                     <TableHead className="text-center w-28">Hoàn trả</TableHead>
                   </TableRow>
                 </TableHeader>

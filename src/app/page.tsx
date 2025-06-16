@@ -63,7 +63,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock } from 'lucide-react'; // Removed Flower2 import
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -111,6 +111,8 @@ export default function FleurManagerPage() {
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
+
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -181,22 +183,21 @@ export default function FleurManagerPage() {
         setIsLoadingShopInfo(true);
         const shopInfoRef = ref(db, 'shopInfo');
         const unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
+            const defaultInvoiceSettings = {
+                showShopLogoOnInvoice: true,
+                showShopAddressOnInvoice: true,
+                showShopPhoneOnInvoice: true,
+                showShopBankDetailsOnInvoice: true,
+                showEmployeeNameOnInvoice: true,
+                invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
+            };
             if (snapshot.exists()) {
                  const dbShopInfo = snapshot.val() as ShopInfo;
-                 // Ensure all invoice setting fields are present
                  setShopInfo({
-                    ...{ // Default values for invoice settings
-                        showShopLogoOnInvoice: true,
-                        showShopAddressOnInvoice: true,
-                        showShopPhoneOnInvoice: true,
-                        showShopBankDetailsOnInvoice: true,
-                        showEmployeeNameOnInvoice: true,
-                        invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
-                    },
-                    ...dbShopInfo // Override with values from DB if they exist
+                    ...defaultInvoiceSettings,
+                    ...dbShopInfo 
                  });
             } else {
-                // Set default values including invoice settings if shopInfo doesn't exist
                 setShopInfo({ 
                     name: '', 
                     address: '', 
@@ -205,12 +206,7 @@ export default function FleurManagerPage() {
                     bankAccountName: '', 
                     bankAccountNumber: '', 
                     bankName: '',
-                    showShopLogoOnInvoice: true,
-                    showShopAddressOnInvoice: true,
-                    showShopPhoneOnInvoice: true,
-                    showShopBankDetailsOnInvoice: true,
-                    showEmployeeNameOnInvoice: true,
-                    invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
+                    ...defaultInvoiceSettings
                 }); 
             }
             setIsLoadingShopInfo(false);
@@ -472,14 +468,79 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
+  // Cart Logic Lifted to FleurManagerPage
+  const handleAddToCart = useCallback((item: Product) => {
+    const existingItem = cart.find(cartItem => cartItem.id === item.id);
+    const stockItem = inventory.find(i => i.id === item.id);
+
+    if (!stockItem || stockItem.quantity <= 0) {
+      toast({ title: "Hết hàng", description: `Sản phẩm "${item.name} ${item.color} ${item.size} ${item.unit}" đã hết hàng!`, variant: "destructive" });
+      return;
+    }
+
+    if (existingItem) {
+      if (existingItem.quantityInCart < stockItem.quantity) {
+        setCart(prevCart => prevCart.map(cartItem =>
+          cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
+        ));
+      } else {
+        toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${item.name} ${item.color} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, variant: "destructive" });
+      }
+    } else {
+      setCart(prevCart => [...prevCart, { ...item, quantityInCart: 1, itemDiscount: 0 }]);
+    }
+  }, [cart, inventory, toast, setCart]);
+
+  const handleUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
+    const newQuantity = parseInt(newQuantityStr);
+    if (isNaN(newQuantity) || newQuantity < 0) return;
+
+    const stockItem = inventory.find(i => i.id === itemId);
+    if (!stockItem && newQuantity > 0) return; // Should not happen if item is in cart
+
+    if (newQuantity === 0) {
+      setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+    } else if (stockItem && newQuantity > stockItem.quantity) {
+      toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockItem.quantity} ${stockItem.unit} trong kho.`, variant: "destructive" });
+      setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
+    } else {
+      setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
+    }
+  }, [inventory, toast, setCart]);
+
+  const handleItemDiscountChange = useCallback((itemId: string, discountNghinStr: string) => {
+    const discountNghin = parseFloat(discountNghinStr);
+    const discountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
+
+    setCart(prevCart => prevCart.map(item => {
+      if (item.id === itemId) {
+        const itemOriginalTotal = item.price * item.quantityInCart;
+        if (discountVND < 0) {
+          toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" });
+          return { ...item, itemDiscount: 0 };
+        }
+        if (discountVND > itemOriginalTotal) {
+          toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${itemOriginalTotal.toLocaleString('vi-VN')} VNĐ).`, variant: "destructive" });
+          return { ...item, itemDiscount: itemOriginalTotal };
+        }
+        return { ...item, itemDiscount: discountVND };
+      }
+      return item;
+    }));
+  }, [toast, setCart]);
+
+  const handleClearCart = useCallback(() => {
+    setCart([]);
+  }, [setCart]);
+
 
   const handleCreateInvoice = useCallback(async (
     customerName: string,
-    cart: CartItem[], // Cart items from SalesTab, may include itemDiscount
-    subtotalAfterItemDiscounts: number, // Subtotal *after* item-specific discounts
+    invoiceCartItems: CartItem[], // Use the cart from FleurManagerPage's state, passed down
+    subtotalAfterItemDiscounts: number,
     paymentMethod: string,
-    overallInvoiceDiscount: number, // Additional overall discount in VND
-    amountPaid: number, // Actual VND paid by customer
+    overallInvoiceDiscount: number,
+    amountPaid: number,
     isGuestCustomer: boolean,
     employeeId: string,
     employeeName: string
@@ -516,26 +577,26 @@ export default function FleurManagerPage() {
         throw new Error("Không thể tạo ID cho hóa đơn mới.");
       }
       
-      const invoiceItems: InvoiceCartItem[] = cart.map(item => ({
+      const itemsForDb: InvoiceCartItem[] = invoiceCartItems.map(item => ({
         id: item.id,
         name: item.name,
         quantityInCart: item.quantityInCart,
-        price: item.price, // Original unit price
+        price: item.price,
         costPrice: item.costPrice ?? 0,
         image: item.image,
         color: item.color,
         size: item.size,
         unit: item.unit,
-        itemDiscount: item.itemDiscount || 0, // Item-specific discount
+        itemDiscount: item.itemDiscount || 0,
       }));
 
       const newInvoiceData: Omit<Invoice, 'id'> = {
         customerName,
-        items: invoiceItems,
-        total: finalTotal, // Total after *all* discounts
+        items: itemsForDb,
+        total: finalTotal,
         date: new Date().toISOString(),
         paymentMethod,
-        discount: overallInvoiceDiscount, // Overall invoice discount
+        discount: overallInvoiceDiscount,
         amountPaid,
         employeeId,
         employeeName: employeeName || 'Không rõ',
@@ -558,7 +619,7 @@ export default function FleurManagerPage() {
       }
 
       const updates: { [key: string]: any } = {};
-      for (const cartItem of cart) {
+      for (const cartItem of invoiceCartItems) {
         const productSnapshot = await get(child(ref(db), `inventory/${cartItem.id}`));
         if (productSnapshot.exists()) {
           const currentQuantity = productSnapshot.val().quantity;
@@ -572,13 +633,14 @@ export default function FleurManagerPage() {
       }
 
       toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
+      handleClearCart(); // Clear cart after successful invoice creation
       return true;
     } catch (error) {
       console.error("Error creating invoice:", error);
       toast({ title: "Lỗi", description: `Không thể tạo hóa đơn: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
       return false;
     }
-  }, [toast]);
+  }, [toast, handleClearCart]);
 
   const handleProcessInvoiceCancellationOrReturn = useCallback(async (
     invoiceId: string,
@@ -611,8 +673,8 @@ export default function FleurManagerPage() {
       };
 
       if (operationType === 'delete' || (operationType === 'return' && (!itemsToReturnArray || itemsToReturnArray.length === 0))) {
-        for (const invoiceItem of originalInvoice.items) { // Changed from cartItem to invoiceItem
-          const productRef = child(ref(db), `inventory/${invoiceItem.id}`); // Assuming InvoiceCartItem has 'id' for product
+        for (const invoiceItem of originalInvoice.items) {
+          const productRef = child(ref(db), `inventory/${invoiceItem.id}`);
           const productSnapshot = await get(productRef);
           if (productSnapshot.exists()) {
             updates[`inventory/${invoiceItem.id}/quantity`] = productSnapshot.val().quantity + invoiceItem.quantityInCart;
@@ -656,14 +718,12 @@ export default function FleurManagerPage() {
             const newItem: InvoiceCartItem = {
               ...originalItem,
               quantityInCart: remainingQuantityInCart,
-              // itemDiscount remains the same per unit if applicable, or recalculate if it was a fixed amount
             };
             newInvoiceItems.push(newItem);
             newSubtotalAfterItemDiscounts += (newItem.price * remainingQuantityInCart) - (newItem.itemDiscount || 0);
           }
         }
         
-        // Recalculate overall invoice discount proportionally if it exists
         let newOverallInvoiceDiscount = originalInvoice.discount || 0;
         const originalSubtotalBeforeOverallDiscount = originalInvoice.items.reduce(
             (sum, item) => sum + (item.price * item.quantityInCart) - (item.itemDiscount || 0), 0
@@ -679,16 +739,13 @@ export default function FleurManagerPage() {
 
         if (newInvoiceItems.length === 0 || newFinalTotal <= 0) {
           updates[`invoices/${invoiceId}`] = null;
-          await deleteAssociatedDebtIfNeeded(); // Also delete debt if invoice becomes zero/empty
+          await deleteAssociatedDebtIfNeeded(); 
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Tất cả sản phẩm đã được hoàn trả, hóa đơn và công nợ liên quan (nếu có) đã được xóa.", variant: "default" });
         } else {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newFinalTotal;
-          updates[`invoices/${invoiceId}/discount`] = newOverallInvoiceDiscount; // Updated overall discount
-          // Note: Debt amount on original invoice is typically NOT changed on partial returns.
-          // The debt remains, and the customer owes the original debt amount.
-          // If a refund is given that affects debt, it should be handled separately or by company policy.
+          updates[`invoices/${invoiceId}/discount`] = newOverallInvoiceDiscount; 
           await update(ref(db), updates);
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi trừ khi được xử lý riêng.", variant: "default" });
         }
@@ -771,7 +828,7 @@ export default function FleurManagerPage() {
         updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId;
         updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       } else {
-        updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; // Still record who undid
+        updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; 
         updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ';
       }
   
@@ -781,18 +838,10 @@ export default function FleurManagerPage() {
         if (invoiceSnapshot.exists()) {
           const currentInvoice = invoiceSnapshot.val() as Invoice;
           if (newStatus === 'Đã thanh toán' && !isUndoOperation) {
-            // When debt is paid, the debtAmount on invoice becomes 0
             updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0;
-            // Amount paid on invoice should reflect the full payment now
-            // This assumes the debt payment covers the remaining invoice total
             updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total; 
           } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) {
-             // When undoing payment, revert debtAmount on invoice
              updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount;
-             // Revert amountPaid on invoice. This is tricky if there were partial payments before.
-             // For simplicity, assuming it reverts to the state before this specific debt was marked paid.
-             // If invoice.total was T, and debt D was paid, amountPaid became T.
-             // Now, amountPaid becomes T - D.
              updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total - originalDebt.amount;
           }
         } else {
@@ -887,6 +936,11 @@ export default function FleurManagerPage() {
                     onCreateInvoice={handleCreateInvoice} 
                     currentUser={currentUser}
                     numericDisplaySize={numericDisplaySize}
+                    cart={cart}
+                    onAddToCart={handleAddToCart}
+                    onUpdateCartQuantity={handleUpdateCartQuantity}
+                    onItemDiscountChange={handleItemDiscountChange}
+                    onClearCart={handleClearCart}
                   />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
@@ -946,7 +1000,7 @@ export default function FleurManagerPage() {
                     numericDisplaySize={numericDisplaySize}
                   />,
   }), [
-      inventory, customersData, invoicesData, debtsData, employeesData, shopInfo,
+      inventory, customersData, invoicesData, debtsData, employeesData, shopInfo, cart,
       currentUser, numericDisplaySize,
       productNameOptions, colorOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter,
@@ -957,7 +1011,8 @@ export default function FleurManagerPage() {
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer,
-      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange
+      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange,
+      handleAddToCart, handleUpdateCartQuantity, handleItemDiscountChange, handleClearCart
   ]);
 
   const SidebarToggleButton = () => {
@@ -1040,15 +1095,13 @@ export default function FleurManagerPage() {
                 <Image 
                     src={shopInfo.logoUrl} 
                     alt={shopInfo.name || "Shop Logo"} 
-                    width={56} 
-                    height={56} 
+                    width={64} 
+                    height={64} 
                     className="object-contain rounded-sm"
-                    data-ai-hint="shop brand"
+                    data-ai-hint="brand logo"
                     onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        // Optionally, set a default placeholder or hide if broken
-                        // For now, we'll just log, as the absence of a logo is handled by showing nothing
-                        console.error("Error loading shop logo in sidebar:", target.src);
+                        target.src = 'https://placehold.co/64x64.png'; 
                     }}
                 />
             )}
@@ -1206,6 +1259,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

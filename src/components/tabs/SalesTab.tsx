@@ -48,6 +48,11 @@ interface SalesTabProps {
   ) => Promise<boolean>;
   currentUser: User | null;
   numericDisplaySize: NumericDisplaySize;
+  cart: CartItem[];
+  onAddToCart: (item: Product) => void;
+  onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
+  onItemDiscountChange: (itemId: string, discountNghinStr: string) => void;
+  onClearCart: () => void; // Added for clearing cart after successful invoice
 }
 
 const paymentOptions = ['Tiền mặt', 'Chuyển khoản'];
@@ -64,8 +69,18 @@ interface AvailableVariants {
   units: string[];
 }
 
-export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, numericDisplaySize }: SalesTabProps) {
-  const [cart, setCart] = useState<CartItem[]>([]);
+export function SalesTab({ 
+    inventory, 
+    customers, 
+    onCreateInvoice, 
+    currentUser, 
+    numericDisplaySize,
+    cart,
+    onAddToCart,
+    onUpdateCartQuantity,
+    onItemDiscountChange,
+    onClearCart
+}: SalesTabProps) {
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
 
@@ -88,67 +103,6 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
     setLocalNotificationType(type);
-  };
-
-  const addToCart = (item: Product) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
-    const stockItem = inventory.find(i => i.id === item.id);
-
-    if (!stockItem || stockItem.quantity <= 0) {
-      showLocalNotification(`Sản phẩm "${item.name} ${item.color} ${item.size} ${item.unit}" đã hết hàng!`, 'error');
-      return;
-    }
-
-    if (existingItem) {
-      if (existingItem.quantityInCart < stockItem.quantity) {
-        setCart(cart.map(cartItem =>
-          cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
-        ));
-      } else {
-        showLocalNotification(`Không đủ số lượng "${item.name} ${item.color} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, 'error');
-      }
-    } else {
-      setCart([...cart, { ...item, quantityInCart: 1, itemDiscount: 0 }]);
-    }
-  };
-
-  const updateCartQuantity = (itemId: string, newQuantityStr: string) => {
-    const newQuantity = parseInt(newQuantityStr);
-    if (isNaN(newQuantity) || newQuantity < 0) return;
-
-
-    const stockItem = inventory.find(i => i.id === itemId);
-    if (!stockItem && newQuantity > 0) return;
-
-    if (newQuantity === 0) {
-      setCart(cart.filter(item => item.id !== itemId));
-    } else if (stockItem && newQuantity > stockItem.quantity) {
-      showLocalNotification(`Số lượng tồn kho không đủ! Chỉ còn ${stockItem.quantity} ${stockItem.unit}.`, 'error');
-      setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
-    } else {
-      setCart(cart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
-    }
-  };
-
-  const handleItemDiscountChange = (itemId: string, discountNghinStr: string) => {
-    const discountNghin = parseFloat(discountNghinStr);
-    const discountVND = isNaN(discountNghin) ? 0 : discountNghin * 1000;
-
-    setCart(prevCart => prevCart.map(item => {
-      if (item.id === itemId) {
-        const itemOriginalTotal = item.price * item.quantityInCart;
-        if (discountVND < 0) {
-          showLocalNotification("Số tiền giảm giá cho sản phẩm không thể âm.", "error");
-          return { ...item, itemDiscount: 0 };
-        }
-        if (discountVND > itemOriginalTotal) {
-          showLocalNotification(`Giảm giá cho sản phẩm "${item.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${itemOriginalTotal.toLocaleString('vi-VN')} VNĐ).`, "error");
-          return { ...item, itemDiscount: itemOriginalTotal };
-        }
-        return { ...item, itemDiscount: discountVND };
-      }
-      return item;
-    }));
   };
 
   const subtotalAfterItemDiscounts = useMemo(() =>
@@ -231,7 +185,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
 
     const success = await onCreateInvoice(
         finalCustomerName,
-        cart,
+        cart, // Pass the cart from props (managed by FleurManagerPage)
         subtotalAfterItemDiscounts,
         currentPaymentMethod,
         actualOverallInvoiceDiscountVND,
@@ -241,7 +195,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
         currentUser.displayName || currentUser.email || "Không rõ"
     );
     if (success) {
-      setCart([]);
+      // Cart clearing is now handled by FleurManagerPage via onClearCart through onCreateInvoice
       setIsPaymentDialogOpen(false);
     }
   };
@@ -348,7 +302,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     );
 
     if (productToAdd) {
-      addToCart(productToAdd);
+      onAddToCart(productToAdd);
       setIsVariantSelectorOpen(false);
       setSelectedProductNameForVariants(null);
       setVariantSelection({ color: '', size: '', unit: '' });
@@ -413,7 +367,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                             onSelect={(currentValue) => { 
                               const productToAdd = inventory.find(p => p.id === currentValue);
                               if (productToAdd) {
-                                addToCart(productToAdd);
+                                onAddToCart(productToAdd);
                               }
                               setProductSearchQuery("");
                               setIsProductSearchOpen(false);
@@ -506,7 +460,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive hover:text-destructive/80 self-start shrink-0"
-                            onClick={() => updateCartQuantity(item.id, '0')}
+                            onClick={() => onUpdateCartQuantity(item.id, '0')}
                             aria-label="Xóa sản phẩm khỏi giỏ hàng"
                         >
                             <Trash2 className="h-4 w-4" />
@@ -520,7 +474,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8 shrink-0"
-                                onClick={() => updateCartQuantity(item.id, (item.quantityInCart - 1).toString())}
+                                onClick={() => onUpdateCartQuantity(item.id, (item.quantityInCart - 1).toString())}
                                 aria-label="Giảm số lượng"
                             >
                                 <Minus className="h-4 w-4" />
@@ -536,7 +490,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8 shrink-0"
-                                onClick={() => updateCartQuantity(item.id, (item.quantityInCart + 1).toString())}
+                                onClick={() => onUpdateCartQuantity(item.id, (item.quantityInCart + 1).toString())}
                                 disabled={item.quantityInCart >= (inventory.find(p => p.id === item.id)?.quantity ?? 0)}
                                 aria-label="Tăng số lượng"
                             >
@@ -564,7 +518,7 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
                             id={`item-discount-${item.id}`}
                             type="number"
                             value={typeof item.itemDiscount === 'number' ? (item.itemDiscount / 1000).toString() : ""}
-                            onChange={(e) => handleItemDiscountChange(item.id, e.target.value)}
+                            onChange={(e) => onItemDiscountChange(item.id, e.target.value)}
                             min="0"
                             step="0.1"
                             className="h-8 w-full bg-card text-sm p-2 hide-number-spinners"
@@ -859,4 +813,5 @@ export function SalesTab({ inventory, customers, onCreateInvoice, currentUser, n
     </>
   );
 }
+
 

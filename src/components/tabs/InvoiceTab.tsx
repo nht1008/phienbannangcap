@@ -500,7 +500,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
             </ScrollArea>
              <DialogFooter className="mt-6 sm:justify-between items-center">
               <div className="text-left mb-4 sm:mb-0">
-                <p className="text-sm font-medium text-muted-foreground">Số tiền hoàn lại (dự kiến):</p>
+                <p className="text-sm font-medium text-muted-foreground">Số tiền khách phải hoàn trả:</p>
                 <p className="text-xl font-bold text-primary">
                   {calculatedTotalRefundAmount.toLocaleString('vi-VN')} VNĐ
                 </p>

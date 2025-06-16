@@ -270,7 +270,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
           {selectedInvoiceDetails && (
             <Dialog open={!!selectedInvoiceDetails} onOpenChange={(open) => !open && setSelectedInvoiceDetails(null)}>
-              <DialogContent className="sm:max-w-2xl"> {/* Increased max-width for table */}
+              <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
                   <DialogDescription>
@@ -435,3 +435,4 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
+

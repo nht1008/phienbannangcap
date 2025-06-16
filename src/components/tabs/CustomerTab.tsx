@@ -322,7 +322,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
       {invoiceForDetailedView && (
         <Dialog open={isInvoiceDetailModalOpen} onOpenChange={closeInvoiceItemDetailsDialog}>
-          <DialogContent className="sm:max-w-2xl"> {/* Increased max-width for table */}
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle className="text-xl">Chi tiết sản phẩm Hóa đơn #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
@@ -403,3 +403,4 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
+

@@ -158,6 +158,10 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     }, 0);
   }, [filteredEmployeeInvoices]);
 
+  const totalTransactions = useMemo(() => {
+    return totalSalesByEmployee + totalDebtCollectedByEmployee;
+  }, [totalSalesByEmployee, totalDebtCollectedByEmployee]);
+
   const handleSelectEmployee = (employee: Employee) => {
     if (isAdmin || employee.id === currentUser?.uid) {
         setSelectedEmployee(employee);
@@ -349,7 +353,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <Card className="bg-success/10 border-[hsl(var(--success))]">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng tiền bán hàng</CardTitle>
@@ -357,6 +361,15 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   </CardHeader>
                   <CardContent>
                     <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
+                  </CardContent>
+                </Card>
+                 <Card className="bg-chart-3/10 border-[hsl(var(--chart-3))]">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold text-[hsl(var(--chart-3))]">Tổng giao dịch</CardTitle>
+                    <CardDescription className="text-xs">(Tổng tiền bán hàng + Tổng thu nợ, theo bộ lọc)</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className={cn("font-bold text-[hsl(var(--chart-3))]", numericDisplaySize)}>{totalTransactions.toLocaleString('vi-VN')} VNĐ</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-success/10 border-[hsl(var(--success))]">
@@ -404,7 +417,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                             <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
                             <TableCell>{invoice.customerName}</TableCell>
                             <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
-                            <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
+                            <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</TableCell>
                             <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
                             <TableCell className="text-right">{(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                           </TableRow>
@@ -442,7 +455,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                           <TableRow key={debt.id}>
                             <TableCell>{debt.supplier}</TableCell>
                             <TableCell>{debtDate.toLocaleDateString('vi-VN')}</TableCell>
-                            <TableCell>{debtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
+                            <TableCell>{debtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</TableCell>
                             <TableCell className="text-right">{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
                             <TableCell>
                               <span

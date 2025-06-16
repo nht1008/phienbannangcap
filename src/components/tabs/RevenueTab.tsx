@@ -71,7 +71,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    const invoicesForChart = invoices; // Use all filtered invoices for chart as well
+    const invoicesForChart = invoices; // Use all filtered invoices for chart
 
     if (filterMonth !== 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
@@ -266,7 +266,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="bg-primary/10 border-primary">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-primary">Tổng doanh thu</CardTitle>
@@ -490,5 +490,6 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   );
 }
     
+
 
 

@@ -47,7 +47,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as AlertDialogTitleComponent, // Renamed to avoid conflict
+  AlertDialogTitle as AlertDialogTitleComponent, 
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -187,6 +187,7 @@ interface FleurManagerLayoutContentProps {
   handleDebtFilterChange: (newFilter: DateFilter) => void;
   handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
   handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
+  handleDisposeProductItems: (productId: string, quantityToDecrease: number, reason: string) => Promise<void>;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -202,7 +203,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
-    handleUpdateEmployeeInfo
+    handleUpdateEmployeeInfo, handleDisposeProductItems
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -252,6 +253,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onAddOption={handleAddProductOption}
                     onDeleteOption={handleDeleteProductOption}
                     hasFullAccessRights={hasFullAccessRights}
+                    onDisposeProductItems={handleDisposeProductItems}
                   />,
     'Nhập hàng': <ImportTab
                     inventory={inventory}
@@ -318,7 +320,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
-      handleUpdateEmployeeInfo
+      handleUpdateEmployeeInfo, handleDisposeProductItems
   ]);
 
   return (
@@ -545,9 +547,9 @@ export default function FleurManagerPage() {
 
   const hasFullAccessRights = useMemo(() => {
     if (!currentUser) return false;
-    if (currentUser.email === ADMIN_EMAIL) return true; // Super Admin
-    if (currentUserEmployeeData) { // Employee record from DB
-      return currentUserEmployeeData.position === 'Quản lý' || currentUserEmployeeData.position === 'ADMIN'; // Manager or DB-defined ADMIN
+    if (currentUser.email === ADMIN_EMAIL) return true; 
+    if (currentUserEmployeeData) { 
+      return currentUserEmployeeData.position === 'Quản lý' || currentUserEmployeeData.position === 'ADMIN'; 
     }
     return false;
   }, [currentUser, currentUserEmployeeData]);
@@ -682,33 +684,32 @@ export default function FleurManagerPage() {
   
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     let inputWasInvalid = false;
-    const currentItemInCart = cart.find(i => i.id === itemId);
+    const currentItemInCartFromState = cart.find(i => i.id === itemId);
 
-    if (!currentItemInCart) {
+    if (!currentItemInCartFromState) {
         console.error("Item not found in cart for discount change:", itemId);
         return false; 
     }
-
+    
     const discountNghin = parseFloat(discountNghinStr);
     let validatedDiscountForItem = isNaN(discountNghin) ? 0 : discountNghin * 1000;
-    
-    const itemOriginalTotal = currentItemInCart.price * currentItemInCart.quantityInCart;
+    const itemOriginalTotal = currentItemInCartFromState.price * currentItemInCartFromState.quantityInCart;
 
     if (validatedDiscountForItem < 0) {
         toast({ title: "Lỗi giảm giá", description: "Số tiền giảm giá cho sản phẩm không thể âm.", variant: "destructive" });
         validatedDiscountForItem = 0;
         inputWasInvalid = true;
     } else {
-        if (currentItemInCart.maxDiscountPerUnitVND !== undefined && currentItemInCart.maxDiscountPerUnitVND !== null && currentItemInCart.maxDiscountPerUnitVND >= 0) {
-            const maxAllowedLineItemDiscount = currentItemInCart.maxDiscountPerUnitVND * currentItemInCart.quantityInCart;
+        if (currentItemInCartFromState.maxDiscountPerUnitVND !== undefined && currentItemInCartFromState.maxDiscountPerUnitVND !== null && currentItemInCartFromState.maxDiscountPerUnitVND >= 0) {
+            const maxAllowedLineItemDiscount = currentItemInCartFromState.maxDiscountPerUnitVND * currentItemInCartFromState.quantityInCart;
             if (validatedDiscountForItem > maxAllowedLineItemDiscount) {
-                toast({ title: "Lỗi giảm giá", description: `Giảm giá cho "${currentItemInCart.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
+                toast({ title: "Lỗi giảm giá", description: `Giảm giá cho "${currentItemInCartFromState.name}" không thể vượt quá giới hạn cho phép của sản phẩm (${(maxAllowedLineItemDiscount / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
                 validatedDiscountForItem = maxAllowedLineItemDiscount;
                 inputWasInvalid = true;
             }
         }
          if (validatedDiscountForItem > itemOriginalTotal) {
-             toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${currentItemInCart.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
+             toast({ title: "Lỗi giảm giá", description: `Giảm giá cho sản phẩm "${currentItemInCartFromState.name}" không thể lớn hơn tổng tiền của sản phẩm đó (${(itemOriginalTotal / 1000).toLocaleString('vi-VN')}K).`, variant: "destructive" });
             validatedDiscountForItem = itemOriginalTotal;
             inputWasInvalid = true;
         }
@@ -719,14 +720,13 @@ export default function FleurManagerPage() {
             item.id === itemId ? { ...item, itemDiscount: validatedDiscountForItem } : item
         )
     );
-
     return inputWasInvalid;
   }, [cart, toast, setCart]);
 
   const onClearCart = useCallback(() => { setCart([]); }, [setCart]);
   const handleCreateInvoice = useCallback(async (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => {
     try {
-      const finalTotal = subtotalAfterItemDiscounts; // Overall discount removed
+      const finalTotal = subtotalAfterItemDiscounts; 
       let calculatedDebtAmount = 0;
 
       if (finalTotal < 0) {
@@ -753,7 +753,7 @@ export default function FleurManagerPage() {
         total: finalTotal,
         date: new Date().toISOString(),
         paymentMethod,
-        discount: 0, // Overall discount is now always 0
+        discount: 0, 
         amountPaid,
         employeeId,
         employeeName: employeeName || 'Không rõ',
@@ -789,11 +789,11 @@ export default function FleurManagerPage() {
   }, [toast, onClearCart]);
   
   const handleProcessInvoiceCancellationOrReturn = useCallback(async (invoiceId: string, operationType: 'delete' | 'return', itemsToReturnArray?: Array<{ productId: string; name: string; quantityToReturn: number }>) => {
-    if (operationType === 'delete' && !hasFullAccessRights) {
-      toast({ title: "Không có quyền", description: "Bạn không có quyền xóa hóa đơn.", variant: "destructive" });
+    const canPerformOperation = operationType === 'delete' ? hasFullAccessRights : true; // Employees can return, only managers/admins can delete
+    if (!canPerformOperation) {
+      toast({ title: "Không có quyền", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return false;
     }
-    // For 'return' operation, 'Nhân viên' (and above) are allowed.
 
     try {
       const invoiceSnapshot = await get(child(ref(db), `invoices/${invoiceId}`));
@@ -864,7 +864,6 @@ export default function FleurManagerPage() {
           }
         }
         
-        // Overall discount is no longer a factor for new total calculation here
         const newFinalTotal = newSubtotalAfterItemDiscounts; 
 
         if (newInvoiceItems.length === 0 || newFinalTotal <= 0) {
@@ -875,7 +874,7 @@ export default function FleurManagerPage() {
         } else {
           updates[`invoices/${invoiceId}/items`] = newInvoiceItems;
           updates[`invoices/${invoiceId}/total`] = newFinalTotal;
-          updates[`invoices/${invoiceId}/discount`] = 0; // Set overall discount to 0 on partial return
+          updates[`invoices/${invoiceId}/discount`] = 0; 
           toast({ title: "Thành công", description: "Hoàn trả một phần thành công, kho và hóa đơn đã cập nhật. Công nợ gốc (nếu có) không thay đổi trừ khi được xử lý riêng.", variant: "default" });
         }
         await update(ref(db), updates);
@@ -910,7 +909,7 @@ export default function FleurManagerPage() {
 
   const handleConfirmDeleteDebt = async () => {
     if (!debtToDelete) return;
-     if (!isCurrentUserAdmin) { // Guarding the actual deletion logic
+     if (!isCurrentUserAdmin) { 
       toast({ title: "Không có quyền", description: "Bạn không có quyền xóa công nợ.", variant: "destructive" });
       setIsConfirmingDebtDelete(false);
       setDebtToDelete(null);
@@ -1001,6 +1000,35 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleDisposeProductItems = useCallback(async (productId: string, quantityToDecrease: number, reason: string) => {
+    if (!hasFullAccessRights) {
+      toast({ title: "Không có quyền", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+      return;
+    }
+    try {
+      const productRef = ref(db, `inventory/${productId}`);
+      const productSnapshot = await get(productRef);
+      if (productSnapshot.exists()) {
+        const currentProduct = productSnapshot.val() as Product;
+        const newQuantity = currentProduct.quantity - quantityToDecrease;
+        if (newQuantity < 0) {
+          toast({ title: "Lỗi", description: "Số lượng loại bỏ vượt quá tồn kho.", variant: "destructive" });
+          return;
+        }
+        await update(productRef, { quantity: newQuantity });
+        
+        
+        toast({ title: "Thành công", description: `Đã loại bỏ ${quantityToDecrease} ${currentProduct.unit} ${currentProduct.name}. Lý do: ${reason || 'Không có lý do'}. Kho đã cập nhật.`, variant: "default" });
+
+      } else {
+        throw new Error(`Sản phẩm ID ${productId} không tồn tại để cập nhật số lượng.`);
+      }
+    } catch (error) {
+      console.error("Error disposing product items:", error);
+      toast({ title: "Lỗi", description: `Không thể loại bỏ sản phẩm: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+    }
+  }, [toast, hasFullAccessRights]);
+
   useEffect(() => {
     if (currentUserEmployeeData?.position === 'Nhân viên' && (activeTab === 'Nhân viên' || activeTab === 'Doanh thu')) {
         setActiveTab('Bán hàng');
@@ -1078,6 +1106,7 @@ export default function FleurManagerPage() {
         handleDebtFilterChange={handleDebtFilterChange}
         handleToggleEmployeeRole={handleToggleEmployeeRole}
         handleUpdateEmployeeInfo={handleUpdateEmployeeInfo}
+        handleDisposeProductItems={handleDisposeProductItems}
       />
 
       {debtToDelete && (
@@ -1103,8 +1132,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-
-
-
-
-

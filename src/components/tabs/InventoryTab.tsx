@@ -2,10 +2,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Product, ProductOptionType, Employee } from '@/types';
+import type { Product, ProductOptionType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
     Dialog, 
@@ -27,17 +28,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from 'next/image';
-import { PlusCircle, Trash2, Settings, Pencil, UploadCloud, Search, BadgePercent } from 'lucide-react';
+import { PlusCircle, Trash2, Settings, Pencil, UploadCloud, Search, BadgePercent, PackageX, ChevronsUpDown, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeStringForSearch, cn } from '@/lib/utils';
 import { Label } from '../ui/label';
+import { Separator } from '../ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice' | 'maxDiscountPerUnitVND'> & { 
   quantity: string; 
   price: string; 
   costPrice: string; 
   quality: string; 
-  maxDiscountPerUnitVND: string; // Stored as string for form input (Nghin VND)
+  maxDiscountPerUnitVND: string; 
 };
 
 const initialFormProductState: FormProduct = {
@@ -57,6 +70,7 @@ interface InventoryTabProps {
   onAddOption: (type: ProductOptionType, name: string) => Promise<void>;
   onDeleteOption: (type: ProductOptionType, name: string) => Promise<void>;
   hasFullAccessRights: boolean;
+  onDisposeProductItems: (productId: string, quantityToDecrease: number, reason: string) => Promise<void>;
 }
 
 
@@ -72,7 +86,8 @@ export function InventoryTab({
   unitOptions,
   onAddOption,
   onDeleteOption,
-  hasFullAccessRights
+  hasFullAccessRights,
+  onDisposeProductItems
 }: InventoryTabProps) {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newItem, setNewItem] = useState<FormProduct>(initialFormProductState);
@@ -97,6 +112,13 @@ export function InventoryTab({
   const [productToSetMaxDiscount, setProductToSetMaxDiscount] = useState<Product | null>(null);
   const [currentMaxDiscountInput, setCurrentMaxDiscountInput] = useState('');
 
+  // State for disposal section
+  const [selectedProductForDisposal, setSelectedProductForDisposal] = useState<Product | null>(null);
+  const [quantityToDispose, setQuantityToDispose] = useState('');
+  const [disposeReason, setDisposeReason] = useState('');
+  const [isDisposeComboboxOpen, setIsDisposeComboboxOpen] = useState(false);
+  const [disposeSearchQuery, setDisposeSearchQuery] = useState('');
+
 
   useEffect(() => {
     const defaultState = {
@@ -107,7 +129,7 @@ export function InventoryTab({
       size: sizeOptions.length > 0 ? sizeOptions[0] : '',
       unit: unitOptions.length > 0 ? unitOptions[0] : '',
       image: `https://placehold.co/100x100.png`,
-      maxDiscountPerUnitVND: '', // Default to empty or perhaps '0'
+      maxDiscountPerUnitVND: '', 
     };
 
     if (isAddingProduct) {
@@ -150,7 +172,7 @@ export function InventoryTab({
   }, [productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions, isAddingProduct, isEditingProduct, productToEdit, newItem.image]);
 
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formSetter: React.Dispatch<React.SetStateAction<FormProduct>>) => {
     const { name, value } = e.target;
     formSetter(prev => ({ ...prev, [name]: value }));
   };
@@ -166,7 +188,7 @@ export function InventoryTab({
    ) => {
      const file = e.target.files?.[0];
      if (file) {
-       if (file.size > 5 * 1024 * 1024) { // 5MB limit
+       if (file.size > 5 * 1024 * 1024) { 
          toast({ title: "Lỗi", description: "Kích thước file ảnh không được vượt quá 5MB.", variant: "destructive"});
          e.target.value = ""; 
          return;
@@ -188,15 +210,15 @@ export function InventoryTab({
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     const priceNum = parseFloat(newItem.price);
-    const costPriceNum = parseFloat(newItem.costPrice) || 0; // Default to 0 if empty
-    const maxDiscountNum = parseFloat(newItem.maxDiscountPerUnitVND) || 0; // Default to 0 if empty
+    const costPriceNum = parseFloat(newItem.costPrice) || 0; 
+    const maxDiscountNum = parseFloat(newItem.maxDiscountPerUnitVND) || 0; 
     const quantityNum = parseInt(newItem.quantity);
 
     if (!newItem.name || !newItem.color || !newItem.quality || !newItem.size || !newItem.unit || newItem.quantity === '' || newItem.price === '' || quantityNum < 0 || priceNum < 0 || costPriceNum < 0 || maxDiscountNum < 0) {
       toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin sản phẩm hợp lệ. Số lượng, giá và giảm giá tối đa phải >= 0.", variant: "destructive"});
       return;
     }
-    if (priceNum <= costPriceNum && newItem.costPrice !== '') { // Only check if costPrice is entered
+    if (priceNum <= costPriceNum && newItem.costPrice !== '') { 
       toast({title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc.", variant: "destructive"});
       return;
     }
@@ -449,7 +471,7 @@ export function InventoryTab({
                 <Input type="number" name="maxDiscountPerUnitVND" placeholder="Mặc định là 0 (không giới hạn)" value={formState.maxDiscountPerUnitVND} onChange={(e) => handleInputChange(e, formSetter)} min="0" step="any" className="bg-card"/>
             </div>
             
-            <div className="md:col-span-1 flex flex-col"> {/* Adjusted span to make room */}
+            <div className="md:col-span-1 flex flex-col"> 
                 <label htmlFor={isEditMode ? "editImageFile" : "newImageFile"} className="text-sm text-foreground mb-1">Hình ảnh sản phẩm</label>
                 <div className="flex items-center gap-4">
                     <Input
@@ -462,7 +484,7 @@ export function InventoryTab({
                 </div>
             </div>
              {displayImage && (
-                 <div className="md:col-span-1 flex items-end justify-center"> {/* Image preview takes one slot */}
+                 <div className="md:col-span-1 flex items-end justify-center"> 
                     <Image
                         src={displayImage}
                         alt="Xem trước hình ảnh"
@@ -479,7 +501,7 @@ export function InventoryTab({
             )}
 
 
-            <div className={cn("flex justify-end items-end gap-2 mt-2 md:mt-0", displayImage ? "md:col-span-1" : "md:col-span-2")}> {/* Button span adjusts */}
+            <div className={cn("flex justify-end items-end gap-2 mt-2 md:mt-0", displayImage ? "md:col-span-1" : "md:col-span-2")}> 
                 {isEditMode && (
                     <Button 
                         type="button" 
@@ -523,6 +545,37 @@ export function InventoryTab({
       return normalizeStringForSearch(searchableText).includes(normalizedQuery);
     });
   }, [inventory, inventorySearchQuery]);
+
+  const distinctInventoryForDisposal = useMemo(() => {
+    return inventory
+      .filter(p => p.quantity > 0) // Only products with stock can be disposed
+      .map(p => ({
+        ...p,
+        displayLabel: `${p.name} - ${p.color} - ${p.quality || ''} - ${p.size} - ${p.unit} (Tồn: ${p.quantity})`.replace(/\s-\s-/g, ' - ')
+      }));
+  }, [inventory]);
+
+  const handleConfirmDisposal = async () => {
+    if (!selectedProductForDisposal || !quantityToDispose) {
+        toast({ title: "Thiếu thông tin", description: "Vui lòng chọn sản phẩm và nhập số lượng cần loại bỏ.", variant: "destructive" });
+        return;
+    }
+    const qty = parseInt(quantityToDispose);
+    if (isNaN(qty) || qty <= 0) {
+        toast({ title: "Số lượng không hợp lệ", description: "Số lượng loại bỏ phải là số dương.", variant: "destructive" });
+        return;
+    }
+    if (qty > selectedProductForDisposal.quantity) {
+        toast({ title: "Số lượng vượt tồn kho", description: `Không thể loại bỏ ${qty} ${selectedProductForDisposal.unit}, chỉ còn ${selectedProductForDisposal.quantity} trong kho.`, variant: "destructive" });
+        return;
+    }
+
+    await onDisposeProductItems(selectedProductForDisposal.id, qty, disposeReason.trim());
+    setSelectedProductForDisposal(null);
+    setQuantityToDispose('');
+    setDisposeReason('');
+    setDisposeSearchQuery('');
+  };
 
 
   return (
@@ -665,6 +718,122 @@ export function InventoryTab({
             </TableBody>
           </Table>
         </div>
+
+        {hasFullAccessRights && (
+            <Separator className="my-8" />
+        )}
+
+        {hasFullAccessRights && (
+            <Card className="mt-6 border-orange-500 border-2">
+            <CardHeader className="bg-orange-500/10">
+                <CardTitle className="text-xl text-orange-600 flex items-center">
+                    <PackageX className="mr-2 h-6 w-6" />
+                    Loại bỏ hàng hỏng/không bán được
+                </CardTitle>
+                <CardDescription className="text-orange-700/80">
+                    Giảm số lượng tồn kho cho các sản phẩm bị hỏng, hết hạn hoặc không thể bán được.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <Label htmlFor="productToDispose">Sản phẩm cần loại bỏ (*)</Label>
+                        <Popover open={isDisposeComboboxOpen} onOpenChange={setIsDisposeComboboxOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                id="productToDispose"
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isDisposeComboboxOpen}
+                                className="w-full justify-between bg-card text-foreground hover:text-foreground"
+                                >
+                                {selectedProductForDisposal
+                                    ? selectedProductForDisposal.displayLabel
+                                    : "Chọn sản phẩm..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                <Command shouldFilter={false}>
+                                <CommandInput
+                                    placeholder="Tìm sản phẩm để loại bỏ..."
+                                    value={disposeSearchQuery}
+                                    onValueChange={setDisposeSearchQuery}
+                                />
+                                <CommandList>
+                                    <CommandEmpty>Không tìm thấy sản phẩm.</CommandEmpty>
+                                    <CommandGroup heading="Sản phẩm trong kho (có số lượng > 0)">
+                                    {distinctInventoryForDisposal
+                                        .filter(variant => 
+                                            normalizeStringForSearch(variant.displayLabel).includes(normalizeStringForSearch(disposeSearchQuery))
+                                        )
+                                        .map((variant) => (
+                                        <CommandItem
+                                            key={variant.id}
+                                            value={variant.id}
+                                            onSelect={(currentValue) => {
+                                                const product = inventory.find(p => p.id === currentValue);
+                                                setSelectedProductForDisposal(product ? {...product, displayLabel: variant.displayLabel} as Product & {displayLabel: string} : null);
+                                                setDisposeSearchQuery("");
+                                                setIsDisposeComboboxOpen(false);
+                                            }}
+                                            className="cursor-pointer"
+                                        >
+                                            <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                selectedProductForDisposal?.id === variant.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                            />
+                                            {variant.displayLabel}
+                                        </CommandItem>
+                                    ))}
+                                    </CommandGroup>
+                                </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="quantityToDispose">Số lượng loại bỏ (*)</Label>
+                        <Input
+                            id="quantityToDispose"
+                            type="number"
+                            value={quantityToDispose}
+                            onChange={(e) => setQuantityToDispose(e.target.value)}
+                            placeholder="Nhập số lượng"
+                            min="1"
+                            className="bg-card"
+                            disabled={!selectedProductForDisposal}
+                        />
+                         {selectedProductForDisposal && (
+                            <p className="text-xs text-muted-foreground">Tồn kho hiện tại: {selectedProductForDisposal.quantity} {selectedProductForDisposal.unit}</p>
+                        )}
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor="disposeReason">Lý do loại bỏ</Label>
+                    <Textarea
+                        id="disposeReason"
+                        value={disposeReason}
+                        onChange={(e) => setDisposeReason(e.target.value)}
+                        placeholder="VD: Hàng hỏng do vận chuyển, hết hạn sử dụng,..."
+                        className="bg-card"
+                    />
+                </div>
+                <Button 
+                    onClick={handleConfirmDisposal} 
+                    className="w-full md:w-auto bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={!selectedProductForDisposal || !quantityToDispose || parseInt(quantityToDispose) <= 0}
+                >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Xác nhận loại bỏ
+                </Button>
+            </CardContent>
+            </Card>
+        )}
+
+
       </CardContent>
 
       {productToDelete && (

@@ -446,7 +446,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableHead className="text-right">Đơn giá</TableHead>
                     <TableHead className="text-right">GG/SP</TableHead>
                     <TableHead className="text-center">Số lượng mua</TableHead>
-                    <TableHead className="text-center w-40">Số lượng hoàn trả</TableHead>
+                    <TableHead className="text-center w-44">Số lượng hoàn trả</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -464,7 +464,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           {perUnitDiscount > 0 ? `${perUnitDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}
                         </TableCell>
                         <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
-                        <TableCell className="text-center w-40">
+                        <TableCell className="text-center w-44">
                           <div className="flex items-center justify-center gap-1">
                             <Button
                               type="button"

@@ -157,6 +157,10 @@ export function SalesTab({
         return;
       }
     }
+    if (!areAllItemDiscountsValid) {
+        showLocalNotification('Vui lòng kiểm tra lại giảm giá cho các sản phẩm trong giỏ hàng.', 'error');
+        return;
+    }
     setCustomerNameForInvoice("Khách lẻ");
     setCustomerSearchText("");
     setOverallDiscountStr('');
@@ -411,7 +415,7 @@ export function SalesTab({
                                 }}
                                 className="cursor-pointer"
                               >
-                                <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto_auto] gap-x-2 items-center w-full text-xs py-1">
+                               <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto_auto] gap-x-2 items-center w-full text-xs py-1">
                                   <Image
                                     src={variant.image || `https://placehold.co/24x24.png`}
                                     alt={variant.name}
@@ -892,8 +896,8 @@ export function SalesTab({
             <Button
               type="button"
               onClick={handleConfirmCheckout}
-              className="bg-green-500 hover:bg-green-600 text-white"
-              disabled={finalTotalAfterAllDiscounts < 0 || subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND}
+              className="w-full bg-green-500 text-white hover:bg-green-600"
+              disabled={finalTotalAfterAllDiscounts < 0 || subtotalAfterItemDiscounts < actualOverallInvoiceDiscountVND || (localNotification !== null && localNotificationType === 'error')}
             >
               Xác nhận thanh toán
             </Button>
@@ -903,3 +907,4 @@ export function SalesTab({
     </>
   );
 }
+

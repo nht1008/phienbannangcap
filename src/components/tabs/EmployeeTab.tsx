@@ -30,10 +30,10 @@ import { ref, onValue, update, set } from "firebase/database";
 interface ActivityDateTimeFilter {
   startDate: Date | null;
   endDate: Date | null;
-  startHour: string; 
+  startHour: string;
   startMinute: string;
-  endHour: string;   
-  endMinute: string; 
+  endHour: string;
+  endMinute: string;
 }
 
 const getCombinedDateTime = (dateInput: Date | null, hourStr: string, minuteStr: string): Date | null => {
@@ -55,13 +55,13 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
   filter: ActivityDateTimeFilter
 ): T[] => {
   if (!data) return [];
-  
+
   const { startDate, endDate, startHour, startMinute, endHour, endMinute } = filter;
 
   if (!startDate || !endDate) {
-    return data; 
+    return data;
   }
-  
+
   const effectiveStartDate = getCombinedDateTime(startDate, startHour, startMinute);
   const effectiveEndDate = getCombinedDateTime(endDate, endHour, endMinute);
 
@@ -92,7 +92,7 @@ interface EmployeeTabProps {
   onToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
   onUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
   adminEmail: string;
-  isCurrentUserAdmin: boolean; 
+  isCurrentUserAdmin: boolean;
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -100,17 +100,17 @@ const minuteOptionsStart = ['00', '15', '30', '45'];
 const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
 
 
-export function EmployeeTab({ 
-    employees, 
-    currentUser, 
-    invoices, 
-    debts, 
-    numericDisplaySize, 
-    onDeleteDebt, 
+export function EmployeeTab({
+    employees,
+    currentUser,
+    invoices,
+    debts,
+    numericDisplaySize,
+    onDeleteDebt,
     onToggleEmployeeRole,
     onUpdateEmployeeInfo,
-    adminEmail, 
-    isCurrentUserAdmin 
+    adminEmail,
+    isCurrentUserAdmin
 }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
@@ -146,7 +146,7 @@ export function EmployeeTab({
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
-            if (data[key].status === 'pending') { 
+            if (data[key].status === 'pending') {
               loadedRequests.push({ id: key, ...data[key] });
             }
           });
@@ -176,7 +176,7 @@ export function EmployeeTab({
           email: request.email,
           phone: request.phone || '',
           address: request.address || '',
-          position: 'Nhân viên' as EmployeePosition, 
+          position: 'Nhân viên' as EmployeePosition,
         };
       } else if (request.requestedRole === 'customer') {
          updates[`customers/${request.id}`] = {
@@ -219,7 +219,7 @@ export function EmployeeTab({
 
 
   const displayEmployees = useMemo(() => {
-    if (isCurrentUserAdmin) return employees; 
+    if (isCurrentUserAdmin) return employees;
     const adminEmployee = employees.find(emp => emp.email === adminEmail);
     const selfEmployee = employees.find(emp => emp.id === currentUser?.uid);
     const result = [];
@@ -235,8 +235,8 @@ export function EmployeeTab({
 
   const employeeBaseDebts = useMemo(() => {
     if (!selectedEmployee) return [];
-    return debts.filter(debt => 
-                        debt.createdEmployeeId === selectedEmployee.id || 
+    return debts.filter(debt =>
+                        debt.createdEmployeeId === selectedEmployee.id ||
                         debt.lastUpdatedEmployeeId === selectedEmployee.id
                       );
   }, [debts, selectedEmployee]);
@@ -248,7 +248,7 @@ export function EmployeeTab({
   const filteredEmployeeDebts = useMemo(() => {
     return filterActivityByDateTimeRange(employeeBaseDebts, activityFilter);
   }, [employeeBaseDebts, activityFilter]);
-  
+
   const totalSalesByEmployee = useMemo(() => {
     return filteredEmployeeInvoices.reduce((sum, inv) => sum + inv.total, 0);
   }, [filteredEmployeeInvoices]);
@@ -286,9 +286,9 @@ export function EmployeeTab({
           startMinute: '00',
           endHour: '23',
           endMinute: '59',
-        }); 
+        });
     } else {
-        setSelectedEmployee(null); 
+        setSelectedEmployee(null);
     }
   };
 
@@ -305,6 +305,10 @@ export function EmployeeTab({
   };
 
   const handleOpenEditModal = (employee: Employee) => {
+    if (employee.email === adminEmail) {
+      toast({ title: "Không thể sửa", description: "Không thể chỉnh sửa thông tin của tài khoản Quản trị viên.", variant: "destructive"});
+      return;
+    }
     setEditingEmployee(employee);
     setEditFormData({ name: employee.name, phone: employee.phone || '' });
     setIsEditModalOpen(true);
@@ -331,7 +335,7 @@ export function EmployeeTab({
 
   return (
     <>
-    <Card> 
+    <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
             <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
@@ -369,8 +373,8 @@ export function EmployeeTab({
                   </TableRow>
                 ) : (
                   displayEmployees.map((emp, index) => (
-                    <TableRow 
-                      key={emp.id} 
+                    <TableRow
+                      key={emp.id}
                       onClick={() => handleSelectEmployee(emp)}
                       className={`cursor-pointer hover:bg-muted/50 ${selectedEmployee?.id === emp.id ? 'bg-primary/10' : ''}`}
                     >
@@ -405,7 +409,7 @@ export function EmployeeTab({
                                     size="icon"
                                     className="h-8 w-8"
                                     onClick={(e) => {
-                                        e.stopPropagation(); 
+                                        e.stopPropagation();
                                         handleOpenEditModal(emp);
                                     }}
                                     >
@@ -427,13 +431,13 @@ export function EmployeeTab({
                                   size="icon"
                                   className="h-8 w-8"
                                   onClick={(e) => {
-                                    e.stopPropagation(); 
+                                    e.stopPropagation();
                                     onToggleEmployeeRole(emp.id, emp.position);
                                   }}
                                 >
                                   {emp.position === 'Nhân viên' ? (
                                     <UserCog className="h-4 w-4 text-blue-600" />
-                                  ) : ( 
+                                  ) : (
                                     <UserX className="h-4 w-4 text-orange-600" />
                                   )}
                                 </Button>
@@ -479,7 +483,7 @@ export function EmployeeTab({
             <CardHeader>
               <CardTitle className="text-xl font-semibold">Nhật ký hoạt động của: {selectedEmployee.name}</CardTitle>
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
-            
+
               <div className="mt-4 pt-4 border-t space-y-4">
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1">
@@ -528,7 +532,7 @@ export function EmployeeTab({
                     </Select>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1">
                     <Label htmlFor="endDate">Đến ngày</Label>
@@ -577,7 +581,7 @@ export function EmployeeTab({
                     </Select>
                   </div>
                 </div>
-                
+
                 <div>
                     <Button
                     onClick={handleSetTodayFilter}
@@ -714,9 +718,9 @@ export function EmployeeTab({
                             </TableCell>
                             {isCurrentUserAdmin && (
                               <TableCell className="text-center">
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     className="h-7 w-7 text-destructive hover:text-destructive/80"
                                     onClick={() => onDeleteDebt(debt.id)}
                                     title="Xóa công nợ"

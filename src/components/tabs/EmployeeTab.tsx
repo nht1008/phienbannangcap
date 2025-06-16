@@ -110,38 +110,27 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
   }, [employeeBaseInvoices, employeeBaseDebts, selectedEmployee]);
 
   const totalSalesByEmployee = useMemo(() => {
-    return filteredEmployeeInvoices.reduce((sum, inv) => {
-        // Only count sales from invoices that are fully paid (no debtAmount or debtAmount is 0)
-        if (!inv.debtAmount || inv.debtAmount === 0) {
-            return sum + inv.total;
-        }
-        return sum;
-    }, 0);
+    return filteredEmployeeInvoices.reduce((sum, inv) => sum + inv.total, 0);
   }, [filteredEmployeeInvoices]);
 
   const totalDebtCollectedByEmployee = useMemo(() => {
     if (!selectedEmployee) return 0;
     return filteredEmployeeDebts.reduce((sum, debt) => {
       if (debt.status === 'Đã thanh toán' && debt.lastUpdatedEmployeeId === selectedEmployee.id) {
-        const debtDate = new Date(debt.date);
-        const filterYear = parseInt(activityFilter.year);
-        const filterMonth = activityFilter.month === 'all' ? null : parseInt(activityFilter.month);
-        const filterDay = activityFilter.day === 'all' ? null : parseInt(activityFilter.day);
-
-        const yearMatch = activityFilter.year === 'all' || debtDate.getFullYear() === filterYear;
-        const monthMatch = !filterMonth || (debtDate.getMonth() + 1) === filterMonth;
-        const dayMatch = !filterDay || debtDate.getDate() === filterDay;
-
-        if (yearMatch && monthMatch && dayMatch) {
-          return sum + debt.amount;
-        }
+        // The filter for date is already applied by filteredEmployeeDebts using debt.date (creation date)
+        return sum + debt.amount;
       }
       return sum;
     }, 0);
-  }, [filteredEmployeeDebts, selectedEmployee, activityFilter]);
+  }, [filteredEmployeeDebts, selectedEmployee]);
+
 
   const totalDiscountsByEmployee = useMemo(() => {
-    return filteredEmployeeInvoices.reduce((sum, inv) => sum + (inv.discount || 0), 0);
+    return filteredEmployeeInvoices.reduce((sum, inv) => {
+      const overallDiscount = inv.discount || 0;
+      const itemDiscountsTotal = inv.items.reduce((itemSum, currentItem) => itemSum + (currentItem.itemDiscount || 0), 0);
+      return sum + overallDiscount + itemDiscountsTotal;
+    }, 0);
   }, [filteredEmployeeInvoices]);
 
 
@@ -278,7 +267,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                 <Card className="bg-success/10 border-[hsl(var(--success))]">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-[hsl(var(--success))]">Tổng tiền bán hàng</CardTitle>
-                    <CardDescription className="text-xs">(HĐ đã thu, do NV này tạo, theo bộ lọc)</CardDescription>
+                    <CardDescription className="text-xs">(Tổng giá trị các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalSalesByEmployee.toLocaleString('vi-VN')} VNĐ</p>
@@ -296,7 +285,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                 <Card className="bg-destructive/10 border-destructive">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-[hsl(var(--destructive))]">Tổng giảm giá</CardTitle>
-                     <CardDescription className="text-xs">(Trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
+                     <CardDescription className="text-xs">(Tổng GG chung & GG sản phẩm trên các HĐ do NV này tạo, theo bộ lọc)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className={cn("font-bold text-[hsl(var(--destructive))]", numericDisplaySize)}>{totalDiscountsByEmployee.toLocaleString('vi-VN')} VNĐ</p>
@@ -353,8 +342,8 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                     <TableHeader>
                       <TableRow>
                         <TableHead>Khách hàng</TableHead>
-                        <TableHead>Ngày tạo</TableHead>
-                        <TableHead>Giờ tạo</TableHead>
+                        <TableHead>Ngày</TableHead>
+                        <TableHead>Giờ</TableHead>
                         <TableHead className="text-right">Số tiền</TableHead>
                         <TableHead>Trạng thái</TableHead>
                         <TableHead>Thực hiện</TableHead>
@@ -372,20 +361,20 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                             <TableCell className="text-right">{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
                             <TableCell>{debt.status}</TableCell>
                             <TableCell>
-                              <div className="flex flex-col text-xs">
-                                  {debt.createdEmployeeId === selectedEmployee.id && debt.lastUpdatedEmployeeId !== selectedEmployee.id && (
-                                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full inline-block">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
-                                  )}
-                                  {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId !== selectedEmployee.id && (
-                                      <span className="text-xs bg-success/10 text-[hsl(var(--success))] px-2 py-0.5 rounded-full inline-block">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
-                                  )}
-                                  {debt.lastUpdatedEmployeeId === selectedEmployee.id && debt.createdEmployeeId === selectedEmployee.id && (
-                                      <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full inline-block">Tạo & Cập nhật</span>
-                                  )}
-                                  {debt.createdEmployeeId === selectedEmployee.id && !debt.lastUpdatedEmployeeId && (
-                                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full inline-block">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
-                                  )}
-                              </div>
+                                <div className="flex flex-col text-xs">
+                                    {debt.createdEmployeeId === selectedEmployee?.id && debt.lastUpdatedEmployeeId !== selectedEmployee?.id && (
+                                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full inline-block">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                                    )}
+                                    {debt.lastUpdatedEmployeeId === selectedEmployee?.id && debt.createdEmployeeId !== selectedEmployee?.id && (
+                                        <span className="text-xs bg-success/10 text-[hsl(var(--success))] px-2 py-0.5 rounded-full inline-block">Cập nhật bởi {debt.lastUpdatedEmployeeName || 'N/A'}</span>
+                                    )}
+                                    {debt.lastUpdatedEmployeeId === selectedEmployee?.id && debt.createdEmployeeId === selectedEmployee?.id && (
+                                        <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full inline-block">Tạo & Cập nhật</span>
+                                    )}
+                                    {debt.createdEmployeeId === selectedEmployee?.id && !debt.lastUpdatedEmployeeId && (
+                                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full inline-block">Tạo bởi {debt.createdEmployeeName || 'N/A'}</span>
+                                    )}
+                                </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <Button 

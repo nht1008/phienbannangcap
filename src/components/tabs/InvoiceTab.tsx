@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import type { Invoice, CartItem, InvoiceCartItem, Employee } from '@/types';
-import type { DateFilter } from '@/app/page';
+import type { Invoice, InvoiceCartItem } from '@/types'; // Removed Employee as it's not used here
+import type { ActivityDateTimeFilter } from '@/app/page'; // Updated import
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,9 +28,18 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Undo2, Eye, Plus, Minus } from 'lucide-react';
+import { Trash2, Eye, Plus, Minus } from 'lucide-react'; // Removed Undo2
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { vi } from 'date-fns/locale';
+
+const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const minuteOptionsStart = ['00', '15', '30', '45'];
+const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
 
 interface InvoiceTabProps {
   invoices: Invoice[];
@@ -40,14 +48,13 @@ interface InvoiceTabProps {
     operationType: 'delete' | 'return',
     itemsToReturn?: Array<{ productId: string; name: string; quantityToReturn: number }>
   ) => Promise<boolean>;
-  filter: DateFilter;
-  onFilterChange: (newFilter: DateFilter) => void;
-  availableYears: string[];
+  filter: ActivityDateTimeFilter; // Updated type
+  onFilterChange: (newFilter: ActivityDateTimeFilter) => void; // Updated type
   hasFullAccessRights: boolean;
 }
 
 type ReturnItemDetail = {
-  originalItemId: string; // The actual ID of the product from inventory
+  originalItemId: string; 
   originalQuantityInCart: number;
   quantityToReturn: string;
   name: string;
@@ -55,19 +62,17 @@ type ReturnItemDetail = {
   quality?: string;
   size: string;
   unit: string;
-  price: number; // Original price per unit
-  itemDiscount?: number; // Original total discount for this line item
+  price: number; 
+  itemDiscount?: number; 
 };
 
-export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears, hasFullAccessRights }: InvoiceTabProps) {
+export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, hasFullAccessRights }: InvoiceTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
   const [isReturnItemsDialogOpen, setIsReturnItemsDialogOpen] = useState(false);
   const [currentInvoiceForReturnDialog, setCurrentInvoiceForReturnDialog] = useState<Invoice | null>(null);
-  const [returnItemsState, setReturnItemsState] = useState<Record<string, ReturnItemDetail>>({}); // Key is original item ID
-
-  const { day: currentDay, month: currentMonth, year: currentYear } = filterProp;
+  const [returnItemsState, setReturnItemsState] = useState<Record<string, ReturnItemDetail>>({});
 
   const openDeleteConfirmDialog = (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
@@ -78,28 +83,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
       await onProcessInvoiceCancellationOrReturn(invoiceToDelete.id, 'delete');
       setInvoiceToDelete(null);
     }
-  };
-
-  const openReturnItemsDialog = (invoice: Invoice) => {
-    setCurrentInvoiceForReturnDialog(invoice);
-    const initialReturnItems: Record<string, ReturnItemDetail> = {};
-    invoice.items.forEach(item => {
-      // Use item.id (which is the productId) as the key
-      initialReturnItems[item.id] = {
-        originalItemId: item.id,
-        originalQuantityInCart: item.quantityInCart,
-        quantityToReturn: "0",
-        name: item.name,
-        color: item.color,
-        quality: item.quality,
-        size: item.size,
-        unit: item.unit,
-        price: item.price,
-        itemDiscount: item.itemDiscount, // Store the total discount for this line item
-      };
-    });
-    setReturnItemsState(initialReturnItems);
-    setIsReturnItemsDialogOpen(true);
   };
 
   const handleReturnItemQuantityChange = (productId: string, value: string) => {
@@ -123,7 +106,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     if (!currentInvoiceForReturnDialog || Object.keys(returnItemsState).length === 0) {
       return 0;
     }
-
     let totalRefund = 0;
     Object.values(returnItemsState).forEach(detail => {
       const quantityToReturnNum = parseInt(detail.quantityToReturn);
@@ -142,7 +124,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
     const itemsToReturnForApi = Object.values(returnItemsState)
       .map((detail) => ({
-        productId: detail.originalItemId, // Use the stored original product ID
+        productId: detail.originalItemId, 
         name: detail.name,
         quantityToReturn: parseInt(detail.quantityToReturn) || 0,
       }))
@@ -159,6 +141,29 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     setReturnItemsState({});
   };
 
+  const handleSetTodayFilter = () => {
+    const today = new Date();
+    onFilterChange({
+      startDate: startOfDay(today),
+      endDate: endOfDay(today),
+      startHour: '00',
+      startMinute: '00',
+      endHour: '23',
+      endMinute: '59',
+    });
+  };
+  
+  const handleSetAllTimeFilter = () => {
+    onFilterChange({
+      startDate: null,
+      endDate: null,
+      startHour: '00',
+      startMinute: '00',
+      endHour: '23',
+      endMinute: '59',
+    });
+  };
+
 
   return (
     <>
@@ -167,76 +172,99 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
           <CardTitle className="text-4xl font-bold">Danh sách hóa đơn</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 p-4 bg-muted/30 rounded-lg items-end">
-            <div>
-              <Label htmlFor="invoice-filter-day" className="text-sm">Ngày</Label>
-              <Select
-                value={currentDay}
-                onValueChange={(value) => onFilterChange({ day: value, month: currentMonth, year: currentYear })}
-              >
-                <SelectTrigger id="invoice-filter-day" className="w-full sm:w-28 bg-card h-9">
-                  <SelectValue placeholder="Ngày" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả</SelectItem>
-                  {Array.from({ length: 31 }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>
-                      {i + 1}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-4 mb-6 p-4 bg-muted/30 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 items-end">
+                <div className="space-y-1">
+                <Label htmlFor="invoice-startDate">Từ ngày</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="invoice-startDate"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal bg-card h-9",
+                        !filterProp.startDate && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filterProp.startDate ? format(filterProp.startDate, "dd/MM/yyyy", { locale: vi }) : <span>Chọn ngày bắt đầu</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={filterProp.startDate ?? undefined}
+                        onSelect={(date) => onFilterChange({ ...filterProp, startDate: date ? startOfDay(date) : null })}
+                        initialFocus
+                        locale={vi}
+                    />
+                    </PopoverContent>
+                </Popover>
+                </div>
+                <div className="space-y-1">
+                <Label htmlFor="invoice-startHour">Giờ bắt đầu</Label>
+                <Select value={filterProp.startHour} onValueChange={(value) => onFilterChange({...filterProp, startHour: value})}>
+                    <SelectTrigger id="invoice-startHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>{hourOptions.map(hour => <SelectItem key={`start-hr-${hour}`} value={hour}>{hour}</SelectItem>)}</SelectContent>
+                </Select>
+                </div>
+                <div className="space-y-1">
+                <Label htmlFor="invoice-startMinute">Phút bắt đầu</Label>
+                <Select value={filterProp.startMinute} onValueChange={(value) => onFilterChange({...filterProp, startMinute: value})}>
+                    <SelectTrigger id="invoice-startMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>{minuteOptionsStart.map(min => <SelectItem key={`start-min-${min}`} value={min}>{min}</SelectItem>)}</SelectContent>
+                </Select>
+                </div>
             </div>
-            <div>
-              <Label htmlFor="invoice-filter-month" className="text-sm">Tháng</Label>
-              <Select
-                value={currentMonth}
-                onValueChange={(value) => onFilterChange({ day: currentDay, month: value, year: currentYear })}
-              >
-                <SelectTrigger id="invoice-filter-month" className="w-full sm:w-32 bg-card h-9">
-                  <SelectValue placeholder="Tháng" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả</SelectItem>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>
-                      Tháng {i + 1}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 items-end">
+                <div className="space-y-1">
+                <Label htmlFor="invoice-endDate">Đến ngày</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        id="invoice-endDate"
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal bg-card h-9",
+                        !filterProp.endDate && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filterProp.endDate ? format(filterProp.endDate, "dd/MM/yyyy", { locale: vi }) : <span>Chọn ngày kết thúc</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={filterProp.endDate ?? undefined}
+                        onSelect={(date) => onFilterChange({ ...filterProp, endDate: date ? endOfDay(date) : null })}
+                        disabled={(date) => filterProp.startDate ? date < filterProp.startDate : false}
+                        initialFocus
+                        locale={vi}
+                    />
+                    </PopoverContent>
+                </Popover>
+                </div>
+                <div className="space-y-1">
+                <Label htmlFor="invoice-endHour">Giờ kết thúc</Label>
+                <Select value={filterProp.endHour} onValueChange={(value) => onFilterChange({...filterProp, endHour: value})}>
+                    <SelectTrigger id="invoice-endHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>{hourOptions.map(hour => <SelectItem key={`end-hr-${hour}`} value={hour}>{hour}</SelectItem>)}</SelectContent>
+                </Select>
+                </div>
+                <div className="space-y-1">
+                <Label htmlFor="invoice-endMinute">Phút kết thúc</Label>
+                <Select value={filterProp.endMinute} onValueChange={(value) => onFilterChange({...filterProp, endMinute: value})}>
+                    <SelectTrigger id="invoice-endMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>{minuteOptionsEnd.map(min => <SelectItem key={`end-min-${min}`} value={min}>{min}</SelectItem>)}</SelectContent>
+                </Select>
+                </div>
             </div>
-            <div>
-              <Label htmlFor="invoice-filter-year" className="text-sm">Năm</Label>
-              <Select
-                value={currentYear}
-                onValueChange={(value) => onFilterChange({ day: currentDay, month: currentMonth, year: value })}
-              >
-                <SelectTrigger id="invoice-filter-year" className="w-full sm:w-32 bg-card h-9">
-                  <SelectValue placeholder="Năm" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả</SelectItem>
-                  {availableYears.map(year => (
-                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+             <div className="flex gap-2 mt-2 flex-wrap">
+                 <Button onClick={handleSetTodayFilter} variant="outline" className="h-9">Hôm nay</Button>
+                 <Button onClick={handleSetAllTimeFilter} variant="secondary" className="h-9">Xem tất cả</Button>
             </div>
-            <Button
-              onClick={() => {
-                const now = new Date();
-                onFilterChange({
-                  day: now.getDate().toString(),
-                  month: (now.getMonth() + 1).toString(),
-                  year: now.getFullYear().toString(),
-                });
-              }}
-              variant="outline"
-              className="h-9"
-            >
-              Hôm nay
-            </Button>
           </div>
 
           {invoices.length === 0 ? (

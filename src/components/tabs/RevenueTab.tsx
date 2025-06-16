@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useMemo, useState } from 'react';
 import type { Invoice, InvoiceCartItem, Product, DisposalLogEntry } from '@/types';
-import type { DateFilter } from '@/app/page';
+import type { ActivityDateTimeFilter } from '@/app/page'; // Updated import
 import Image from 'next/image';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
@@ -24,16 +23,23 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
-import { Eye } from 'lucide-react';
+import { Eye, Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format, startOfDay, endOfDay, getDaysInMonth, getMonth, getYear, isSameDay, isSameMonth, isSameYear } from 'date-fns';
+import { vi } from 'date-fns/locale';
+
+const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const minuteOptionsStart = ['00', '15', '30', '45'];
+const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
 
 
 interface RevenueTabProps {
-  invoices: Invoice[];
+  invoices: Invoice[]; // These are already filtered by date range from page.tsx
   inventory: Product[]; 
   disposalLogEntries: DisposalLogEntry[];
-  filter: DateFilter;
-  onFilterChange: (newFilter: DateFilter) => void;
-  availableYears: string[];
+  filter: ActivityDateTimeFilter; // Updated type
+  onFilterChange: (newFilter: ActivityDateTimeFilter) => void; // Updated type
   numericDisplaySize: NumericDisplaySize;
 }
 
@@ -57,33 +63,13 @@ interface AggregatedRevenueData {
   giagoc: number;
 }
 
-const getDaysInMonth = (month: number, year: number): number => { 
-    return new Date(year, month, 0).getDate();
-};
 
-interface ProductPerformance {
-  id: string; 
-  key: string; 
-  name: string;
-  color: string;
-  quality?: string;
-  size: string;
-  unit: string;
-  image: string;
-  currentStock: number;
-  soldInPeriod: number;
-  revenueInPeriod: number;
-  profitInPeriod: number;
-}
-
-
-export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
+export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: filterProp, onFilterChange, numericDisplaySize }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
-  const { month: filterMonth, year: filterYear, day: filterDay } = filterProp;
 
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
-    let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng. (Tính tất cả hóa đơn)";
+    let newChartDescription = "Doanh thu, giá gốc, lợi nhuận theo thời gian đã chọn. (Tính tất cả hóa đơn)";
     let aggregatedData: Record<string, AggregatedRevenueData> = {};
     let finalChartData: { name: string; doanhthu: number; giagoc: number; loinhuan: number }[] = [];
 
@@ -91,118 +77,75 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    const invoicesForChart = invoices; 
+    const { startDate, endDate } = filterProp;
 
-    if (filterMonth !== 'all' && filterYear !== 'all') {
-        newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày. (Tính tất cả hóa đơn)`;
-
-        const yearNum = parseInt(filterYear);
-        const monthNum = parseInt(filterMonth);
-        const daysInSelectedMonth = getDaysInMonth(monthNum, yearNum);
-
-        for (let day = 1; day <= daysInSelectedMonth; day++) {
-            const dayStr = day.toString();
-            aggregatedData[dayStr] = { doanhthu: 0, giagoc: 0 };
-        }
-
-        invoicesForChart.forEach(invoice => {
-            const dateObj = new Date(invoice.date);
-            if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
-                const dayStr = dateObj.getDate().toString();
-                if (aggregatedData[dayStr]) {
-                     aggregatedData[dayStr].doanhthu += invoice.total;
-                     aggregatedData[dayStr].giagoc += calculateInvoiceCost(invoice);
+    if (startDate && endDate) {
+        if (isSameYear(startDate, endDate)) {
+            if (isSameMonth(startDate, endDate)) {
+                // Daily view for the month
+                newChartTitle = `Phân tích ngày (Tháng ${format(startDate, "M/yyyy", { locale: vi })})`;
+                newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${format(startDate, "M, yyyy", { locale: vi })}.`;
+                const daysInSelectedMonth = getDaysInMonth(startDate);
+                for (let day = 1; day <= daysInSelectedMonth; day++) {
+                    aggregatedData[day.toString().padStart(2, '0')] = { doanhthu: 0, giagoc: 0 };
                 }
-            }
-        });
+                invoices.forEach(invoice => {
+                    const dateObj = new Date(invoice.date);
+                    if (isSameMonth(dateObj, startDate) && isSameYear(dateObj, startDate)) {
+                       const dayStr = format(dateObj, "dd");
+                        if (aggregatedData[dayStr]) {
+                            aggregatedData[dayStr].doanhthu += invoice.total;
+                            aggregatedData[dayStr].giagoc += calculateInvoiceCost(invoice);
+                        }
+                    }
+                });
+                finalChartData = Object.entries(aggregatedData).map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }));
 
-        finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({
-                name: name.padStart(2, '0'),
-                doanhthu: data.doanhthu,
-                giagoc: data.giagoc,
-                loinhuan: data.doanhthu - data.giagoc
-            }))
-            .sort((a, b) => parseInt(a.name) - parseInt(b.name));
-
-    } else if (filterMonth !== 'all' ) {
-        newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
-        newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm. (Tính tất cả hóa đơn)`;
-
-        invoicesForChart.forEach(invoice => {
-            const dateObj = new Date(invoice.date);
-             if ((dateObj.getMonth() + 1) === parseInt(filterMonth)) {
-                const dayOfMonth = dateObj.getDate().toString().padStart(2, '0');
-                const yearSuffix = filterYear === 'all' ? `/${dateObj.getFullYear().toString().slice(-2)}` : '';
-                const nameKey = `${dayOfMonth}${yearSuffix}`;
-
-                if (!aggregatedData[nameKey]) {
-                    aggregatedData[nameKey] = { doanhthu: 0, giagoc: 0 };
+            } else {
+                // Monthly view for the year
+                newChartTitle = `Phân tích theo tháng (Năm ${getYear(startDate)})`;
+                newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng tháng trong Năm ${getYear(startDate)}.`;
+                 for (let m = 0; m < 12; m++) { // 0 for Jan, 11 for Dec
+                    aggregatedData[format(new Date(getYear(startDate), m), "MM/yy")] = { doanhthu: 0, giagoc: 0 };
                 }
-                aggregatedData[nameKey].doanhthu += invoice.total;
-                aggregatedData[nameKey].giagoc += calculateInvoiceCost(invoice);
+                invoices.forEach(invoice => {
+                    const dateObj = new Date(invoice.date);
+                     if (isSameYear(dateObj, startDate)) {
+                        const monthKey = format(dateObj, "MM/yy");
+                        if (!aggregatedData[monthKey]) aggregatedData[monthKey] = { doanhthu: 0, giagoc: 0 }; // Ensure key exists
+                        aggregatedData[monthKey].doanhthu += invoice.total;
+                        aggregatedData[monthKey].giagoc += calculateInvoiceCost(invoice);
+                    }
+                });
+                 finalChartData = Object.entries(aggregatedData)
+                    .map(([name, data]) => ({ name: `T${name.split('/')[0]}`, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
+                    .sort((a,b) => parseInt(a.name.substring(1)) - parseInt(b.name.substring(1)));
             }
-        });
-        finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({
-                name,
-                doanhthu: data.doanhthu,
-                giagoc: data.giagoc,
-                loinhuan: data.doanhthu - data.giagoc
-            }))
-            .sort((a, b) => {
-                const [dayA, yearA] = a.name.split('/').map(Number);
-                const [dayB, yearB] = b.name.split('/').map(Number);
-                if (dayA !== dayB) return dayA - dayB;
-                return (yearA || 0) - (yearB || 0);
+        } else {
+            // Yearly view
+            newChartTitle = "Phân tích theo năm";
+            newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng năm từ ${format(startDate, "yyyy")} đến ${format(endDate, "yyyy")}.`;
+            invoices.forEach(invoice => {
+                const yearKey = getYear(new Date(invoice.date)).toString();
+                if (!aggregatedData[yearKey]) aggregatedData[yearKey] = { doanhthu: 0, giagoc: 0 };
+                aggregatedData[yearKey].doanhthu += invoice.total;
+                aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
             });
-
-    } else if (filterMonth === 'all' && filterYear !== 'all') {
-        newChartTitle = `Phân tích theo tháng (Năm ${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng tháng trong Năm ${filterYear}. (Tính tất cả hóa đơn)`;
-        const yearNum = parseInt(filterYear);
-        for (let m = 1; m <= 12; m++) {
-            const monthKey = m.toString().padStart(2, '0');
-            aggregatedData[monthKey] = { doanhthu: 0, giagoc: 0 };
+            finalChartData = Object.entries(aggregatedData).map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc })).sort((a,b) => parseInt(a.name) - parseInt(b.name));
         }
-
-        invoicesForChart.forEach(invoice => {
-            const dateObj = new Date(invoice.date);
-            if (dateObj.getFullYear() === yearNum) {
-                const monthKey = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-                if (aggregatedData[monthKey]) {
-                    aggregatedData[monthKey].doanhthu += invoice.total;
-                    aggregatedData[monthKey].giagoc += calculateInvoiceCost(invoice);
-                }
-            }
-        });
-        finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({
-                name: `T${name}`,
-                doanhthu: data.doanhthu,
-                giagoc: data.giagoc,
-                loinhuan: data.doanhthu - data.giagoc
-            }))
-            .sort((a,b) => parseInt(a.name.substring(1)) - parseInt(b.name.substring(1)));
-
-    } else { 
-        newChartTitle = "Phân tích theo năm";
-        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Tính tất cả hóa đơn)";
-        invoicesForChart.forEach(invoice => {
-            const yearKey = new Date(invoice.date).getFullYear().toString();
-            if (!aggregatedData[yearKey]) {
-                aggregatedData[yearKey] = { doanhthu: 0, giagoc: 0 };
-            }
+    } else { // Default to all-time yearly if no specific range or partial range
+        newChartTitle = "Phân tích theo năm (Toàn thời gian)";
+        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm.";
+        invoices.forEach(invoice => { // invoices here are ALL invoices due to null startDate/endDate
+            const yearKey = getYear(new Date(invoice.date)).toString();
+            if (!aggregatedData[yearKey]) aggregatedData[yearKey] = { doanhthu: 0, giagoc: 0 };
             aggregatedData[yearKey].doanhthu += invoice.total;
             aggregatedData[yearKey].giagoc += calculateInvoiceCost(invoice);
         });
-        finalChartData = Object.entries(aggregatedData)
-            .map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc }))
-            .sort((a,b) => parseInt(a.name) - parseInt(b.name));
+        finalChartData = Object.entries(aggregatedData).map(([name, data]) => ({ name, doanhthu: data.doanhthu, giagoc: data.giagoc, loinhuan: data.doanhthu - data.giagoc })).sort((a,b) => parseInt(a.name) - parseInt(b.name));
     }
     return { chartData: finalChartData, chartTitle: newChartTitle, chartDescription: newChartDescription };
-  }, [invoices, filterMonth, filterYear]);
+  }, [invoices, filterProp]);
 
 
   const totalRevenue = useMemo(() =>
@@ -222,7 +165,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
   
   const totalDiscountForPeriod = useMemo(() =>
     invoices.reduce((totalDiscount, invoice) => {
-      const overallDiscount = invoice.discount || 0; // This is now always 0
+      const overallDiscount = invoice.discount || 0; 
       const itemDiscounts = invoice.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
       return totalDiscount + overallDiscount + itemDiscounts;
     }, 0),
@@ -274,93 +217,128 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
   }, [productSalesPerformanceInPeriod]);
 
   const filteredDisposedProducts = useMemo(() => {
-    const { day, month, year } = filterProp;
-    return disposalLogEntries.filter(entry => {
-        const entryDate = new Date(entry.disposalDate);
-        const entryDay = entryDate.getDate().toString();
-        const entryMonth = (entryDate.getMonth() + 1).toString();
-        const entryYear = entryDate.getFullYear().toString();
+    return disposalLogEntries; // Already filtered by page.tsx if filterProp is used there
+  }, [disposalLogEntries]);
 
-        const dayMatch = day === 'all' || day === entryDay;
-        const monthMatch = month === 'all' || month === entryMonth;
-        const yearMatch = year === 'all' || year === entryYear;
-        return dayMatch && monthMatch && yearMatch;
+  const handleSetTodayFilter = () => {
+    const today = new Date();
+    onFilterChange({
+      startDate: startOfDay(today),
+      endDate: endOfDay(today),
+      startHour: '00',
+      startMinute: '00',
+      endHour: '23',
+      endMinute: '59',
     });
-  }, [disposalLogEntries, filterProp]);
+  };
+
+  const handleSetAllTimeFilter = () => {
+    onFilterChange({
+      startDate: null,
+      endDate: null,
+      startHour: '00',
+      startMinute: '00',
+      endHour: '23',
+      endMinute: '59',
+    });
+  };
 
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-4 p-3 bg-muted/30 rounded-lg items-end">
-        <div>
-          <Label htmlFor="revenue-filter-day" className="text-sm">Ngày</Label>
-          <Select
-            value={filterDay}
-            onValueChange={(value) => onFilterChange({ day: value, month: filterMonth, year: filterYear })}
-          >
-            <SelectTrigger id="revenue-filter-day" className="w-full sm:w-28 bg-card h-9">
-              <SelectValue placeholder="Ngày" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả ngày</SelectItem>
-              {Array.from({ length: 31 }, (_, i) => (
-                <SelectItem key={i + 1} value={(i + 1).toString()}>
-                  {i + 1}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="space-y-4 mb-6 p-3 bg-muted/30 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 items-end">
+            <div className="space-y-1">
+            <Label htmlFor="revenue-startDate">Từ ngày</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                <Button
+                    id="revenue-startDate"
+                    variant={"outline"}
+                    className={cn(
+                    "w-full justify-start text-left font-normal bg-card h-9",
+                    !filterProp.startDate && "text-muted-foreground"
+                    )}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filterProp.startDate ? format(filterProp.startDate, "dd/MM/yyyy", { locale: vi }) : <span>Chọn ngày bắt đầu</span>}
+                </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                <Calendar
+                    mode="single"
+                    selected={filterProp.startDate ?? undefined}
+                    onSelect={(date) => onFilterChange({ ...filterProp, startDate: date ? startOfDay(date) : null })}
+                    initialFocus
+                    locale={vi}
+                />
+                </PopoverContent>
+            </Popover>
+            </div>
+            <div className="space-y-1">
+            <Label htmlFor="revenue-startHour">Giờ bắt đầu</Label>
+            <Select value={filterProp.startHour} onValueChange={(value) => onFilterChange({...filterProp, startHour: value})}>
+                <SelectTrigger id="revenue-startHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                <SelectContent>{hourOptions.map(hour => <SelectItem key={`start-hr-${hour}`} value={hour}>{hour}</SelectItem>)}</SelectContent>
+            </Select>
+            </div>
+            <div className="space-y-1">
+            <Label htmlFor="revenue-startMinute">Phút bắt đầu</Label>
+            <Select value={filterProp.startMinute} onValueChange={(value) => onFilterChange({...filterProp, startMinute: value})}>
+                <SelectTrigger id="revenue-startMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                <SelectContent>{minuteOptionsStart.map(min => <SelectItem key={`start-min-${min}`} value={min}>{min}</SelectItem>)}</SelectContent>
+            </Select>
+            </div>
         </div>
-        <div>
-          <Label htmlFor="revenue-filter-month" className="text-sm">Tháng</Label>
-          <Select
-            value={filterMonth}
-            onValueChange={(value) => onFilterChange({ day: filterDay, month: value, year: filterYear })}
-          >
-            <SelectTrigger id="revenue-filter-month" className="w-full sm:w-32 bg-card h-9">
-              <SelectValue placeholder="Tháng" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả tháng</SelectItem>
-              {Array.from({ length: 12 }, (_, i) => (
-                <SelectItem key={i + 1} value={(i + 1).toString()}>
-                  Tháng {i + 1}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 items-end">
+            <div className="space-y-1">
+            <Label htmlFor="revenue-endDate">Đến ngày</Label>
+            <Popover>
+                <PopoverTrigger asChild>
+                <Button
+                    id="revenue-endDate"
+                    variant={"outline"}
+                    className={cn(
+                    "w-full justify-start text-left font-normal bg-card h-9",
+                    !filterProp.endDate && "text-muted-foreground"
+                    )}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filterProp.endDate ? format(filterProp.endDate, "dd/MM/yyyy", { locale: vi }) : <span>Chọn ngày kết thúc</span>}
+                </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                <Calendar
+                    mode="single"
+                    selected={filterProp.endDate ?? undefined}
+                    onSelect={(date) => onFilterChange({ ...filterProp, endDate: date ? endOfDay(date) : null })}
+                    disabled={(date) => filterProp.startDate ? date < filterProp.startDate : false}
+                    initialFocus
+                    locale={vi}
+                />
+                </PopoverContent>
+            </Popover>
+            </div>
+            <div className="space-y-1">
+            <Label htmlFor="revenue-endHour">Giờ kết thúc</Label>
+            <Select value={filterProp.endHour} onValueChange={(value) => onFilterChange({...filterProp, endHour: value})}>
+                <SelectTrigger id="revenue-endHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                <SelectContent>{hourOptions.map(hour => <SelectItem key={`end-hr-${hour}`} value={hour}>{hour}</SelectItem>)}</SelectContent>
+            </Select>
+            </div>
+            <div className="space-y-1">
+            <Label htmlFor="revenue-endMinute">Phút kết thúc</Label>
+            <Select value={filterProp.endMinute} onValueChange={(value) => onFilterChange({...filterProp, endMinute: value})}>
+                <SelectTrigger id="revenue-endMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                <SelectContent>{minuteOptionsEnd.map(min => <SelectItem key={`end-min-${min}`} value={min}>{min}</SelectItem>)}</SelectContent>
+            </Select>
+            </div>
         </div>
-        <div>
-          <Label htmlFor="revenue-filter-year" className="text-sm">Năm</Label>
-          <Select
-            value={filterYear}
-            onValueChange={(value) => onFilterChange({ day: filterDay, month: filterMonth, year: value })}
-          >
-            <SelectTrigger id="revenue-filter-year" className="w-full sm:w-32 bg-card h-9">
-              <SelectValue placeholder="Năm" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả các năm</SelectItem>
-              {availableYears.map(year => (
-                <SelectItem key={year} value={year}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex gap-2 mt-2 flex-wrap">
+             <Button onClick={handleSetTodayFilter} variant="outline" className="h-9">Hôm nay</Button>
+             <Button onClick={handleSetAllTimeFilter} variant="secondary" className="h-9">Xem tất cả</Button>
         </div>
-        <Button
-            onClick={() => {
-                const now = new Date();
-                onFilterChange({
-                    day: now.getDate().toString(),
-                    month: (now.getMonth() + 1).toString(),
-                    year: now.getFullYear().toString()
-                });
-            }}
-            variant="outline"
-            className="h-9"
-        >
-            Hôm nay
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">

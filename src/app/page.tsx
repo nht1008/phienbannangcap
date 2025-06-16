@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
 import Image from 'next/image';
+import { startOfDay, endOfDay } from 'date-fns';
 
 import { WarehouseIcon } from '@/components/icons/WarehouseIcon';
 import { SellIcon } from '@/components/icons/SellIcon';
@@ -78,6 +79,10 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
+// Define ADMIN_EMAIL and ADMIN_NAME
+const ADMIN_EMAIL = "admin@fleurmanager.com"; // Replace with your actual admin email
+const ADMIN_NAME = "Quản trị viên";
+
 
 interface SubmitItemToImport {
   productId: string;
@@ -103,26 +108,78 @@ interface InvoiceCartItem {
 
 type TabName = 'Bán hàng' | 'Kho hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên';
 
-export interface DateFilter {
-  day: string;
-  month: string;
-  year: string;
+export interface ActivityDateTimeFilter {
+  startDate: Date | null;
+  endDate: Date | null;
+  startHour: string;
+  startMinute: string;
+  endHour: string;
+  endMinute: string;
 }
 
-const getCurrentDateFilter = (includeDay: boolean = true): DateFilter => {
+const getInitialActivityDateTimeFilter = (
+  setStartOfDayToday: boolean = true,
+  setEndOfDayToday: boolean = true 
+): ActivityDateTimeFilter => {
   const now = new Date();
   return {
-    day: includeDay ? now.getDate().toString() : 'all',
-    month: (now.getMonth() + 1).toString(),
-    year: now.getFullYear().toString(),
+    startDate: setStartOfDayToday ? startOfDay(now) : null,
+    endDate: setEndOfDayToday ? endOfDay(now) : null,
+    startHour: '00',
+    startMinute: '00',
+    endHour: '23',
+    endMinute: '59',
   };
 };
 
+const getCombinedDateTime = (dateInput: Date | null, hourStr: string, minuteStr: string): Date | null => {
+    if (!dateInput) return null;
+    const newDate = new Date(dateInput);
+    const hours = parseInt(hourStr, 10);
+    const minutes = parseInt(minuteStr, 10);
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      const isEndMinute = minuteStr === '59';
+      const seconds = isEndMinute ? 59 : 0;
+      const milliseconds = isEndMinute ? 999 : 0;
+      newDate.setHours(hours, minutes, seconds, milliseconds);
+    }
+    return newDate;
+};
 
-const initialAllDateFilter: DateFilter = { day: 'all', month: 'all', year: 'all' };
+const filterActivityByDateTimeRange = <T extends { date: string }>(
+  data: T[],
+  filter: ActivityDateTimeFilter
+): T[] => {
+  if (!data) return [];
+  const { startDate, endDate, startHour, startMinute, endHour, endMinute } = filter;
 
-const ADMIN_EMAIL = 'nthe1008@gmail.com';
-const ADMIN_NAME = 'Thể';
+  if (!startDate && !endDate) {
+    return data; // No date range filtering if both are null
+  }
+
+  let effectiveStartDate: Date | null = null;
+  if (startDate) {
+    effectiveStartDate = getCombinedDateTime(startDate, startHour, startMinute);
+  }
+
+  let effectiveEndDate: Date | null = null;
+  if (endDate) {
+    effectiveEndDate = getCombinedDateTime(endDate, endHour, endMinute);
+    if (effectiveEndDate && endMinute === '59' && endHour === '23') { // If end of day, make sure it's truly end
+        effectiveEndDate = endOfDay(effectiveEndDate);
+    } else if (effectiveEndDate && endMinute === '59') {
+        effectiveEndDate.setSeconds(59, 999);
+    }
+  }
+  
+  return data.filter(item => {
+    const itemDateTime = new Date(item.date);
+    const afterStartDate = !effectiveStartDate || itemDateTime >= effectiveStartDate;
+    const beforeEndDate = !effectiveEndDate || itemDateTime <= effectiveEndDate;
+    return afterStartDate && beforeEndDate;
+  });
+};
+
 
 interface FleurManagerLayoutContentProps {
   currentUser: User;
@@ -142,9 +199,9 @@ interface FleurManagerLayoutContentProps {
   productQualityOptions: string[];
   sizeOptions: string[];
   unitOptions: string[];
-  revenueFilter: DateFilter;
-  invoiceFilter: DateFilter;
-  debtFilter: DateFilter;
+  revenueFilter: ActivityDateTimeFilter;
+  invoiceFilter: ActivityDateTimeFilter;
+  debtFilter: ActivityDateTimeFilter;
   isUserInfoDialogOpen: boolean;
   setIsUserInfoDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isScreenLocked: boolean;
@@ -158,8 +215,6 @@ interface FleurManagerLayoutContentProps {
   isCurrentUserAdmin: boolean; 
   currentUserEmployeeData: Employee | undefined;
   hasFullAccessRights: boolean; 
-  availableInvoiceYears: string[];
-  availableDebtYears: string[];
   filteredInvoicesForRevenue: Invoice[];
   filteredInvoicesForInvoiceTab: Invoice[];
   filteredDebtsForDebtTab: Debt[];
@@ -183,9 +238,9 @@ interface FleurManagerLayoutContentProps {
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
   onClearCart: () => void;
-  handleRevenueFilterChange: (newFilter: DateFilter) => void;
-  handleInvoiceFilterChange: (newFilter: DateFilter) => void;
-  handleDebtFilterChange: (newFilter: DateFilter) => void;
+  handleRevenueFilterChange: (newFilter: ActivityDateTimeFilter) => void;
+  handleInvoiceFilterChange: (newFilter: ActivityDateTimeFilter) => void;
+  handleDebtFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
   handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
   handleDisposeProductItems: (
@@ -204,8 +259,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
-    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, hasFullAccessRights, availableInvoiceYears,
-    availableDebtYears, filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
+    setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, hasFullAccessRights,
+    filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
     handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
@@ -279,7 +334,6 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
                   filter={invoiceFilter}
                   onFilterChange={handleInvoiceFilterChange}
-                  availableYears={availableInvoiceYears}
                   hasFullAccessRights={hasFullAccessRights}
                 />,
     'Công nợ': <DebtTab
@@ -287,7 +341,6 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   onUpdateDebtStatus={handleUpdateDebtStatus}
                   filter={debtFilter}
                   onFilterChange={handleDebtFilterChange}
-                  availableYears={availableDebtYears}
                   currentUser={currentUser}
                 />,
     'Doanh thu': <RevenueTab
@@ -296,7 +349,6 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   disposalLogEntries={disposalLogEntries}
                   filter={revenueFilter}
                   onFilterChange={handleRevenueFilterChange}
-                  availableYears={availableInvoiceYears}
                   numericDisplaySize={numericDisplaySize}
                 />,
     'Khách hàng': <CustomerTab
@@ -323,7 +375,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       inventory, customersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
-      filteredDebtsForDebtTab, debtFilter, availableInvoiceYears, availableDebtYears, isCurrentUserAdmin, hasFullAccessRights,
+      filteredDebtsForDebtTab, debtFilter, isCurrentUserAdmin, hasFullAccessRights,
       handleCreateInvoice, handleAddProduct, handleUpdateProduct, handleDeleteProduct,
       handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
@@ -539,9 +591,11 @@ export default function FleurManagerPage() {
   const [productQualityOptions, setProductQualityOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
-  const [revenueFilter, setRevenueFilter] = useState<DateFilter>(getCurrentDateFilter());
-  const [invoiceFilter, setInvoiceFilter] = useState<DateFilter>(getCurrentDateFilter());
-  const [debtFilter, setDebtFilter] = useState<DateFilter>(getCurrentDateFilter());
+  
+  const [revenueFilter, setRevenueFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
+  const [invoiceFilter, setInvoiceFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
+  const [debtFilter, setDebtFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter(true, false)); // Start of today, no end date for debts typically
+
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
@@ -664,16 +718,13 @@ export default function FleurManagerPage() {
   useEffect(() => { if (!currentUser) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser]);
 
-  const handleRevenueFilterChange = useCallback((newFilter: DateFilter) => setRevenueFilter(newFilter), []);
-  const handleInvoiceFilterChange = useCallback((newFilter: DateFilter) => setInvoiceFilter(newFilter), []);
-  const handleDebtFilterChange = useCallback((newFilter: DateFilter) => setDebtFilter(newFilter), []);
+  const handleRevenueFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setRevenueFilter(newFilter), []);
+  const handleInvoiceFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setInvoiceFilter(newFilter), []);
+  const handleDebtFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setDebtFilter(newFilter), []);
 
-  const filterDataByDateRange = <T extends { date: string }>(data: T[], filter: DateFilter): T[] => { if (!data) return []; const {day, month, year} = filter; return data.filter(item => { const itemDate = new Date(item.date); const itemDay = itemDate.getDate().toString(); const itemMonth = (itemDate.getMonth() + 1).toString(); const itemYear = itemDate.getFullYear().toString(); const dayMatch = day === 'all' || day === itemDay; const monthMatch = month === 'all' || month === itemMonth; const yearMatch = year === 'all' || year === itemYear; return dayMatch && monthMatch && yearMatch; }); };
-  const availableInvoiceYears = useMemo(() => { if (!invoicesData || invoicesData.length === 0) return [new Date().getFullYear().toString()]; const years = new Set(invoicesData.map(inv => new Date(inv.date).getFullYear().toString())); return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)); }, [invoicesData]);
-  const availableDebtYears = useMemo(() => { if (!debtsData || debtsData.length === 0) return [new Date().getFullYear().toString()]; const years = new Set(debtsData.map(debt => new Date(debt.date).getFullYear().toString())); return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)); }, [debtsData]);
-  const filteredInvoicesForRevenue = useMemo(() => filterDataByDateRange(invoicesData, revenueFilter), [invoicesData, revenueFilter]);
-  const filteredInvoicesForInvoiceTab = useMemo(() => filterDataByDateRange(invoicesData, invoiceFilter), [invoicesData, invoiceFilter]);
-  const filteredDebtsForDebtTab = useMemo(() => filterDataByDateRange(debtsData, debtFilter).filter(debt => debt.status === 'Chưa thanh toán'), [debtsData, debtFilter]);
+  const filteredInvoicesForRevenue = useMemo(() => filterActivityByDateTimeRange(invoicesData, revenueFilter), [invoicesData, revenueFilter]);
+  const filteredInvoicesForInvoiceTab = useMemo(() => filterActivityByDateTimeRange(invoicesData, invoiceFilter), [invoicesData, invoiceFilter]);
+  const filteredDebtsForDebtTab = useMemo(() => filterActivityByDateTimeRange(debtsData, debtFilter).filter(debt => debt.status === 'Chưa thanh toán'), [debtsData, debtFilter]);
 
   const handleAddProduct = useCallback(async (newProductData: Omit<Product, 'id'>) => { try { const newProductRef = push(ref(db, 'inventory')); await set(newProductRef, { ...newProductData, price: newProductData.price, costPrice: newProductData.costPrice, maxDiscountPerUnitVND: newProductData.maxDiscountPerUnitVND }); toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho.", variant: "default" }); } catch (error) { console.error("Error adding product:", error); toast({ title: "Lỗi", description: "Không thể thêm sản phẩm. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
   const handleUpdateProduct = useCallback(async (productId: string, updatedProductData: Partial<Omit<Product, 'id'>>) => { try { await update(ref(db, `inventory/${productId}`), updatedProductData); toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating product:", error); toast({ title: "Lỗi", description: "Không thể cập nhật sản phẩm. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
@@ -1125,8 +1176,6 @@ export default function FleurManagerPage() {
         isCurrentUserAdmin={isCurrentUserAdmin}
         currentUserEmployeeData={currentUserEmployeeData}
         hasFullAccessRights={hasFullAccessRights}
-        availableInvoiceYears={availableInvoiceYears}
-        availableDebtYears={availableDebtYears}
         filteredInvoicesForRevenue={filteredInvoicesForRevenue}
         filteredInvoicesForInvoiceTab={filteredInvoicesForInvoiceTab}
         filteredDebtsForDebtTab={filteredDebtsForDebtTab}
@@ -1181,3 +1230,4 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
+

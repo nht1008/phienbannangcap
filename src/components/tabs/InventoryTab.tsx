@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Product, ProductOptionType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +27,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from 'next/image';
-import { PlusCircle, Trash2, Settings, Pencil, UploadCloud } from 'lucide-react';
+import { PlusCircle, Trash2, Settings, Pencil, UploadCloud, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeStringForSearch } from '@/lib/utils';
 
 type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice'> & { quantity: string; price: string; costPrice: string; quality: string; };
 
@@ -81,6 +82,7 @@ export function InventoryTab({
   const [currentOptionType, setCurrentOptionType] = useState<ProductOptionType | null>(null);
   const [newOptionName, setNewOptionName] = useState('');
   const { toast } = useToast();
+  const [inventorySearchQuery, setInventorySearchQuery] = useState('');
 
   useEffect(() => {
     const defaultState = {
@@ -435,6 +437,23 @@ export function InventoryTab({
       );
     };
 
+  const filteredInventory = useMemo(() => {
+    if (!inventorySearchQuery.trim()) {
+      return inventory;
+    }
+    const normalizedQuery = normalizeStringForSearch(inventorySearchQuery);
+    return inventory.filter(item => {
+      const searchableText = [
+        item.name,
+        item.color,
+        item.quality,
+        item.size,
+        item.unit,
+      ].join(' ');
+      return normalizeStringForSearch(searchableText).includes(normalizedQuery);
+    });
+  }, [inventory, inventorySearchQuery]);
+
 
   return (
     <Card>
@@ -482,8 +501,19 @@ export function InventoryTab({
         {isAddingProduct && renderProductForm(newItem, setNewItem, handleAddItem, false, imagePreview)}
         {isEditingProduct && productToEdit && renderProductForm(editedItem, setEditedItem, handleUpdateExistingProduct, true, editedImagePreview)}
 
-
-        <CardTitle className="mt-6 mb-4 text-center sm:text-left">Danh sách sản phẩm</CardTitle>
+        <div className="mt-6 mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <CardTitle className="text-center sm:text-left">Danh sách sản phẩm</CardTitle>
+          <div className="relative w-full sm:w-auto sm:min-w-[250px]">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Tìm sản phẩm..."
+              value={inventorySearchQuery}
+              onChange={(e) => setInventorySearchQuery(e.target.value)}
+              className="pl-8 w-full bg-card"
+            />
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -502,7 +532,7 @@ export function InventoryTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {inventory.map(item => (
+              {filteredInventory.map(item => (
                 <TableRow key={item.id}>
                   <TableCell className="flex items-center">
                     <Image 
@@ -536,9 +566,11 @@ export function InventoryTab({
                   </TableCell>
                 </TableRow>
               ))}
-              {inventory.length === 0 && !isAddingProduct && !isEditingProduct && (
+              {filteredInventory.length === 0 && !isAddingProduct && !isEditingProduct && (
                 <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-10">Chưa có sản phẩm nào. Hãy thêm sản phẩm mới.</TableCell>
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+                      {inventorySearchQuery ? `Không tìm thấy sản phẩm nào với "${inventorySearchQuery}".` : "Chưa có sản phẩm nào. Hãy thêm sản phẩm mới."}
+                    </TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -622,5 +654,6 @@ export function InventoryTab({
     
 
     
+
 
 

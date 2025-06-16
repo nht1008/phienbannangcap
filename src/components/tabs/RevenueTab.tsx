@@ -511,20 +511,36 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
             <Separator className="my-3" />
             <ScrollArea className="max-h-60">
               <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
-              <ul className="space-y-1 pr-3">
-                {selectedInvoiceDetails.items.map((item: InvoiceCartItem, index: number) => (
-                  <li key={`${item.id}-${index}`} className="text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{item.name} ({item.color}, {item.quality || 'N/A'}, {item.size}) x {item.quantityInCart} {item.unit}</span>
-                      <span className="text-foreground">{(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground/80 pl-2">Giá gốc đơn vị: {(item.costPrice ?? 0).toLocaleString('vi-VN')} VNĐ</span>
-                        <span className="text-muted-foreground/80">Lãi: {((item.price - (item.costPrice ?? 0)) * item.quantityInCart).toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">Tên Sản phẩm</TableHead>
+                    <TableHead>Màu</TableHead>
+                    <TableHead>Chất lượng</TableHead>
+                    <TableHead>K.Thước</TableHead>
+                    <TableHead>ĐV</TableHead>
+                    <TableHead className="text-right">SL</TableHead>
+                    <TableHead className="text-right">Đơn giá</TableHead>
+                    <TableHead className="text-right">Thành tiền</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedInvoiceDetails.items.map((item: InvoiceCartItem, idx: number) => (
+                    <TableRow key={`${item.id}-${idx}`}>
+                      <TableCell className="font-medium text-xs">{item.name}</TableCell>
+                      <TableCell className="text-xs">{item.color || 'N/A'}</TableCell>
+                      <TableCell className="text-xs">{item.quality || 'N/A'}</TableCell>
+                      <TableCell className="text-xs">{item.size || 'N/A'}</TableCell>
+                      <TableCell className="text-xs">{item.unit || 'N/A'}</TableCell>
+                      <TableCell className="text-right text-xs">{item.quantityInCart}</TableCell>
+                      <TableCell className="text-right text-xs">{item.price.toLocaleString('vi-VN')}</TableCell>
+                      <TableCell className="text-right font-semibold text-primary text-xs">
+                        {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </ScrollArea>
             <Separator className="my-3" />
             {selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0) > 0 && (

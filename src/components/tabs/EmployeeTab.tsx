@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -144,7 +145,7 @@ export function EmployeeTab({
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
-            if (data[key].status === 'pending') { // Only load pending requests
+            if (data[key].status === 'pending') { 
               loadedRequests.push({ id: key, ...data[key] });
             }
           });
@@ -172,16 +173,16 @@ export function EmployeeTab({
         updates[`employees/${request.id}`] = {
           name: request.name,
           email: request.email,
-          phone: request.phone,
-          address: request.address,
+          phone: request.phone || '',
+          address: request.address || '',
           position: 'Nhân viên' as EmployeePosition, 
         };
       } else if (request.requestedRole === 'customer') {
          updates[`customers/${request.id}`] = {
           name: request.name,
           email: request.email,
-          phone: request.phone,
-          address: request.address,
+          phone: request.phone || '',
+          address: request.address || '',
         };
       }
       await update(ref(db), updates);
@@ -465,6 +466,7 @@ export function EmployeeTab({
                                         <TableHead>Email</TableHead>
                                         <TableHead>Vai trò YC</TableHead>
                                         <TableHead>SĐT</TableHead>
+                                        <TableHead>Địa chỉ</TableHead>
                                         <TableHead>Ngày YC</TableHead>
                                         <TableHead className="text-center">Hành động</TableHead>
                                     </TableRow>
@@ -476,6 +478,7 @@ export function EmployeeTab({
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell>{req.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</TableCell>
                                             <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                                            <TableCell>{req.address || 'N/A'}</TableCell>
                                             <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
                                             <TableCell className="text-center space-x-2">
                                                 <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveRequest(req)}>
@@ -833,3 +836,4 @@ export function EmployeeTab({
     </>
   );
 }
+

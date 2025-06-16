@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
-import { format, startOfDay, endOfDay, parse } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { vi } from 'date-fns/locale';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 
 
@@ -35,11 +36,11 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
   const { startDate, endDate, startTime, endTime } = filter;
 
   if (!startDate || !endDate) {
-    return data; // Or an empty array if incomplete range should show nothing
+    return data; 
   }
 
   const getCombinedDateTime = (dateInput: Date, timeStr: string): Date => {
-    const newDate = new Date(dateInput); // Clone the date
+    const newDate = new Date(dateInput); 
     const [hours, minutes] = timeStr.split(':').map(Number);
     if (!isNaN(hours) && !isNaN(minutes)) {
       newDate.setHours(hours, minutes, timeStr.endsWith(':59') ? 59 : 0, timeStr.endsWith(':59:999') ? 999 : 0);
@@ -50,10 +51,7 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
   let effectiveStartDate = getCombinedDateTime(startDate, startTime);
   let effectiveEndDate = getCombinedDateTime(endDate, endTime);
   
-  // Ensure endDate is after startDate if times make them cross over on the same day
   if (effectiveEndDate < effectiveStartDate && startDate.toDateString() === endDate.toDateString()) {
-     // If end time is earlier than start time on the same day, adjust end date to be end of selected day for logical range.
-     // Or, could swap them, or show an error. For simplicity, let's make end time effectively 23:59:59.999 for that day.
      effectiveEndDate = endOfDay(endDate);
   }
 
@@ -238,6 +236,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         selected={activityFilter.startDate ?? undefined}
                         onSelect={(date) => setActivityFilter(prev => ({ ...prev, startDate: date ? startOfDay(date) : null }))}
                         initialFocus
+                        locale={vi}
                       />
                     </PopoverContent>
                   </Popover>
@@ -275,6 +274,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         onSelect={(date) => setActivityFilter(prev => ({ ...prev, endDate: date ? endOfDay(date) : null }))}
                         disabled={(date) => activityFilter.startDate ? date < activityFilter.startDate : false}
                         initialFocus
+                        locale={vi}
                       />
                     </PopoverContent>
                   </Popover>

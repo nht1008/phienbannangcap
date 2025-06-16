@@ -468,7 +468,6 @@ export default function FleurManagerPage() {
     }
   }, [toast]);
 
-  // Cart Logic Lifted to FleurManagerPage
   const handleAddToCart = useCallback((item: Product) => {
     const existingItem = cart.find(cartItem => cartItem.id === item.id);
     const stockItem = inventory.find(i => i.id === item.id);
@@ -496,7 +495,7 @@ export default function FleurManagerPage() {
     if (isNaN(newQuantity) || newQuantity < 0) return;
 
     const stockItem = inventory.find(i => i.id === itemId);
-    if (!stockItem && newQuantity > 0) return; // Should not happen if item is in cart
+    if (!stockItem && newQuantity > 0) return; 
 
     if (newQuantity === 0) {
       setCart(prevCart => prevCart.filter(item => item.id !== itemId));
@@ -536,7 +535,7 @@ export default function FleurManagerPage() {
 
   const handleCreateInvoice = useCallback(async (
     customerName: string,
-    invoiceCartItems: CartItem[], // Use the cart from FleurManagerPage's state, passed down
+    invoiceCartItems: CartItem[], 
     subtotalAfterItemDiscounts: number,
     paymentMethod: string,
     overallInvoiceDiscount: number,
@@ -633,7 +632,7 @@ export default function FleurManagerPage() {
       }
 
       toast({ title: "Thành công", description: "Hóa đơn đã được tạo và kho đã cập nhật.", variant: "default" });
-      handleClearCart(); // Clear cart after successful invoice creation
+      handleClearCart(); 
       return true;
     } catch (error) {
       console.error("Error creating invoice:", error);
@@ -969,7 +968,6 @@ export default function FleurManagerPage() {
                   filter={invoiceFilter}
                   onFilterChange={handleInvoiceFilterChange}
                   availableYears={availableInvoiceYears}
-                  shopInfo={shopInfo}
                 />,
     'Công nợ': <DebtTab
                   debts={filteredDebtsForDebtTab}
@@ -988,6 +986,7 @@ export default function FleurManagerPage() {
                 />,
     'Khách hàng': <CustomerTab
                       customers={customersData}
+                      invoices={invoicesData} 
                       onAddCustomer={handleAddCustomer}
                       onUpdateCustomer={handleUpdateCustomer}
                       onDeleteCustomer={handleDeleteCustomer}
@@ -1091,7 +1090,7 @@ export default function FleurManagerPage() {
       <div className="flex h-screen bg-background font-body">
         <Sidebar collapsible="icon" className="print:hidden shadow-lg" side="left">
            <SidebarHeader className="h-20 flex items-center justify-center shadow-md bg-primary/5 border-b border-primary/20 group-data-[state=expanded]:px-4 group-data-[state=collapsed]:px-0">
-            {shopInfo && shopInfo.logoUrl && (
+            {shopInfo && shopInfo.logoUrl ? (
                 <Image 
                     src={shopInfo.logoUrl} 
                     alt={shopInfo.name || "Shop Logo"} 
@@ -1104,7 +1103,7 @@ export default function FleurManagerPage() {
                         target.src = 'https://placehold.co/64x64.png'; 
                     }}
                 />
-            )}
+            ) : null }
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -1259,6 +1258,7 @@ export default function FleurManagerPage() {
     
 
     
+
 
 
 

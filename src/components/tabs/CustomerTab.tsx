@@ -1,21 +1,24 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import type { Customer } from '@/types';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { Customer, Invoice } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
-import { formatPhoneNumber } from '@/lib/utils';
+import { formatPhoneNumber, cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Eye } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 interface CustomerTabProps {
   customers: Customer[];
+  invoices: Invoice[]; 
   onAddCustomer: (newCustomerData: Omit<Customer, 'id'>) => Promise<void>;
   onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => Promise<void>;
   onDeleteCustomer: (customerId: string) => Promise<void>;
@@ -23,7 +26,7 @@ interface CustomerTabProps {
 
 const initialFormState: Omit<Customer, 'id'> = { name: '', phone: '', address: '' };
 
-export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDeleteCustomer }: CustomerTabProps) {
+export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer }: CustomerTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id'>>(initialFormState);
 
@@ -34,6 +37,9 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const { toast } = useToast();
+
+  const [selectedCustomerForDetails, setSelectedCustomerForDetails] = useState<Customer | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   useEffect(() => {
     if (customerToEdit) {
@@ -100,7 +106,24 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
       setCustomerToDelete(null);
     }
   };
+
+  const openCustomerDetailsDialog = (customer: Customer) => {
+    setSelectedCustomerForDetails(customer);
+    setIsDetailsModalOpen(true);
+  };
+
+  const closeCustomerDetailsDialog = () => {
+    setSelectedCustomerForDetails(null);
+    setIsDetailsModalOpen(false);
+  };
   
+  const customerInvoices = useMemo(() => {
+    if (!selectedCustomerForDetails) return [];
+    return invoices
+      .filter(invoice => invoice.customerName === selectedCustomerForDetails.name)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [selectedCustomerForDetails, invoices]);
+
   const renderCustomerForm = (
     formState: Omit<Customer, 'id'>,
     formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id'>>>,
@@ -178,7 +201,10 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
                     <TableCell>{customer.name}</TableCell>
                     <TableCell>{formatPhoneNumber(customer.phone)}</TableCell>
                     <TableCell>{customer.address || 'N/A'}</TableCell>
-                    <TableCell className="text-center space-x-2">
+                    <TableCell className="text-center space-x-1">
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openCustomerDetailsDialog(customer)}>
+                            <Eye className="h-4 w-4" />
+                        </Button>
                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(customer)}>
                             <Pencil className="h-4 w-4" />
                         </Button>
@@ -225,7 +251,54 @@ export function CustomerTab({ customers, onAddCustomer, onUpdateCustomer, onDele
             </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {selectedCustomerForDetails && (
+        <Dialog open={isDetailsModalOpen} onOpenChange={closeCustomerDetailsDialog}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Lịch sử giao dịch của: {selectedCustomerForDetails.name}</DialogTitle>
+              <DialogDescription>
+                Số điện thoại: {formatPhoneNumber(selectedCustomerForDetails.phone)}
+                {selectedCustomerForDetails.address && ` | Địa chỉ: ${selectedCustomerForDetails.address}`}
+              </DialogDescription>
+            </DialogHeader>
+            <Separator className="my-4" />
+            {customerInvoices.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Khách hàng này chưa có giao dịch nào.</p>
+            ) : (
+              <ScrollArea className="max-h-[60vh]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID HĐ</TableHead>
+                      <TableHead>Ngày tạo</TableHead>
+                      <TableHead className="text-right">Tổng tiền</TableHead>
+                      <TableHead>PT Thanh toán</TableHead>
+                      <TableHead className="text-right text-destructive">Tiền nợ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerInvoices.map(invoice => (
+                      <TableRow key={invoice.id} className={invoice.debtAmount && invoice.debtAmount > 0 ? "bg-destructive/5" : ""}>
+                        <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
+                        <TableCell>{new Date(invoice.date).toLocaleDateString('vi-VN')}</TableCell>
+                        <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell>{invoice.paymentMethod}</TableCell>
+                        <TableCell className="text-right text-destructive">
+                          {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            )}
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={closeCustomerDetailsDialog}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
-

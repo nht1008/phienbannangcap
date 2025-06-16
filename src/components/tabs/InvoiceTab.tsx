@@ -129,7 +129,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
       const quantityToReturnNum = parseInt(detail.quantityToReturn);
       if (quantityToReturnNum > 0) {
         const originalItemDiscountPerUnit = detail.originalQuantityInCart > 0 ? (detail.itemDiscount || 0) / detail.originalQuantityInCart : 0;
-        // Per user request: refund = original price + discount they got
+        // Per user request: refund = original price + discount they got (which is effectively original price)
         const effectivePricePerUnit = detail.price + originalItemDiscountPerUnit;
         totalRefund += effectivePricePerUnit * quantityToReturnNum;
       }
@@ -265,6 +265,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     const displayedAmount = (!hasDebt ? invoice.total : (invoice.amountPaid ?? 0));
                     const isCashPayment = invoice.paymentMethod === 'Tiền mặt';
                     const invoiceDate = new Date(invoice.date);
+                    const totalItemDiscounts = invoice.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
                     return (
                       <TableRow key={invoice.id}>
                         <TableCell>{index + 1}</TableCell>
@@ -276,7 +277,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           {displayedAmount.toLocaleString('vi-VN')} VNĐ
                         </TableCell>
                         <TableCell className="text-[hsl(var(--destructive))]">
-                          {(invoice.discount ?? 0).toLocaleString('vi-VN')} VNĐ
+                          {totalItemDiscounts.toLocaleString('vi-VN')} VNĐ
                         </TableCell>
                         <TableCell className="text-[hsl(var(--destructive))]">
                           {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
@@ -354,14 +355,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   </Table>
                 </ScrollArea>
                 <Separator className="my-4" />
-                {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
-                    <>
-                        <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
-                            <span>Giảm giá:</span>
-                            <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
-                        </div>
-                    </>
-                )}
+                {/* Removed overall invoice discount display as it's no longer applicable here for individual invoice view */}
                 <div className="flex justify-between font-bold text-lg text-foreground">
                   <span>Tổng thanh toán HĐ:</span>
                   <span>{selectedInvoiceDetails.total.toLocaleString('vi-VN')} VNĐ</span>

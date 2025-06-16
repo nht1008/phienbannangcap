@@ -10,8 +10,8 @@ import { formatPhoneNumber, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
@@ -23,9 +23,26 @@ import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 interface ActivityDateTimeFilter {
   startDate: Date | null;
   endDate: Date | null;
-  startTime: string; // HH:mm
-  endTime: string;   // HH:mm
+  startHour: string; 
+  startMinute: string;
+  endHour: string;   
+  endMinute: string; 
 }
+
+const getCombinedDateTime = (dateInput: Date | null, hourStr: string, minuteStr: string): Date | null => {
+    if (!dateInput) return null;
+    const newDate = new Date(dateInput);
+    const hours = parseInt(hourStr, 10);
+    const minutes = parseInt(minuteStr, 10);
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      // Set seconds and milliseconds based on whether it's an "end of minute/hour" type value
+      const seconds = (minuteStr === '59') ? 59 : 0;
+      const milliseconds = (minuteStr === '59') ? 999 : 0;
+      newDate.setHours(hours, minutes, seconds, milliseconds);
+    }
+    return newDate;
+};
+
 
 const filterActivityByDateTimeRange = <T extends { date: string }>(
   data: T[],
@@ -33,32 +50,31 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
 ): T[] => {
   if (!data) return [];
   
-  const { startDate, endDate, startTime, endTime } = filter;
+  const { startDate, endDate, startHour, startMinute, endHour, endMinute } = filter;
 
   if (!startDate || !endDate) {
     return data; 
   }
-
-  const getCombinedDateTime = (dateInput: Date, timeStr: string): Date => {
-    const newDate = new Date(dateInput); 
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    if (!isNaN(hours) && !isNaN(minutes)) {
-      newDate.setHours(hours, minutes, timeStr.endsWith(':59') ? 59 : 0, timeStr.endsWith(':59:999') ? 999 : 0);
-    }
-    return newDate;
-  };
-
-  let effectiveStartDate = getCombinedDateTime(startDate, startTime);
-  let effectiveEndDate = getCombinedDateTime(endDate, endTime);
   
+  const effectiveStartDate = getCombinedDateTime(startDate, startHour, startMinute);
+  const effectiveEndDate = getCombinedDateTime(endDate, endHour, endMinute);
+
+  if (!effectiveStartDate || !effectiveEndDate) return data; // Should not happen if dates are set
+
+  // Ensure end time is not before start time if on the same day
+  let finalEffectiveEndDate = effectiveEndDate;
   if (effectiveEndDate < effectiveStartDate && startDate.toDateString() === endDate.toDateString()) {
-     effectiveEndDate = endOfDay(endDate);
+     // This case likely means user selected e.g. 10:00 to 09:00 on same day.
+     // For "end of day" logic, we can set it to actual end of the selected endDay.
+     const tempEnd = new Date(endDate);
+     tempEnd.setHours(23, 59, 59, 999);
+     finalEffectiveEndDate = tempEnd;
   }
 
 
   return data.filter(item => {
     const itemDateTime = new Date(item.date);
-    return itemDateTime >= effectiveStartDate && itemDateTime <= effectiveEndDate;
+    return itemDateTime >= effectiveStartDate && itemDateTime <= finalEffectiveEndDate;
   });
 };
 
@@ -72,6 +88,11 @@ interface EmployeeTabProps {
   onDeleteDebt: (debtId: string) => void;
 }
 
+const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const minuteOptionsStart = ['00', '15', '30', '45'];
+const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
+
+
 export function EmployeeTab({ employees, currentUser, invoices, debts, numericDisplaySize, onDeleteDebt }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
@@ -79,8 +100,10 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     return {
       startDate: startOfDay(today),
       endDate: endOfDay(today),
-      startTime: '00:00',
-      endTime: '23:59',
+      startHour: '00',
+      startMinute: '00',
+      endHour: '23',
+      endMinute: '59',
     };
   });
 
@@ -146,8 +169,10 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
         setActivityFilter({
           startDate: startOfDay(today),
           endDate: endOfDay(today),
-          startTime: '00:00',
-          endTime: '23:59',
+          startHour: '00',
+          startMinute: '00',
+          endHour: '23',
+          endMinute: '59',
         }); 
     } else {
         setSelectedEmployee(null); 
@@ -159,8 +184,10 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
     setActivityFilter({
       startDate: startOfDay(today),
       endDate: endOfDay(today),
-      startTime: '00:00',
-      endTime: '23:59',
+      startHour: '00',
+      startMinute: '00',
+      endHour: '23',
+      endMinute: '59',
     });
   };
 
@@ -213,8 +240,8 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <CardTitle className="text-xl font-semibold">Nhật ký hoạt động của: {selectedEmployee.name}</CardTitle>
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             
-              <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                <div className="space-y-1">
+              <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-x-3 gap-y-4 items-end">
+                <div className="space-y-1 col-span-2 sm:col-span-1">
                   <Label htmlFor="startDate">Từ ngày</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -222,12 +249,12 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         id="startDate"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal bg-card",
+                          "w-full justify-start text-left font-normal bg-card h-9",
                           !activityFilter.startDate && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {activityFilter.startDate ? format(activityFilter.startDate, "dd/MM/yyyy") : <span>Chọn ngày</span>}
+                        {activityFilter.startDate ? format(activityFilter.startDate, "dd/MM/yyyy", { locale: vi }) : <span>Chọn ngày</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -242,16 +269,24 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   </Popover>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="startTime">Từ giờ</Label>
-                  <Input
-                    id="startTime"
-                    type="time"
-                    value={activityFilter.startTime}
-                    onChange={(e) => setActivityFilter(prev => ({ ...prev, startTime: e.target.value }))}
-                    className="bg-card h-9"
-                  />
+                  <Label htmlFor="startHour">Giờ bắt đầu</Label>
+                  <Select value={activityFilter.startHour} onValueChange={(value) => setActivityFilter(prev => ({...prev, startHour: value}))}>
+                    <SelectTrigger id="startHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      {hourOptions.map(hour => <SelectItem key={`start-hr-${hour}`} value={hour}>{hour}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
+                  <Label htmlFor="startMinute">Phút bắt đầu</Label>
+                   <Select value={activityFilter.startMinute} onValueChange={(value) => setActivityFilter(prev => ({...prev, startMinute: value}))}>
+                    <SelectTrigger id="startMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      {minuteOptionsStart.map(min => <SelectItem key={`start-min-${min}`} value={min}>{min}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 col-span-2 sm:col-span-1">
                   <Label htmlFor="endDate">Đến ngày</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -259,12 +294,12 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                         id="endDate"
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal bg-card",
+                          "w-full justify-start text-left font-normal bg-card h-9",
                           !activityFilter.endDate && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {activityFilter.endDate ? format(activityFilter.endDate, "dd/MM/yyyy") : <span>Chọn ngày</span>}
+                        {activityFilter.endDate ? format(activityFilter.endDate, "dd/MM/yyyy", { locale: vi }) : <span>Chọn ngày</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -280,19 +315,27 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                   </Popover>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="endTime">Đến giờ</Label>
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={activityFilter.endTime}
-                    onChange={(e) => setActivityFilter(prev => ({ ...prev, endTime: e.target.value }))}
-                    className="bg-card h-9"
-                  />
+                  <Label htmlFor="endHour">Giờ kết thúc</Label>
+                  <Select value={activityFilter.endHour} onValueChange={(value) => setActivityFilter(prev => ({...prev, endHour: value}))}>
+                    <SelectTrigger id="endHour" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      {hourOptions.map(hour => <SelectItem key={`end-hr-${hour}`} value={hour}>{hour}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="endMinute">Phút kết thúc</Label>
+                  <Select value={activityFilter.endMinute} onValueChange={(value) => setActivityFilter(prev => ({...prev, endMinute: value}))}>
+                    <SelectTrigger id="endMinute" className="bg-card h-9"><SelectValue/></SelectTrigger>
+                    <SelectContent>
+                      {minuteOptionsEnd.map(min => <SelectItem key={`end-min-${min}`} value={min}>{min}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button
                   onClick={handleSetTodayFilter}
                   variant="outline"
-                  className="h-9 w-full lg:w-auto"
+                  className="h-9 w-full xl:w-auto"
                 >
                   Hôm nay
                 </Button>

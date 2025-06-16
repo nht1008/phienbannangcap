@@ -241,7 +241,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
               <CardDescription>Tổng hợp các hóa đơn và công nợ liên quan đến nhân viên này.</CardDescription>
             
               <div className="mt-4 pt-4 border-t space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-2 items-end">
                   <div className="space-y-1 sm:col-span-1">
                     <Label htmlFor="startDate">Từ ngày</Label>
                     <Popover>

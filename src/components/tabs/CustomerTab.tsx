@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Customer, Invoice } from '@/types';
+import type { Customer, Invoice, InvoiceCartItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,14 +11,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatPhoneNumber, cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2, Eye } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Eye, ListChecks } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 interface CustomerTabProps {
   customers: Customer[];
-  invoices: Invoice[]; 
+  invoices: Invoice[];
   onAddCustomer: (newCustomerData: Omit<Customer, 'id'>) => Promise<void>;
   onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id'>) => Promise<void>;
   onDeleteCustomer: (customerId: string) => Promise<void>;
@@ -39,7 +39,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const { toast } = useToast();
 
   const [selectedCustomerForDetails, setSelectedCustomerForDetails] = useState<Customer | null>(null);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isCustomerDetailsModalOpen, setIsCustomerDetailsModalOpen] = useState(false);
+
+  const [invoiceForDetailedView, setInvoiceForDetailedView] = useState<Invoice | null>(null);
+  const [isInvoiceDetailModalOpen, setIsInvoiceDetailModalOpen] = useState(false);
+
 
   useEffect(() => {
     if (customerToEdit) {
@@ -76,7 +80,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const openEditDialog = (customer: Customer) => {
     setCustomerToEdit(customer);
     setIsEditing(true);
-    setIsAdding(false); 
+    setIsAdding(false);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -109,14 +113,24 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const openCustomerDetailsDialog = (customer: Customer) => {
     setSelectedCustomerForDetails(customer);
-    setIsDetailsModalOpen(true);
+    setIsCustomerDetailsModalOpen(true);
   };
 
   const closeCustomerDetailsDialog = () => {
     setSelectedCustomerForDetails(null);
-    setIsDetailsModalOpen(false);
+    setIsCustomerDetailsModalOpen(false);
   };
-  
+
+  const openInvoiceItemDetailsDialog = (invoice: Invoice) => {
+    setInvoiceForDetailedView(invoice);
+    setIsInvoiceDetailModalOpen(true);
+  };
+
+  const closeInvoiceItemDetailsDialog = () => {
+    setInvoiceForDetailedView(null);
+    setIsInvoiceDetailModalOpen(false);
+  };
+
   const customerInvoices = useMemo(() => {
     if (!selectedCustomerForDetails) return [];
     return invoices
@@ -132,30 +146,30 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     onCancel?: () => void
   ) => (
      <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-        <Input 
-            type="text" 
-            name="name" 
-            placeholder="Tên khách hàng (*)" 
-            value={formState.name} 
-            onChange={(e) => handleInputChange(e, formSetter)} 
-            required 
-            className="md:col-span-1 bg-card" 
+        <Input
+            type="text"
+            name="name"
+            placeholder="Tên khách hàng (*)"
+            value={formState.name}
+            onChange={(e) => handleInputChange(e, formSetter)}
+            required
+            className="md:col-span-1 bg-card"
         />
-        <Input 
-            type="tel" 
-            name="phone" 
-            placeholder="Số điện thoại (*)" 
-            value={formState.phone} 
-            onChange={(e) => handleInputChange(e, formSetter)} 
-            required 
-            className="md:col-span-1 bg-card" 
+        <Input
+            type="tel"
+            name="phone"
+            placeholder="Số điện thoại (*)"
+            value={formState.phone}
+            onChange={(e) => handleInputChange(e, formSetter)}
+            required
+            className="md:col-span-1 bg-card"
         />
-        <Textarea 
-            name="address" 
-            placeholder="Địa chỉ" 
-            value={formState.address} 
-            onChange={(e) => handleInputChange(e, formSetter)} 
-            className="md:col-span-3 h-44 resize-none bg-card" 
+        <Textarea
+            name="address"
+            placeholder="Địa chỉ"
+            value={formState.address}
+            onChange={(e) => handleInputChange(e, formSetter)}
+            className="md:col-span-3 h-44 resize-none bg-card"
         />
         <div className="md:col-span-3 flex justify-end gap-2">
             {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>}
@@ -173,9 +187,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <CardHeader className="p-6">
           <div className="flex justify-between items-center">
               <CardTitle className="text-4xl font-bold">Danh sách khách hàng</CardTitle>
-              <Button 
-                onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }} 
-                variant="default" 
+              <Button
+                onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
+                variant="default"
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                   <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm khách hàng'}
@@ -184,7 +198,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         </CardHeader>
         <CardContent>
           {isAdding && renderCustomerForm(newCustomer, setNewCustomer, handleAdd, false, () => setIsAdding(false))}
-          
+
           <div className="overflow-x-auto mt-4">
             <Table>
               <TableHeader>
@@ -253,7 +267,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       )}
 
       {selectedCustomerForDetails && (
-        <Dialog open={isDetailsModalOpen} onOpenChange={closeCustomerDetailsDialog}>
+        <Dialog open={isCustomerDetailsModalOpen} onOpenChange={closeCustomerDetailsDialog}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl">Lịch sử giao dịch của: {selectedCustomerForDetails.name}</DialogTitle>
@@ -275,6 +289,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                       <TableHead className="text-right">Tổng tiền</TableHead>
                       <TableHead>PT Thanh toán</TableHead>
                       <TableHead className="text-right text-destructive">Tiền nợ</TableHead>
+                      <TableHead className="text-center">Chi tiết HĐ</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -287,6 +302,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                         <TableCell className="text-right text-destructive">
                           {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" onClick={() => openInvoiceItemDetailsDialog(invoice)}>
+                              <ListChecks className="h-4 w-4"/>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -295,6 +315,69 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             )}
             <DialogFooter className="mt-4">
               <Button variant="outline" onClick={closeCustomerDetailsDialog}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {invoiceForDetailedView && (
+        <Dialog open={isInvoiceDetailModalOpen} onOpenChange={closeInvoiceItemDetailsDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Chi tiết sản phẩm HĐ #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
+              <DialogDescription>
+                Ngày: {new Date(invoiceForDetailedView.date).toLocaleString('vi-VN')}
+              </DialogDescription>
+            </DialogHeader>
+            <Separator className="my-3" />
+            <ScrollArea className="max-h-[50vh]">
+              <div className="space-y-3 pr-2">
+                {invoiceForDetailedView.items.map((item: InvoiceCartItem, index: number) => (
+                  <Card key={`${item.id}-${index}`} className="p-3 bg-muted/40">
+                    <p className="font-semibold text-base">{item.name} <span className="text-xs text-muted-foreground">({item.color}, {item.size}, {item.unit})</span></p>
+                    <div className="text-sm space-y-0.5 mt-1">
+                        <p>Số lượng: {item.quantityInCart}</p>
+                        <p>Đơn giá: {item.price.toLocaleString('vi-VN')} VNĐ</p>
+                        {item.itemDiscount && item.itemDiscount > 0 && (
+                           <p className="text-destructive">Đã giảm (SP): {item.itemDiscount.toLocaleString('vi-VN')} VNĐ</p>
+                        )}
+                        <p className="font-medium text-primary">Thành tiền (SP): {(item.price * item.quantityInCart - (item.itemDiscount || 0)).toLocaleString('vi-VN')} VNĐ</p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+            <Separator className="my-3" />
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>Tổng tiền hàng (trước GG chung):</span>
+                <span>
+                  {invoiceForDetailedView.items.reduce((sum, item) => sum + (item.price * item.quantityInCart) - (item.itemDiscount || 0), 0).toLocaleString('vi-VN')} VNĐ
+                </span>
+              </div>
+              {invoiceForDetailedView.discount && invoiceForDetailedView.discount > 0 && (
+                <div className="flex justify-between text-destructive">
+                  <span>Giảm giá chung HĐ:</span>
+                  <span>-{invoiceForDetailedView.discount.toLocaleString('vi-VN')} VNĐ</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-lg text-primary">
+                <span>Tổng thanh toán HĐ:</span>
+                <span>{invoiceForDetailedView.total.toLocaleString('vi-VN')} VNĐ</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Đã thanh toán ({invoiceForDetailedView.paymentMethod}):</span>
+                <span>{(invoiceForDetailedView.amountPaid ?? 0).toLocaleString('vi-VN')} VNĐ</span>
+              </div>
+              {invoiceForDetailedView.debtAmount && invoiceForDetailedView.debtAmount > 0 && (
+                <div className="flex justify-between text-destructive font-semibold">
+                  <span>Tiền nợ của HĐ này:</span>
+                  <span>{invoiceForDetailedView.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={closeInvoiceItemDetailsDialog}>Đóng</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

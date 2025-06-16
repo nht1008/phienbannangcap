@@ -36,15 +36,15 @@ interface RevenueTabProps {
 const chartConfig = {
   doanhthu: {
     label: "Doanh thu",
-    color: "hsl(330, 85%, 60%)", // Brighter Rose Pink
+    color: "hsl(330, 85%, 60%)",
   },
   giagoc: {
     label: "Giá gốc",
-    color: "hsl(270, 70%, 75%)", // Lavender
+    color: "hsl(270, 70%, 75%)",
   },
   loinhuan: {
     label: "Lợi nhuận",
-    color: "hsl(130, 60%, 55%)", // Brighter Green
+    color: "hsl(130, 60%, 55%)",
   },
 } satisfies ChartConfig;
 
@@ -71,7 +71,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    const invoicesForChart = invoices; // Use all filtered invoices
+    const invoicesForChart = invoices; // Use all filtered invoices for chart as well
 
     if (filterMonth !== 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
@@ -200,6 +200,15 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   );
 
   const totalProfitForPeriod = useMemo(() => totalRevenue - totalCostPriceForPeriod, [totalRevenue, totalCostPriceForPeriod]);
+  
+  const totalDiscountForPeriod = useMemo(() =>
+    invoices.reduce((totalDiscount, invoice) => {
+      const overallDiscount = invoice.discount || 0;
+      const itemDiscounts = invoice.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
+      return totalDiscount + overallDiscount + itemDiscounts;
+    }, 0),
+  [invoices]);
+
   const totalInvoicesCount = invoices.length;
 
   return (
@@ -257,7 +266,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <Card className="bg-primary/10 border-primary">
           <CardHeader className="pb-2">
             <CardTitle className="text-2xl font-bold text-primary">Tổng doanh thu</CardTitle>
@@ -283,6 +292,15 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
           </CardHeader>
           <CardContent>
             <p className={cn("font-bold text-[hsl(var(--success))]", numericDisplaySize)}>{totalProfitForPeriod.toLocaleString('vi-VN')} VNĐ</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-destructive/10 border-destructive">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl font-bold text-destructive">Tổng giảm giá</CardTitle>
+            <CardDescription className="text-xs">(Trên tất cả hóa đơn, theo bộ lọc)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className={cn("font-bold text-destructive", numericDisplaySize)}>{totalDiscountForPeriod.toLocaleString('vi-VN')} VNĐ</p>
           </CardContent>
         </Card>
         <Card className="bg-accent/10 border-accent">
@@ -472,4 +490,5 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   );
 }
     
+
 

@@ -326,6 +326,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             <DialogHeader>
               <DialogTitle className="text-xl">Chi tiết sản phẩm HĐ #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
+                Khách hàng: {invoiceForDetailedView.customerName} <br />
                 Ngày: {new Date(invoiceForDetailedView.date).toLocaleString('vi-VN')}
               </DialogDescription>
             </DialogHeader>

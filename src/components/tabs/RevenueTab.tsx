@@ -440,7 +440,8 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
-                    <TableHead>Ngày tạo</TableHead>
+                    <TableHead>Ngày</TableHead>
+                    <TableHead>Giờ</TableHead>
                     <TableHead className="text-right">Tổng tiền HĐ</TableHead>
                     <TableHead className="text-right">Tổng giá gốc HĐ</TableHead>
                     <TableHead className="text-right">Lợi nhuận HĐ</TableHead>
@@ -455,12 +456,14 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                     const tableDisplayTotal = invoice.total;
                     const tableDisplayCost = actualInvoiceCost;
                     const tableDisplayProfit = tableDisplayTotal - tableDisplayCost;
+                    const invoiceDate = new Date(invoice.date);
 
                     return (
                       <TableRow key={invoice.id} className={ hasDebt ? 'bg-destructive/5 hover:bg-destructive/10' : ''}>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
-                        <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
+                        <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
+                        <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
                         <TableCell className="text-right">{tableDisplayTotal.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{tableDisplayCost.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell className="text-right">{tableDisplayProfit.toLocaleString('vi-VN')} VNĐ</TableCell>
@@ -486,8 +489,9 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
             <DialogHeader>
               <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
-                <strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName} <br />
-                <strong>Ngày:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
+                <div><strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName}</div>
+                <div><strong>Ngày tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleDateString('vi-VN')}</div>
+                <div><strong>Giờ tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />

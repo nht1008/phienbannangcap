@@ -143,34 +143,39 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
               <TableHeader>
                 <TableRow>
                   <TableHead>Nhà cung cấp/Khách hàng</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
+                  <TableHead>Ngày</TableHead>
+                  <TableHead>Giờ</TableHead>
                   <TableHead>Số tiền</TableHead>
                   <TableHead className="text-center">Chức năng</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {debts.map(debt => (
-                  <TableRow key={debt.id}>
-                    <TableCell>{debt.supplier || 'N/A'}</TableCell>
-                    <TableCell>{new Date(debt.date).toLocaleString('vi-VN')}</TableCell>
-                    <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
-                    <TableCell className="text-center">
-                      <Button
-                        onClick={() => toggleStatus(debt.id, debt.status)}
-                        variant={'ghost'}
-                        size="sm"
-                        className={cn(
-                          'px-3 py-1 rounded-full text-xs h-auto',
-                          debt.status === 'Chưa thanh toán'
-                            ? 'bg-success text-success-foreground hover:bg-success/90'
-                            : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                        )}
-                      >
-                        {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {debts.map(debt => {
+                  const debtDate = new Date(debt.date);
+                  return (
+                    <TableRow key={debt.id}>
+                      <TableCell>{debt.supplier || 'N/A'}</TableCell>
+                      <TableCell>{debtDate.toLocaleDateString('vi-VN')}</TableCell>
+                      <TableCell>{debtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
+                      <TableCell>{debt.amount.toLocaleString('vi-VN')} VNĐ</TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          onClick={() => toggleStatus(debt.id, debt.status)}
+                          variant={'ghost'}
+                          size="sm"
+                          className={cn(
+                            'px-3 py-1 rounded-full text-xs h-auto',
+                            debt.status === 'Chưa thanh toán'
+                              ? 'bg-success text-success-foreground hover:bg-success/90'
+                              : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                          )}
+                        >
+                          {debt.status === 'Chưa thanh toán' ? 'Thu nợ' : 'Hủy thanh toán'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </ScrollArea>

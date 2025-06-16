@@ -285,7 +285,8 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID Hóa đơn</TableHead>
-                      <TableHead>Ngày tạo</TableHead>
+                      <TableHead>Ngày</TableHead>
+                      <TableHead>Giờ</TableHead>
                       <TableHead className="text-right">Tổng tiền</TableHead>
                       <TableHead>PT Thanh toán</TableHead>
                       <TableHead className="text-right text-destructive">Tiền nợ</TableHead>
@@ -293,22 +294,26 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customerInvoices.map(invoice => (
-                      <TableRow key={invoice.id} className={invoice.debtAmount && invoice.debtAmount > 0 ? "bg-destructive/5" : ""}>
-                        <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
-                        <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
-                        <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
-                        <TableCell>{invoice.paymentMethod}</TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" onClick={() => openInvoiceItemDetailsDialog(invoice)}>
-                              <ListChecks className="h-4 w-4"/>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {customerInvoices.map(invoice => {
+                      const invoiceDate = new Date(invoice.date);
+                      return (
+                        <TableRow key={invoice.id} className={invoice.debtAmount && invoice.debtAmount > 0 ? "bg-destructive/5" : ""}>
+                          <TableCell>{invoice.id.substring(0, 8)}...</TableCell>
+                          <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
+                          <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
+                          <TableCell className="text-right">{invoice.total.toLocaleString('vi-VN')} VNĐ</TableCell>
+                          <TableCell>{invoice.paymentMethod}</TableCell>
+                          <TableCell className="text-right text-destructive">
+                            {(invoice.debtAmount ?? 0).toLocaleString('vi-VN')} VNĐ
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" onClick={() => openInvoiceItemDetailsDialog(invoice)}>
+                                <ListChecks className="h-4 w-4"/>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </ScrollArea>
@@ -326,8 +331,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             <DialogHeader>
               <DialogTitle className="text-xl">Chi tiết sản phẩm Hóa đơn #{invoiceForDetailedView.id.substring(0,6)}...</DialogTitle>
               <DialogDescription>
-                Khách hàng: {invoiceForDetailedView.customerName} <br />
-                Ngày: {new Date(invoiceForDetailedView.date).toLocaleString('vi-VN')}
+                <div>Khách hàng: {invoiceForDetailedView.customerName}</div>
+                <div>Ngày: {new Date(invoiceForDetailedView.date).toLocaleDateString('vi-VN')}</div>
+                <div>Giờ: {new Date(invoiceForDetailedView.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />

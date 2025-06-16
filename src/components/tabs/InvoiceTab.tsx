@@ -225,7 +225,8 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <TableHeader>
                   <TableRow>
                     <TableHead>Khách hàng</TableHead>
-                    <TableHead>Ngày tạo</TableHead>
+                    <TableHead>Ngày</TableHead>
+                    <TableHead>Giờ</TableHead>
                     <TableHead>Đã thanh toán</TableHead>
                     <TableHead className="text-[hsl(var(--destructive))]">Giảm giá</TableHead>
                     <TableHead className="text-[hsl(var(--destructive))]">Tiền nợ</TableHead>
@@ -238,10 +239,12 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
                     const displayedAmount = (!hasDebt ? invoice.total : (invoice.amountPaid ?? 0));
                     const isCashPayment = invoice.paymentMethod === 'Tiền mặt';
+                    const invoiceDate = new Date(invoice.date);
                     return (
                       <TableRow key={invoice.id}>
                         <TableCell>{invoice.customerName}</TableCell>
-                        <TableCell>{new Date(invoice.date).toLocaleString('vi-VN')}</TableCell>
+                        <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
+                        <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
                         <TableCell className={cn(isCashPayment && displayedAmount > 0 ? 'text-[hsl(var(--success))]' : '')}>
                           {displayedAmount.toLocaleString('vi-VN')} VNĐ
                         </TableCell>
@@ -278,8 +281,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 <DialogHeader>
                   <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
                   <DialogDescription>
-                    <strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName} <br />
-                    <strong>Ngày:</strong> {new Date(selectedInvoiceDetails.date).toLocaleString('vi-VN')}
+                    <div><strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName}</div>
+                    <div><strong>Ngày tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleDateString('vi-VN')}</div>
+                    <div><strong>Giờ tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
                   </DialogDescription>
                 </DialogHeader>
                 <Separator className="my-4" />

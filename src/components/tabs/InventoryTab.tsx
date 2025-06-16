@@ -626,7 +626,11 @@ export function InventoryTab({
                   <TableCell className="text-right">{(item.costPrice ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                   <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    {(item.maxDiscountPerUnitVND ?? 0) > 0 ? `${(item.maxDiscountPerUnitVND! / 1000).toLocaleString('vi-VN')}K` : 'Không GH'}
+                    {item.maxDiscountPerUnitVND === 0
+                      ? '0 VNĐ'
+                      : (item.maxDiscountPerUnitVND && item.maxDiscountPerUnitVND > 0)
+                        ? `${(item.maxDiscountPerUnitVND / 1000).toLocaleString('vi-VN')}K`
+                        : 'Không GH'}
                   </TableCell>
                   <TableCell className="text-center space-x-1">
                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleOpenSetMaxDiscountDialog(item)} title="Giới hạn giảm giá">
@@ -765,3 +769,4 @@ export function InventoryTab({
     </Card>
   );
 }
+

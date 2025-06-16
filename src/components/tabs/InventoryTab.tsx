@@ -587,6 +587,7 @@ export function InventoryTab({
             <TableHeader>
               <TableRow>
                 {[
+                  <TableHead key="h-stt" className="w-12">STT</TableHead>,
                   <TableHead key="h-product">Sản phẩm</TableHead>,
                   <TableHead key="h-color">Màu sắc</TableHead>,
                   <TableHead key="h-quality">Chất lượng</TableHead>,
@@ -601,8 +602,9 @@ export function InventoryTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInventory.map(item => (
+              {filteredInventory.map((item, index) => (
                 <TableRow key={item.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell className="flex items-center">
                     <Image 
                         src={item.image || `https://placehold.co/40x40.png`} 
@@ -647,7 +649,7 @@ export function InventoryTab({
               ))}
               {filteredInventory.length === 0 && !isAddingProduct && !isEditingProduct && (
                 <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-10">
                       {inventorySearchQuery ? `Không tìm thấy sản phẩm nào với "${inventorySearchQuery}".` : "Chưa có sản phẩm nào. Hãy thêm sản phẩm mới."}
                     </TableCell>
                 </TableRow>

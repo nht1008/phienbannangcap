@@ -510,6 +510,7 @@ export function SalesTab({
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">STT</TableHead>
                         <TableHead className="min-w-[150px]">Tên Sản phẩm</TableHead>
                         <TableHead className="min-w-[60px]">Màu</TableHead>
                         <TableHead className="min-w-[70px]">Chất lượng</TableHead>
@@ -523,11 +524,12 @@ export function SalesTab({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {cart.map(item => {
+                      {cart.map((item, index) => {
                         const itemOriginalTotal = item.price * item.quantityInCart;
                         const itemFinalTotal = itemOriginalTotal - (item.itemDiscount || 0);
                         return (
                           <TableRow key={item.id}>
+                            <TableCell>{index + 1}</TableCell>
                             <TableCell className="py-2 align-middle">
                               <div className="flex items-center gap-2">
                                 <Image

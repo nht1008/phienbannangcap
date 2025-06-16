@@ -438,6 +438,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">STT</TableHead>
                     <TableHead>ID</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày</TableHead>
@@ -450,7 +451,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map(invoice => {
+                  {invoices.map((invoice, index) => {
                     const hasDebt = invoice.debtAmount && invoice.debtAmount > 0;
                     const actualInvoiceCost = invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
                     const tableDisplayTotal = invoice.total;
@@ -460,6 +461,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
 
                     return (
                       <TableRow key={invoice.id} className={ hasDebt ? 'bg-destructive/5 hover:bg-destructive/10' : ''}>
+                        <TableCell>{index + 1}</TableCell>
                         <TableCell>{invoice.id.substring(0,6)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>

@@ -142,6 +142,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">STT</TableHead>
                   <TableHead>Nhà cung cấp/Khách hàng</TableHead>
                   <TableHead>Ngày</TableHead>
                   <TableHead>Giờ</TableHead>
@@ -150,10 +151,11 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {debts.map(debt => {
+                {debts.map((debt, index) => {
                   const debtDate = new Date(debt.date);
                   return (
                     <TableRow key={debt.id}>
+                      <TableCell>{index + 1}</TableCell>
                       <TableCell>{debt.supplier || 'N/A'}</TableCell>
                       <TableCell>{debtDate.toLocaleDateString('vi-VN')}</TableCell>
                       <TableCell>{debtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>

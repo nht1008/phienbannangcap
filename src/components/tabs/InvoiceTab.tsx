@@ -128,7 +128,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     Object.values(returnItemsState).forEach(detail => {
       const quantityToReturnNum = parseInt(detail.quantityToReturn);
       if (quantityToReturnNum > 0) {
-        const originalItemDiscountPerUnit = (detail.itemDiscount || 0) / detail.originalQuantityInCart;
+        const originalItemDiscountPerUnit = detail.originalQuantityInCart > 0 ? (detail.itemDiscount || 0) / detail.originalQuantityInCart : 0;
         const effectivePricePerUnit = detail.price - originalItemDiscountPerUnit;
         totalRefund += effectivePricePerUnit * quantityToReturnNum;
       }
@@ -444,57 +444,64 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     <TableHead>Kích thước</TableHead>
                     <TableHead>Đơn vị</TableHead>
                     <TableHead className="text-right">Đơn giá</TableHead>
+                    <TableHead className="text-right">GG/SP</TableHead>
                     <TableHead className="text-center">Số lượng mua</TableHead>
                     <TableHead className="text-center w-40">Số lượng hoàn trả</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(returnItemsState).map(([productId, itemData]) => (
-                    <TableRow key={productId}>
-                      <TableCell className="font-medium">{itemData.name}</TableCell>
-                      <TableCell className="text-xs">{itemData.color}</TableCell>
-                      <TableCell className="text-xs">{itemData.quality || 'N/A'}</TableCell>
-                      <TableCell className="text-xs">{itemData.size}</TableCell>
-                      <TableCell className="text-xs">{itemData.unit}</TableCell>
-                      <TableCell className="text-right text-xs">{itemData.price.toLocaleString('vi-VN')} VNĐ</TableCell>
-                      <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7 shrink-0"
-                            onClick={() => handleReturnItemQuantityChange(productId, (parseInt(itemData.quantityToReturn) - 1).toString())}
-                            disabled={parseInt(itemData.quantityToReturn) <= 0}
-                            aria-label="Giảm số lượng hoàn trả"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <Input
-                            id={`return-qty-${productId}`}
-                            type="number"
-                            value={itemData.quantityToReturn}
-                            onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
-                            min="0"
-                            max={itemData.originalQuantityInCart.toString()}
-                            className="w-12 h-7 text-center text-sm hide-number-spinners px-1 bg-card"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7 shrink-0"
-                            onClick={() => handleReturnItemQuantityChange(productId, (parseInt(itemData.quantityToReturn) + 1).toString())}
-                            disabled={parseInt(itemData.quantityToReturn) >= itemData.originalQuantityInCart}
-                            aria-label="Tăng số lượng hoàn trả"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {Object.entries(returnItemsState).map(([productId, itemData]) => {
+                    const perUnitDiscount = itemData.originalQuantityInCart > 0 ? (itemData.itemDiscount || 0) / itemData.originalQuantityInCart : 0;
+                    return (
+                      <TableRow key={productId}>
+                        <TableCell className="font-medium">{itemData.name}</TableCell>
+                        <TableCell className="text-xs">{itemData.color}</TableCell>
+                        <TableCell className="text-xs">{itemData.quality || 'N/A'}</TableCell>
+                        <TableCell className="text-xs">{itemData.size}</TableCell>
+                        <TableCell className="text-xs">{itemData.unit}</TableCell>
+                        <TableCell className="text-right text-xs">{itemData.price.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right text-xs text-destructive">
+                          {perUnitDiscount > 0 ? `${perUnitDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}
+                        </TableCell>
+                        <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => handleReturnItemQuantityChange(productId, (parseInt(itemData.quantityToReturn) - 1).toString())}
+                              disabled={parseInt(itemData.quantityToReturn) <= 0}
+                              aria-label="Giảm số lượng hoàn trả"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Input
+                              id={`return-qty-${productId}`}
+                              type="number"
+                              value={itemData.quantityToReturn}
+                              onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
+                              min="0"
+                              max={itemData.originalQuantityInCart.toString()}
+                              className="w-12 h-7 text-center text-sm hide-number-spinners px-1 bg-card"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              onClick={() => handleReturnItemQuantityChange(productId, (parseInt(itemData.quantityToReturn) + 1).toString())}
+                              disabled={parseInt(itemData.quantityToReturn) >= itemData.originalQuantityInCart}
+                              aria-label="Tăng số lượng hoàn trả"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </ScrollArea>

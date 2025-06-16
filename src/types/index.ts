@@ -10,6 +10,7 @@ export interface Product {
   color: string;
   size: string;
   unit: string;
+  maxDiscountPerUnitVND?: number; // Max discount per unit in VND
 }
 
 export interface CartItem extends Product {
@@ -100,4 +101,3 @@ export interface ShopInfo {
   bankAccountNumber: string;
   bankName: string;
 }
-

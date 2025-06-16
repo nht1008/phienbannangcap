@@ -27,20 +27,27 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from 'next/image';
-import { PlusCircle, Trash2, Settings, Pencil, UploadCloud, Search } from 'lucide-react';
+import { PlusCircle, Trash2, Settings, Pencil, UploadCloud, Search, BadgePercent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { normalizeStringForSearch } from '@/lib/utils';
+import { normalizeStringForSearch, cn } from '@/lib/utils';
+import { Label } from '../ui/label';
 
-type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice'> & { quantity: string; price: string; costPrice: string; quality: string; };
+type FormProduct = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice' | 'maxDiscountPerUnitVND'> & { 
+  quantity: string; 
+  price: string; 
+  costPrice: string; 
+  quality: string; 
+  maxDiscountPerUnitVND: string; // Stored as string for form input (Nghin VND)
+};
 
 const initialFormProductState: FormProduct = {
-    name: '', color: '', quality: '', size: '', unit: '', quantity: '', costPrice: '', price: '', image: ''
+    name: '', color: '', quality: '', size: '', unit: '', quantity: '', costPrice: '', price: '', image: '', maxDiscountPerUnitVND: ''
 };
 
 interface InventoryTabProps {
   inventory: Product[];
   onAddProduct: (newProductData: Omit<Product, 'id'>) => Promise<void>;
-  onUpdateProduct: (productId: string, updatedProductData: Omit<Product, 'id'>) => Promise<void>;
+  onUpdateProduct: (productId: string, updatedProductData: Partial<Omit<Product, 'id'>>) => Promise<void>;
   onDeleteProduct: (productId: string) => Promise<void>;
   productNameOptions: string[];
   colorOptions: string[];
@@ -84,6 +91,11 @@ export function InventoryTab({
   const { toast } = useToast();
   const [inventorySearchQuery, setInventorySearchQuery] = useState('');
 
+  const [isSetMaxDiscountDialogOpen, setIsSetMaxDiscountDialogOpen] = useState(false);
+  const [productToSetMaxDiscount, setProductToSetMaxDiscount] = useState<Product | null>(null);
+  const [currentMaxDiscountInput, setCurrentMaxDiscountInput] = useState('');
+
+
   useEffect(() => {
     const defaultState = {
       ...initialFormProductState,
@@ -92,7 +104,8 @@ export function InventoryTab({
       quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
       size: sizeOptions.length > 0 ? sizeOptions[0] : '',
       unit: unitOptions.length > 0 ? unitOptions[0] : '',
-      image: `https://placehold.co/100x100.png`, // Default placeholder
+      image: `https://placehold.co/100x100.png`,
+      maxDiscountPerUnitVND: '', // Default to empty or perhaps '0'
     };
 
     if (isAddingProduct) {
@@ -105,6 +118,7 @@ export function InventoryTab({
             size: currentFormState.size || defaultState.size,
             unit: currentFormState.unit || defaultState.unit,
             image: currentFormState.image || defaultState.image,
+            maxDiscountPerUnitVND: currentFormState.maxDiscountPerUnitVND || defaultState.maxDiscountPerUnitVND,
         }));
         setImagePreview(newItem.image || defaultState.image); 
     } else {
@@ -124,6 +138,7 @@ export function InventoryTab({
             price: (productToEdit.price / 1000).toString(),
             costPrice: productToEdit.costPrice ? (productToEdit.costPrice / 1000).toString() : '',
             image: imageToUse,
+            maxDiscountPerUnitVND: productToEdit.maxDiscountPerUnitVND ? (productToEdit.maxDiscountPerUnitVND / 1000).toString() : '',
         });
         setEditedImagePreview(imageToUse);
     } else if (!isEditingProduct) {
@@ -162,7 +177,6 @@ export function InventoryTab({
        };
        reader.readAsDataURL(file);
      } else {
-        // If no file is selected or selection is cancelled, revert to a default placeholder
         const placeholder = `https://placehold.co/100x100.png`;
         formSetter(prev => ({ ...prev, image: placeholder }));
         previewSetter(placeholder);
@@ -171,24 +185,35 @@ export function InventoryTab({
   
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.color || !newItem.quality || !newItem.size || !newItem.unit || newItem.quantity === '' || newItem.costPrice === '' || newItem.price === '' || parseInt(newItem.quantity) < 0 || parseFloat(newItem.costPrice) < 0 || parseFloat(newItem.price) < 0) {
-      toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Chất lượng, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).", variant: "destructive"});
+    const priceNum = parseFloat(newItem.price);
+    const costPriceNum = parseFloat(newItem.costPrice) || 0; // Default to 0 if empty
+    const maxDiscountNum = parseFloat(newItem.maxDiscountPerUnitVND) || 0; // Default to 0 if empty
+    const quantityNum = parseInt(newItem.quantity);
+
+    if (!newItem.name || !newItem.color || !newItem.quality || !newItem.size || !newItem.unit || newItem.quantity === '' || newItem.price === '' || quantityNum < 0 || priceNum < 0 || costPriceNum < 0 || maxDiscountNum < 0) {
+      toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin sản phẩm hợp lệ. Số lượng, giá và giảm giá tối đa phải >= 0.", variant: "destructive"});
       return;
     }
-    if (parseFloat(newItem.price) <= parseFloat(newItem.costPrice)) {
+    if (priceNum <= costPriceNum && newItem.costPrice !== '') { // Only check if costPrice is entered
       toast({title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc.", variant: "destructive"});
       return;
     }
+    if (maxDiscountNum > priceNum) {
+      toast({title: "Lỗi", description: "Giảm giá tối đa không được vượt quá Giá bán.", variant: "destructive"});
+      return;
+    }
+
     const newProductData: Omit<Product, 'id'> = {
       name: newItem.name,
-      quantity: parseInt(newItem.quantity),
-      price: parseFloat(newItem.price) * 1000, 
-      costPrice: (parseFloat(newItem.costPrice) || 0) * 1000, 
+      quantity: quantityNum,
+      price: priceNum * 1000, 
+      costPrice: costPriceNum * 1000, 
       image: newItem.image || `https://placehold.co/100x100.png`,
       color: newItem.color,
       quality: newItem.quality,
       size: newItem.size,
       unit: newItem.unit,
+      maxDiscountPerUnitVND: maxDiscountNum * 1000,
     };
     await onAddProduct(newProductData);
     setNewItem({ 
@@ -212,24 +237,36 @@ export function InventoryTab({
 
   const handleUpdateExistingProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productToEdit || !editedItem.name || !editedItem.color || !editedItem.quality || !editedItem.size || !editedItem.unit || editedItem.quantity === '' || editedItem.costPrice === '' || editedItem.price === '' || parseInt(editedItem.quantity) < 0 || parseFloat(editedItem.costPrice) < 0 || parseFloat(editedItem.price) < 0) {
-      toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin hợp lệ cho sản phẩm (Tên, Màu sắc, Chất lượng, Kích thước, Đơn vị, Số lượng >= 0, Giá gốc >=0, Giá bán >= 0).", variant: "destructive"});
+    if (!productToEdit) return;
+
+    const priceNum = parseFloat(editedItem.price);
+    const costPriceNum = parseFloat(editedItem.costPrice) || 0;
+    const maxDiscountNum = parseFloat(editedItem.maxDiscountPerUnitVND) || 0;
+    const quantityNum = parseInt(editedItem.quantity);
+
+    if (!editedItem.name || !editedItem.color || !editedItem.quality || !editedItem.size || !editedItem.unit || editedItem.quantity === '' || editedItem.price === '' || quantityNum < 0 || priceNum < 0 || costPriceNum < 0 || maxDiscountNum < 0) {
+       toast({title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin sản phẩm hợp lệ. Số lượng, giá và giảm giá tối đa phải >= 0.", variant: "destructive"});
       return;
     }
-    if (parseFloat(editedItem.price) <= parseFloat(editedItem.costPrice)) {
+    if (priceNum <= costPriceNum && editedItem.costPrice !== '') {
       toast({title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc.", variant: "destructive"});
+      return;
+    }
+    if (maxDiscountNum > priceNum) {
+      toast({title: "Lỗi", description: "Giảm giá tối đa không được vượt quá Giá bán.", variant: "destructive"});
       return;
     }
     const updatedProductData: Omit<Product, 'id'> = {
       name: editedItem.name,
-      quantity: parseInt(editedItem.quantity),
-      price: parseFloat(editedItem.price) * 1000,
-      costPrice: (parseFloat(editedItem.costPrice) || 0) * 1000,
+      quantity: quantityNum,
+      price: priceNum * 1000,
+      costPrice: costPriceNum * 1000,
       image: editedItem.image || `https://placehold.co/100x100.png`,
       color: editedItem.color,
       quality: editedItem.quality,
       size: editedItem.size,
       unit: editedItem.unit,
+      maxDiscountPerUnitVND: maxDiscountNum * 1000,
     };
     await onUpdateProduct(productToEdit.id, updatedProductData);
     setIsEditingProduct(false);
@@ -280,6 +317,30 @@ export function InventoryTab({
     if (type === 'sizes') return 'Quản lý Kích thước';
     if (type === 'units') return 'Quản lý Đơn vị';
     return 'Quản lý tùy chọn';
+  };
+
+  const handleOpenSetMaxDiscountDialog = (product: Product) => {
+    setProductToSetMaxDiscount(product);
+    setCurrentMaxDiscountInput(product.maxDiscountPerUnitVND ? (product.maxDiscountPerUnitVND / 1000).toString() : '0');
+    setIsSetMaxDiscountDialogOpen(true);
+  };
+
+  const handleSaveMaxDiscount = async () => {
+    if (!productToSetMaxDiscount) return;
+    const newMaxDiscountNghin = parseFloat(currentMaxDiscountInput);
+    if (isNaN(newMaxDiscountNghin) || newMaxDiscountNghin < 0) {
+      toast({ title: "Lỗi", description: "Số tiền giảm giá tối đa không hợp lệ.", variant: "destructive" });
+      return;
+    }
+    if ((newMaxDiscountNghin * 1000) > productToSetMaxDiscount.price) {
+       toast({ title: "Lỗi", description: "Giảm giá tối đa không được vượt quá giá bán của sản phẩm.", variant: "destructive" });
+      return;
+    }
+
+    await onUpdateProduct(productToSetMaxDiscount.id, { maxDiscountPerUnitVND: newMaxDiscountNghin * 1000 });
+    toast({ title: "Thành công", description: "Đã cập nhật giới hạn giảm giá." });
+    setIsSetMaxDiscountDialogOpen(false);
+    setProductToSetMaxDiscount(null);
   };
 
   const renderProductForm = (
@@ -374,15 +435,19 @@ export function InventoryTab({
                 <Input type="number" name="quantity" value={formState.quantity} onChange={(e) => handleInputChange(e, formSetter)} required min="0" className="bg-card"/>
             </div>
             <div>
-                <label className="text-sm text-foreground">Giá gốc (Nghìn VND) (*)</label>
-                <Input type="number" name="costPrice" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} required min="0" step="any" className="bg-card"/>
+                <label className="text-sm text-foreground">Giá gốc (Nghìn VND)</label>
+                <Input type="number" name="costPrice" placeholder="Bỏ trống nếu không có" value={formState.costPrice} onChange={(e) => handleInputChange(e, formSetter)} min="0" step="any" className="bg-card"/>
             </div>
             <div>
                 <label className="text-sm text-foreground">Giá bán (Nghìn VND) (*)</label>
                 <Input type="number" name="price" value={formState.price} onChange={(e) => handleInputChange(e, formSetter)} required min="0" step="any" className="bg-card"/>
             </div>
+             <div>
+                <label className="text-sm text-foreground">Giảm giá tối đa / ĐV (Nghìn VND)</label>
+                <Input type="number" name="maxDiscountPerUnitVND" placeholder="Mặc định là 0 (không giới hạn)" value={formState.maxDiscountPerUnitVND} onChange={(e) => handleInputChange(e, formSetter)} min="0" step="any" className="bg-card"/>
+            </div>
             
-            <div className="md:col-span-2 flex flex-col">
+            <div className="md:col-span-1 flex flex-col"> {/* Adjusted span to make room */}
                 <label htmlFor={isEditMode ? "editImageFile" : "newImageFile"} className="text-sm text-foreground mb-1">Hình ảnh sản phẩm</label>
                 <div className="flex items-center gap-4">
                     <Input
@@ -392,24 +457,27 @@ export function InventoryTab({
                         onChange={(e) => handleImageChange(e, formSetter, isEditMode ? setEditedImagePreview : setImagePreview)}
                         className="bg-card flex-grow w-auto"
                     />
-                    {displayImage && (
-                        <Image
-                            src={displayImage}
-                            alt="Xem trước hình ảnh"
-                            width={60}
-                            height={60}
-                            className="rounded-md object-cover border aspect-square"
-                            data-ai-hint="flower product"
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://placehold.co/60x60.png';
-                            }}
-                        />
-                    )}
                 </div>
             </div>
+             {displayImage && (
+                 <div className="md:col-span-1 flex items-end justify-center"> {/* Image preview takes one slot */}
+                    <Image
+                        src={displayImage}
+                        alt="Xem trước hình ảnh"
+                        width={60}
+                        height={60}
+                        className="rounded-md object-cover border aspect-square"
+                        data-ai-hint="flower product"
+                        onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://placehold.co/60x60.png';
+                        }}
+                    />
+                </div>
+            )}
 
-            <div className="md:col-span-2 flex justify-end items-end gap-2 mt-2 md:mt-0">
+
+            <div className={cn("flex justify-end items-end gap-2 mt-2 md:mt-0", displayImage ? "md:col-span-1" : "md:col-span-2")}> {/* Button span adjusts */}
                 {isEditMode && (
                     <Button 
                         type="button" 
@@ -527,6 +595,7 @@ export function InventoryTab({
                   <TableHead key="h-quantity" className="text-right">Số lượng</TableHead>,
                   <TableHead key="h-costPrice" className="text-right">Giá gốc</TableHead>,
                   <TableHead key="h-price" className="text-right">Giá bán</TableHead>,
+                  <TableHead key="h-maxDiscount" className="text-right">Tối đa GG/ĐV</TableHead>,
                   <TableHead key="h-actions" className="text-center">Hành động</TableHead>,
                 ]}
               </TableRow>
@@ -556,11 +625,17 @@ export function InventoryTab({
                   <TableCell className="text-right">{item.quantity}</TableCell>
                   <TableCell className="text-right">{(item.costPrice ?? 0).toLocaleString('vi-VN')} VNĐ</TableCell>
                   <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
-                  <TableCell className="text-center space-x-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)}>
+                  <TableCell className="text-right text-sm text-muted-foreground">
+                    {(item.maxDiscountPerUnitVND ?? 0) > 0 ? `${(item.maxDiscountPerUnitVND! / 1000).toLocaleString('vi-VN')}K` : 'Không GH'}
+                  </TableCell>
+                  <TableCell className="text-center space-x-1">
+                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleOpenSetMaxDiscountDialog(item)} title="Giới hạn giảm giá">
+                        <BadgePercent className="h-4 w-4 text-blue-600" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(item)} title="Sửa sản phẩm">
                         <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(item)}>
+                    <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => openDeleteConfirmDialog(item)} title="Xóa sản phẩm">
                         <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -568,7 +643,7 @@ export function InventoryTab({
               ))}
               {filteredInventory.length === 0 && !isAddingProduct && !isEditingProduct && (
                 <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
                       {inventorySearchQuery ? `Không tìm thấy sản phẩm nào với "${inventorySearchQuery}".` : "Chưa có sản phẩm nào. Hãy thêm sản phẩm mới."}
                     </TableCell>
                 </TableRow>
@@ -648,12 +723,45 @@ export function InventoryTab({
           </DialogContent>
         </Dialog>
       )}
+
+      {isSetMaxDiscountDialogOpen && productToSetMaxDiscount && (
+        <Dialog open={isSetMaxDiscountDialogOpen} onOpenChange={() => {setIsSetMaxDiscountDialogOpen(false); setProductToSetMaxDiscount(null);}}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Giới hạn giảm giá cho sản phẩm</DialogTitle>
+              <DialogDescription>
+                Đặt mức giảm giá tối đa cho phép trên mỗi đơn vị sản phẩm.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <p className="text-sm">
+                    <strong>Sản phẩm:</strong> {productToSetMaxDiscount.name} ({productToSetMaxDiscount.color}, {productToSetMaxDiscount.quality || 'N/A'}, {productToSetMaxDiscount.size}, {productToSetMaxDiscount.unit})
+                </p>
+                <p className="text-sm">
+                    <strong>Giá bán hiện tại / đơn vị:</strong> {(productToSetMaxDiscount.price / 1000).toLocaleString('vi-VN')} Nghìn VNĐ
+                </p>
+              <div>
+                <Label htmlFor="maxDiscountInput">Giảm giá tối đa / đơn vị (Nghìn VND)</Label>
+                <Input
+                  id="maxDiscountInput"
+                  type="number"
+                  value={currentMaxDiscountInput}
+                  onChange={(e) => setCurrentMaxDiscountInput(e.target.value)}
+                  placeholder="VD: 5 (cho 5.000 VNĐ)"
+                  min="0"
+                  step="any"
+                  className="bg-card"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Nhập 0 nếu không muốn giới hạn hoặc không cho phép giảm giá.</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {setIsSetMaxDiscountDialogOpen(false); setProductToSetMaxDiscount(null);}}>Hủy</Button>
+              <Button onClick={handleSaveMaxDiscount} className="bg-primary text-primary-foreground">Lưu giới hạn</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }
-    
-
-    
-
-
-

@@ -224,6 +224,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>ID HĐ</TableHead>
                     <TableHead>Khách hàng</TableHead>
                     <TableHead>Ngày</TableHead>
                     <TableHead>Giờ</TableHead>
@@ -242,6 +243,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                     const invoiceDate = new Date(invoice.date);
                     return (
                       <TableRow key={invoice.id}>
+                        <TableCell>{invoice.id.substring(0,8)}...</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>{invoiceDate.toLocaleDateString('vi-VN')}</TableCell>
                         <TableCell>{invoiceDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</TableCell>
@@ -280,12 +282,12 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl">Chi tiết hóa đơn #{selectedInvoiceDetails.id.substring(0,6)}...</DialogTitle>
-                  <DialogDescription asChild>
-                    <div>
-                      <p><strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName}</p>
-                      <p><strong>Ngày tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleDateString('vi-VN')}</p>
-                      <p><strong>Giờ tạo:</strong> {new Date(selectedInvoiceDetails.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
-                    </div>
+                   <DialogDescription asChild>
+                     <div>
+                        <p><strong>Khách hàng:</strong> {selectedInvoiceDetails.customerName}</p>
+                        <p><strong>Ngày:</strong> {new Date(selectedInvoiceDetails.date).toLocaleDateString('vi-VN')}</p>
+                        <p><strong>Giờ:</strong> {new Date(selectedInvoiceDetails.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                     </div>
                   </DialogDescription>
                 </DialogHeader>
                 <Separator className="my-4" />

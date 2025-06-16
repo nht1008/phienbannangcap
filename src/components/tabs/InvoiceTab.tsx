@@ -429,7 +429,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
       {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && (
         <Dialog open={isReturnItemsDialogOpen} onOpenChange={setIsReturnItemsDialogOpen}>
-          <DialogContent className="sm:max-w-3xl">
+          <DialogContent className="sm:max-w-5xl">
             <DialogHeader>
               <DialogTitle>Hoàn trả sản phẩm cho HĐ #{currentInvoiceForReturnDialog.id.substring(0,6)}</DialogTitle>
               <DialogDescription>Chọn sản phẩm và số lượng muốn hoàn trả. Các sản phẩm sẽ được cộng lại vào kho.</DialogDescription>

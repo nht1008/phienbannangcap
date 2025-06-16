@@ -73,6 +73,7 @@ interface ProductPerformance {
   currentStock: number;
   soldInPeriod: number;
   revenueInPeriod: number;
+  profitInPeriod: number;
 }
 
 
@@ -246,6 +247,8 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
     return inventory.map(invProduct => {
       const key = `${invProduct.name}-${invProduct.color}-${invProduct.quality || 'N/A'}-${invProduct.size}-${invProduct.unit}`;
       const salesInfo = salesMap[key] || { sold: 0, revenue: 0, image: invProduct.image };
+      const totalCostForSoldUnits = (invProduct.costPrice || 0) * salesInfo.sold;
+      const profit = salesInfo.revenue - totalCostForSoldUnits;
       return {
         id: invProduct.id,
         key,
@@ -258,6 +261,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
         currentStock: invProduct.quantity,
         soldInPeriod: salesInfo.sold,
         revenueInPeriod: salesInfo.revenue,
+        profitInPeriod: profit,
       };
     });
   }, [invoices, inventory]);
@@ -628,6 +632,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
                     <TableHead>ĐV</TableHead>
                     <TableHead className="text-right">SL Bán</TableHead>
                     <TableHead className="text-right">Doanh thu</TableHead>
+                    <TableHead className="text-right">Lợi nhuận</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -652,6 +657,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
                       <TableCell>{product.unit}</TableCell>
                       <TableCell className="text-right">{product.soldInPeriod}</TableCell>
                       <TableCell className="text-right">{product.revenueInPeriod.toLocaleString('vi-VN')} VNĐ</TableCell>
+                      <TableCell className="text-right">{product.profitInPeriod.toLocaleString('vi-VN')} VNĐ</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

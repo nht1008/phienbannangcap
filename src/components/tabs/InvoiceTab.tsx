@@ -464,7 +464,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           {perUnitDiscount > 0 ? `${perUnitDiscount.toLocaleString('vi-VN')} VNĐ` : '-'}
                         </TableCell>
                         <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center w-40">
                           <div className="flex items-center justify-center gap-1">
                             <Button
                               type="button"

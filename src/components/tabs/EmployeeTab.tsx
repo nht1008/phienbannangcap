@@ -366,7 +366,7 @@ export function EmployeeTab({ employees, currentUser, invoices, debts, numericDi
                  <Card className="bg-chart-3/10 border-[hsl(var(--chart-3))]">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold text-[hsl(var(--chart-3))]">Tổng giao dịch</CardTitle>
-                    <CardDescription className="text-xs">(Tổng tiền bán hàng + Tổng thu nợ, theo bộ lọc)</CardDescription>
+                    <CardDescription className="text-xs">Đây là tổng số tiền mà nhân viên đang cầm (không tính số tiền gốc đã đưa cho)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className={cn("font-bold text-[hsl(var(--chart-3))]", numericDisplaySize)}>{totalTransactions.toLocaleString('vi-VN')} VNĐ</p>

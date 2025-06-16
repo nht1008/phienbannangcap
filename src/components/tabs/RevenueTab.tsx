@@ -61,11 +61,6 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const { month: filterMonth, year: filterYear } = filterProp;
 
-  // This is used for the chart, which specifically states it only counts non-debt invoices
-  const invoicesWithoutDebtForChart = useMemo(() => {
-    return invoices.filter(inv => !inv.debtAmount || inv.debtAmount === 0);
-  }, [invoices]);
-
   const { chartData, chartTitle, chartDescription } = useMemo(() => {
     let newChartTitle = "Biểu đồ doanh thu";
     let newChartDescription = "Hiển thị doanh thu, giá gốc và lợi nhuận của cửa hàng.";
@@ -76,12 +71,12 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
         return invoice.items.reduce((sum, item) => sum + (item.costPrice ?? 0) * item.quantityInCart, 0);
     };
 
-    // Use invoicesWithoutDebtForChart for chart calculations
-    const invoicesForChart = invoicesWithoutDebtForChart;
+    // Use all invoices (passed via props, already filtered by date) for chart calculations
+    const invoicesForChart = invoices;
 
     if (filterMonth !== 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}/${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày. (Chỉ tính hóa đơn không có nợ)`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth}, Năm ${filterYear}. Trục X hiển thị ngày. (Tính tất cả hóa đơn)`;
 
         const yearNum = parseInt(filterYear);
         const monthNum = parseInt(filterMonth);
@@ -96,7 +91,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             const dateObj = new Date(invoice.date);
             if (dateObj.getFullYear() === yearNum && (dateObj.getMonth() + 1) === monthNum) {
                 const dayStr = dateObj.getDate().toString();
-                if (aggregatedData[dayStr]) { // Already filtered by invoicesWithoutDebtForChart
+                if (aggregatedData[dayStr]) {
                      aggregatedData[dayStr].doanhthu += invoice.total;
                      aggregatedData[dayStr].giagoc += calculateInvoiceCost(invoice);
                 }
@@ -114,7 +109,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
 
     } else if (filterMonth !== 'all' /* && filterYear === 'all' */) {
         newChartTitle = `Phân tích ngày (Tháng ${filterMonth}, các năm)`;
-        newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm. (Chỉ tính hóa đơn không có nợ)`;
+        newChartDescription = `Tổng hợp doanh thu, giá gốc, lợi nhuận hàng ngày cho Tháng ${filterMonth} qua các năm. (Tính tất cả hóa đơn)`;
 
         invoicesForChart.forEach(invoice => {
             const dateObj = new Date(invoice.date);
@@ -146,7 +141,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
 
     } else if (filterMonth === 'all' && filterYear !== 'all') {
         newChartTitle = `Phân tích theo tháng (Năm ${filterYear})`;
-        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng tháng trong Năm ${filterYear}. (Chỉ tính hóa đơn không có nợ)`;
+        newChartDescription = `Doanh thu, giá gốc, lợi nhuận hàng tháng trong Năm ${filterYear}. (Tính tất cả hóa đơn)`;
         const yearNum = parseInt(filterYear);
         for (let m = 1; m <= 12; m++) {
             const monthKey = m.toString().padStart(2, '0');
@@ -174,7 +169,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
 
     } else { // filterMonth === 'all' && filterYear === 'all'
         newChartTitle = "Phân tích theo năm";
-        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Chỉ tính hóa đơn không có nợ)";
+        newChartDescription = "Tổng doanh thu, giá gốc và lợi nhuận mỗi năm. (Tính tất cả hóa đơn)";
         invoicesForChart.forEach(invoice => {
             const yearKey = new Date(invoice.date).getFullYear().toString();
             if (!aggregatedData[yearKey]) {
@@ -188,13 +183,13 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
             .sort((a,b) => parseInt(a.name) - parseInt(b.name));
     }
     return { chartData: finalChartData, chartTitle: newChartTitle, chartDescription: newChartDescription };
-  }, [invoicesWithoutDebtForChart, filterMonth, filterYear]); // Use invoicesWithoutDebtForChart for chart
+  }, [invoices, filterMonth, filterYear]);
 
 
   // Calculations for summary cards - use all invoices within the filter period
   const totalRevenue = useMemo(() =>
     invoices.reduce((sum, inv) => sum + inv.total, 0),
-    [invoices] // Use all filtered invoices
+    [invoices]
   );
 
   const totalCostPriceForPeriod = useMemo(() =>
@@ -202,7 +197,7 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
       const invoiceCost = invoice.items.reduce((itemSum, item) => itemSum + (item.costPrice ?? 0) * item.quantityInCart, 0);
       return totalCost + invoiceCost;
     }, 0),
-    [invoices] // Use all filtered invoices
+    [invoices]
   );
 
   const totalProfitForPeriod = useMemo(() => totalRevenue - totalCostPriceForPeriod, [totalRevenue, totalCostPriceForPeriod]);
@@ -480,3 +475,5 @@ export function RevenueTab({ invoices, filter: filterProp, onFilterChange, avail
     </div>
   );
 }
+
+    

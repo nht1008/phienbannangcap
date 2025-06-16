@@ -53,7 +53,7 @@ interface SalesTabProps {
   cart: CartItem[];
   onAddToCart: (item: Product) => void;
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
-  onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean; // Updated signature
+  onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
   onClearCart: () => void;
   productQualityOptions: string[];
 }
@@ -124,7 +124,8 @@ export function SalesTab({
   const areAllItemDiscountsValid = useMemo(() => {
     return cart.every(item => {
       const itemOriginalTotal = item.price * item.quantityInCart;
-      return (item.itemDiscount || 0) <= itemOriginalTotal && (item.itemDiscount || 0) >= 0;
+      return (item.itemDiscount === undefined || item.itemDiscount === null || item.itemDiscount >= 0) &&
+             (item.itemDiscount === undefined || item.itemDiscount === null || item.itemDiscount <= itemOriginalTotal);
     });
   }, [cart]);
 
@@ -364,11 +365,11 @@ export function SalesTab({
   }, [inventory, selectedProductNameForVariants, variantSelection]);
 
   const handleItemDiscountInputChange = (itemId: string, discountStr: string) => {
-    const wasInvalidInput = onItemDiscountChange(itemId, discountStr); 
+    const wasInvalidInput = onItemDiscountChange(itemId, discountStr);
     if (wasInvalidInput) {
       showLocalNotification("Giá trị Giảm giá không được lớn hơn tổng số tiền", "error");
     } else {
-      if (localNotification && localNotification.includes("Giảm giá")) {
+      if (localNotification === "Giá trị Giảm giá không được lớn hơn tổng số tiền") {
         setLocalNotification(null);
       }
     }
@@ -918,5 +919,6 @@ export function SalesTab({
     </>
   );
 }
+
 
 

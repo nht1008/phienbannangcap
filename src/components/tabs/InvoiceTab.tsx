@@ -393,7 +393,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
       {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && (
         <Dialog open={isReturnItemsDialogOpen} onOpenChange={setIsReturnItemsDialogOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Hoàn trả sản phẩm cho HĐ #{currentInvoiceForReturnDialog.id.substring(0,6)}</DialogTitle>
               <DialogDescription>Chọn sản phẩm và số lượng muốn hoàn trả. Các sản phẩm sẽ được cộng lại vào kho.</DialogDescription>
@@ -402,8 +402,11 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-2/5">Sản phẩm</TableHead>
-                    <TableHead>Thuộc tính</TableHead>
+                    <TableHead className="min-w-[120px]">Sản phẩm</TableHead>
+                    <TableHead>Màu</TableHead>
+                    <TableHead>CL</TableHead>
+                    <TableHead>K.Thước</TableHead>
+                    <TableHead>ĐV</TableHead>
                     <TableHead className="text-right">Giá</TableHead>
                     <TableHead className="text-center">Đã mua</TableHead>
                     <TableHead className="text-center w-28">Hoàn trả</TableHead>
@@ -413,9 +416,10 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   {Object.entries(returnItemsState).map(([productId, itemData]) => (
                     <TableRow key={productId}>
                       <TableCell className="font-medium">{itemData.name}</TableCell>
-                      <TableCell className="text-xs">
-                        {itemData.color}, {itemData.quality || 'N/A'}, {itemData.size}, {itemData.unit}
-                      </TableCell>
+                      <TableCell className="text-xs">{itemData.color}</TableCell>
+                      <TableCell className="text-xs">{itemData.quality || 'N/A'}</TableCell>
+                      <TableCell className="text-xs">{itemData.size}</TableCell>
+                      <TableCell className="text-xs">{itemData.unit}</TableCell>
                       <TableCell className="text-right text-xs">{itemData.price.toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
                       <TableCell className="text-center">

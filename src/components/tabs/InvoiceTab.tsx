@@ -129,7 +129,9 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
       const quantityToReturnNum = parseInt(detail.quantityToReturn);
       if (quantityToReturnNum > 0) {
         const originalItemDiscountPerUnit = detail.originalQuantityInCart > 0 ? (detail.itemDiscount || 0) / detail.originalQuantityInCart : 0;
-        const effectivePricePerUnit = detail.price - originalItemDiscountPerUnit;
+        // Price customer paid per unit = detail.price - originalItemDiscountPerUnit
+        // User wants: (price_customer_paid_per_unit) + originalItemDiscountPerUnit which simplifies to detail.price
+        const effectivePricePerUnit = (detail.price - originalItemDiscountPerUnit) + originalItemDiscountPerUnit;
         totalRefund += effectivePricePerUnit * quantityToReturnNum;
       }
     });

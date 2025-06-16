@@ -411,7 +411,16 @@ export function SalesTab({
                                 }}
                                 className="cursor-pointer"
                               >
-                                <div className="grid grid-cols-[2fr_1fr_1fr_1fr_0.5fr_1fr_0.5fr] gap-x-2 items-center w-full text-xs py-1">
+                                <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto_auto] gap-x-2 items-center w-full text-xs py-1">
+                                  <Image
+                                    src={variant.image || `https://placehold.co/24x24.png`}
+                                    alt={variant.name}
+                                    width={24}
+                                    height={24}
+                                    className="w-6 h-6 rounded object-cover aspect-square border"
+                                    data-ai-hint={`${variant.name.split(' ')[0]} flower`}
+                                    onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/24x24.png')}
+                                  />
                                   <span className="font-medium truncate" title={variant.name}>{variant.name}</span>
                                   <span className="truncate" title={variant.color}>{variant.color}</span>
                                   <span className="truncate" title={variant.quality || ''}>{variant.quality || 'N/A'}</span>
@@ -601,7 +610,7 @@ export function SalesTab({
               <Button
                 onClick={handleOpenPaymentDialog}
                 className="w-full bg-green-500 text-white hover:bg-green-600 text-lg py-3 h-auto"
-                disabled={cart.length === 0 || !areAllItemDiscountsValid}
+                disabled={cart.length === 0 || !areAllItemDiscountsValid || (localNotification !== null && localNotificationType === 'error')}
               >
                 Thanh toán
               </Button>

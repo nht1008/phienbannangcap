@@ -1,8 +1,9 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Product, ProductOptionType } from '@/types';
+import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -70,7 +71,15 @@ interface InventoryTabProps {
   onAddOption: (type: ProductOptionType, name: string) => Promise<void>;
   onDeleteOption: (type: ProductOptionType, name: string) => Promise<void>;
   hasFullAccessRights: boolean;
-  onDisposeProductItems: (productId: string, quantityToDecrease: number, reason: string) => Promise<void>;
+  onDisposeProductItems: (
+    productId: string, 
+    quantityToDecrease: number, 
+    reason: string,
+    productDetails: Pick<Product, 'name' | 'color' | 'quality' | 'size' | 'unit' | 'image'>,
+    employeeId: string,
+    employeeName: string
+  ) => Promise<void>;
+  currentUser: User | null;
 }
 
 
@@ -87,7 +96,8 @@ export function InventoryTab({
   onAddOption,
   onDeleteOption,
   hasFullAccessRights,
-  onDisposeProductItems
+  onDisposeProductItems,
+  currentUser
 }: InventoryTabProps) {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newItem, setNewItem] = useState<FormProduct>(initialFormProductState);
@@ -112,8 +122,7 @@ export function InventoryTab({
   const [productToSetMaxDiscount, setProductToSetMaxDiscount] = useState<Product | null>(null);
   const [currentMaxDiscountInput, setCurrentMaxDiscountInput] = useState('');
 
-  // State for disposal section
-  const [selectedProductForDisposal, setSelectedProductForDisposal] = useState<Product | null>(null);
+  const [selectedProductForDisposal, setSelectedProductForDisposal] = useState<(Product & {displayLabel: string}) | null>(null);
   const [quantityToDispose, setQuantityToDispose] = useState('');
   const [disposeReason, setDisposeReason] = useState('');
   const [isDisposeComboboxOpen, setIsDisposeComboboxOpen] = useState(false);
@@ -548,7 +557,7 @@ export function InventoryTab({
 
   const distinctInventoryForDisposal = useMemo(() => {
     return inventory
-      .filter(p => p.quantity > 0) // Only products with stock can be disposed
+      .filter(p => p.quantity > 0) 
       .map(p => ({
         ...p,
         displayLabel: `${p.name} - ${p.color} - ${p.quality || ''} - ${p.size} - ${p.unit} (Tồn: ${p.quantity})`.replace(/\s-\s-/g, ' - ')
@@ -556,8 +565,8 @@ export function InventoryTab({
   }, [inventory]);
 
   const handleConfirmDisposal = async () => {
-    if (!selectedProductForDisposal || !quantityToDispose) {
-        toast({ title: "Thiếu thông tin", description: "Vui lòng chọn sản phẩm và nhập số lượng cần loại bỏ.", variant: "destructive" });
+    if (!selectedProductForDisposal || !quantityToDispose || !currentUser) {
+        toast({ title: "Thiếu thông tin", description: "Vui lòng chọn sản phẩm, nhập số lượng cần loại bỏ và đảm bảo bạn đã đăng nhập.", variant: "destructive" });
         return;
     }
     const qty = parseInt(quantityToDispose);
@@ -570,7 +579,23 @@ export function InventoryTab({
         return;
     }
 
-    await onDisposeProductItems(selectedProductForDisposal.id, qty, disposeReason.trim());
+    const productDetailsToLog = {
+      name: selectedProductForDisposal.name,
+      color: selectedProductForDisposal.color,
+      quality: selectedProductForDisposal.quality,
+      size: selectedProductForDisposal.size,
+      unit: selectedProductForDisposal.unit,
+      image: selectedProductForDisposal.image
+    };
+
+    await onDisposeProductItems(
+      selectedProductForDisposal.id, 
+      qty, 
+      disposeReason.trim(),
+      productDetailsToLog,
+      currentUser.uid,
+      currentUser.displayName || currentUser.email || "Không rõ"
+    );
     setSelectedProductForDisposal(null);
     setQuantityToDispose('');
     setDisposeReason('');
@@ -773,7 +798,7 @@ export function InventoryTab({
                                             value={variant.id}
                                             onSelect={(currentValue) => {
                                                 const product = inventory.find(p => p.id === currentValue);
-                                                setSelectedProductForDisposal(product ? {...product, displayLabel: variant.displayLabel} as Product & {displayLabel: string} : null);
+                                                setSelectedProductForDisposal(product ? {...product, displayLabel: variant.displayLabel} as (Product & {displayLabel: string}) : null);
                                                 setDisposeSearchQuery("");
                                                 setIsDisposeComboboxOpen(false);
                                             }}
@@ -824,7 +849,7 @@ export function InventoryTab({
                 <Button 
                     onClick={handleConfirmDisposal} 
                     className="w-full md:w-auto bg-orange-500 hover:bg-orange-600 text-white"
-                    disabled={!selectedProductForDisposal || !quantityToDispose || parseInt(quantityToDispose) <= 0}
+                    disabled={!selectedProductForDisposal || !quantityToDispose || parseInt(quantityToDispose) <= 0 || !currentUser}
                 >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Xác nhận loại bỏ
@@ -955,4 +980,3 @@ export function InventoryTab({
     </Card>
   );
 }
-

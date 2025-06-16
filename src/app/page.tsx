@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
@@ -133,6 +133,7 @@ interface FleurManagerLayoutContentProps {
   invoicesData: Invoice[];
   debtsData: Debt[];
   employeesData: Employee[];
+  disposalLogEntries: DisposalLogEntry[];
   shopInfo: ShopInfo | null;
   isLoadingShopInfo: boolean;
   cart: CartItem[];
@@ -187,12 +188,19 @@ interface FleurManagerLayoutContentProps {
   handleDebtFilterChange: (newFilter: DateFilter) => void;
   handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
   handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
-  handleDisposeProductItems: (productId: string, quantityToDecrease: number, reason: string) => Promise<void>;
+  handleDisposeProductItems: (
+    productId: string, 
+    quantityToDecrease: number, 
+    reason: string, 
+    productDetails: Pick<Product, 'name' | 'color' | 'quality' | 'size' | 'unit' | 'image'>,
+    employeeId: string,
+    employeeName: string
+  ) => Promise<void>;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const {
-    currentUser, activeTab, setActiveTab, inventory, customersData, invoicesData, debtsData, employeesData,
+    currentUser, activeTab, setActiveTab, inventory, customersData, invoicesData, debtsData, employeesData, disposalLogEntries,
     shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
@@ -254,6 +262,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onDeleteOption={handleDeleteProductOption}
                     hasFullAccessRights={hasFullAccessRights}
                     onDisposeProductItems={handleDisposeProductItems}
+                    currentUser={currentUser}
                   />,
     'Nhập hàng': <ImportTab
                     inventory={inventory}
@@ -284,6 +293,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     'Doanh thu': <RevenueTab
                   invoices={filteredInvoicesForRevenue}
                   inventory={inventory}
+                  disposalLogEntries={disposalLogEntries}
                   filter={revenueFilter}
                   onFilterChange={handleRevenueFilterChange}
                   availableYears={availableInvoiceYears}
@@ -310,7 +320,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     isCurrentUserAdmin={isCurrentUserAdmin}
                   />,
   }), [
-      inventory, customersData, invoicesData, debtsData, employeesData, cart, currentUser, numericDisplaySize,
+      inventory, customersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
       filteredDebtsForDebtTab, debtFilter, availableInvoiceYears, availableDebtYears, isCurrentUserAdmin, hasFullAccessRights,
@@ -522,6 +532,7 @@ export default function FleurManagerPage() {
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
+  const [disposalLogEntries, setDisposalLogEntries] = useState<DisposalLogEntry[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -630,7 +641,20 @@ export default function FleurManagerPage() {
         setShopInfo(null);
         setIsLoadingShopInfo(false);
     }
-    return () => { unsubscribeEmployees(); unsubscribeShopInfo(); };
+
+    const disposalLogRef = ref(db, 'disposalLog');
+    const unsubscribeDisposalLog = onValue(disposalLogRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedEntries: DisposalLogEntry[] = [];
+      if (data) {
+        Object.keys(data).forEach(key => {
+          loadedEntries.push({ id: key, ...data[key] });
+        });
+      }
+      setDisposalLogEntries(loadedEntries.sort((a,b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
+    });
+
+    return () => { unsubscribeEmployees(); unsubscribeShopInfo(); unsubscribeDisposalLog(); };
   }, [currentUser, authLoading, hasFullAccessRights, toast]);
 
 
@@ -753,7 +777,7 @@ export default function FleurManagerPage() {
         total: finalTotal,
         date: new Date().toISOString(),
         paymentMethod,
-        discount: 0, 
+        discount: 0, // Overall invoice discount is now always 0
         amountPaid,
         employeeId,
         employeeName: employeeName || 'Không rõ',
@@ -789,7 +813,7 @@ export default function FleurManagerPage() {
   }, [toast, onClearCart]);
   
   const handleProcessInvoiceCancellationOrReturn = useCallback(async (invoiceId: string, operationType: 'delete' | 'return', itemsToReturnArray?: Array<{ productId: string; name: string; quantityToReturn: number }>) => {
-    const canPerformOperation = operationType === 'delete' ? hasFullAccessRights : true; // Employees can return, only managers/admins can delete
+    const canPerformOperation = operationType === 'delete' ? hasFullAccessRights : true;
     if (!canPerformOperation) {
       toast({ title: "Không có quyền", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return false;
@@ -1000,7 +1024,14 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleDisposeProductItems = useCallback(async (productId: string, quantityToDecrease: number, reason: string) => {
+  const handleDisposeProductItems = useCallback(async (
+    productId: string, 
+    quantityToDecrease: number, 
+    reason: string,
+    productDetails: Pick<Product, 'name' | 'color' | 'quality' | 'size' | 'unit' | 'image'>,
+    employeeId: string,
+    employeeName: string
+  ) => {
     if (!hasFullAccessRights) {
       toast({ title: "Không có quyền", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
@@ -1017,8 +1048,25 @@ export default function FleurManagerPage() {
         }
         await update(productRef, { quantity: newQuantity });
         
+        // Log disposal
+        const newDisposalLogRef = push(ref(db, 'disposalLog'));
+        const logEntry: Omit<DisposalLogEntry, 'id'> = {
+          productId,
+          productName: productDetails.name,
+          color: productDetails.color,
+          quality: productDetails.quality,
+          size: productDetails.size,
+          unit: productDetails.unit,
+          image: productDetails.image,
+          quantityDisposed: quantityToDecrease,
+          reason: reason || 'Không có lý do',
+          disposalDate: new Date().toISOString(),
+          employeeId,
+          employeeName,
+        };
+        await set(newDisposalLogRef, logEntry);
         
-        toast({ title: "Thành công", description: `Đã loại bỏ ${quantityToDecrease} ${currentProduct.unit} ${currentProduct.name}. Lý do: ${reason || 'Không có lý do'}. Kho đã cập nhật.`, variant: "default" });
+        toast({ title: "Thành công", description: `Đã loại bỏ ${quantityToDecrease} ${currentProduct.unit} ${currentProduct.name}. Lý do: ${reason || 'Không có lý do'}. Kho và nhật ký đã cập nhật.`, variant: "default" });
 
       } else {
         throw new Error(`Sản phẩm ID ${productId} không tồn tại để cập nhật số lượng.`);
@@ -1052,6 +1100,7 @@ export default function FleurManagerPage() {
         invoicesData={invoicesData}
         debtsData={debtsData}
         employeesData={employeesData}
+        disposalLogEntries={disposalLogEntries}
         shopInfo={shopInfo}
         isLoadingShopInfo={isLoadingShopInfo}
         cart={cart}

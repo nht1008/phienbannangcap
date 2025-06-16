@@ -52,7 +52,7 @@ export interface Invoice {
   total: number; // Final amount after all item and overall discounts
   date: string; // ISO date string
   paymentMethod: string;
-  discount?: number; // Overall invoice discount (additional to item discounts)
+  discount?: number; // Overall invoice discount (additional to item discounts) - This is currently always 0
   amountPaid?: number; // Amount paid by customer
   debtAmount?: number; // Amount of debt created from this invoice
   employeeId: string; // UID of the employee who created theinvoice
@@ -102,4 +102,20 @@ export interface ShopInfo {
   bankAccountName: string;
   bankAccountNumber: string;
   bankName: string;
+}
+
+export interface DisposalLogEntry {
+  id: string;
+  productId: string;
+  productName: string;
+  color: string;
+  quality?: string;
+  size: string;
+  unit: string;
+  image: string;
+  quantityDisposed: number;
+  reason: string;
+  disposalDate: string; // ISO date string
+  employeeId: string;
+  employeeName: string;
 }

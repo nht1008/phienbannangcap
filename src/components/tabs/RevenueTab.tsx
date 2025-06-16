@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import type { Invoice, InvoiceCartItem, Product } from '@/types';
+import type { Invoice, InvoiceCartItem, Product, DisposalLogEntry } from '@/types';
 import type { DateFilter } from '@/app/page';
 import Image from 'next/image';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -29,7 +29,8 @@ import { Eye } from 'lucide-react';
 
 interface RevenueTabProps {
   invoices: Invoice[];
-  inventory: Product[]; // Full inventory list
+  inventory: Product[]; 
+  disposalLogEntries: DisposalLogEntry[];
   filter: DateFilter;
   onFilterChange: (newFilter: DateFilter) => void;
   availableYears: string[];
@@ -62,7 +63,7 @@ const getDaysInMonth = (month: number, year: number): number => {
 
 interface ProductPerformance {
   id: string; 
-  key: string; // Concatenated key: name-color-quality-size-unit
+  key: string; 
   name: string;
   color: string;
   quality?: string;
@@ -75,7 +76,7 @@ interface ProductPerformance {
 }
 
 
-export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
+export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: filterProp, onFilterChange, availableYears, numericDisplaySize }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const { month: filterMonth, year: filterYear, day: filterDay } = filterProp;
 
@@ -220,7 +221,7 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
   
   const totalDiscountForPeriod = useMemo(() =>
     invoices.reduce((totalDiscount, invoice) => {
-      const overallDiscount = invoice.discount || 0;
+      const overallDiscount = invoice.discount || 0; // This is now always 0
       const itemDiscounts = invoice.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0);
       return totalDiscount + overallDiscount + itemDiscounts;
     }, 0),
@@ -268,11 +269,20 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
       .slice(0, 10);
   }, [productSalesPerformanceInPeriod]);
 
-  const unsoldProductsInPeriod = useMemo(() => {
-    return productSalesPerformanceInPeriod
-      .filter(p => p.soldInPeriod === 0 && p.currentStock > 0)
-      .sort((a, b) => b.currentStock - a.currentStock);
-  }, [productSalesPerformanceInPeriod]);
+  const filteredDisposedProducts = useMemo(() => {
+    const { day, month, year } = filterProp;
+    return disposalLogEntries.filter(entry => {
+        const entryDate = new Date(entry.disposalDate);
+        const entryDay = entryDate.getDate().toString();
+        const entryMonth = (entryDate.getMonth() + 1).toString();
+        const entryYear = entryDate.getFullYear().toString();
+
+        const dayMatch = day === 'all' || day === entryDay;
+        const monthMatch = month === 'all' || month === entryMonth;
+        const yearMatch = year === 'all' || year === entryYear;
+        return dayMatch && monthMatch && yearMatch;
+    });
+  }, [disposalLogEntries, filterProp]);
 
 
   return (
@@ -515,11 +525,11 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
               </ul>
             </ScrollArea>
             <Separator className="my-3" />
-            {selectedInvoiceDetails.discount !== undefined && selectedInvoiceDetails.discount > 0 && (
+            {selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0) > 0 && (
                 <>
                     <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
-                        <span>Giảm giá:</span>
-                        <span>-{selectedInvoiceDetails.discount.toLocaleString('vi-VN')} VNĐ</span>
+                        <span>Tổng giảm giá SP:</span>
+                        <span>-{selectedInvoiceDetails.items.reduce((sum, item) => sum + (item.itemDiscount || 0), 0).toLocaleString('vi-VN')} VNĐ</span>
                     </div>
                 </>
             )}
@@ -578,7 +588,6 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
         </Dialog>
       )}
 
-      {/* Product Performance Analysis Sections */}
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-semibold">Top Sản Phẩm Bán Chạy Nhất</CardTitle>
@@ -636,12 +645,12 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold">Sản Phẩm Không Bán Được (Trong Kỳ)</CardTitle>
-          <CardDescription>Các sản phẩm còn tồn kho nhưng không có doanh số trong khoảng thời gian đã lọc, sắp xếp theo tồn kho giảm dần.</CardDescription>
+          <CardTitle className="text-2xl font-semibold">Nhật Ký Loại Bỏ Sản Phẩm (Trong Kỳ)</CardTitle>
+          <CardDescription>Các sản phẩm đã được loại bỏ khỏi kho trong khoảng thời gian đã lọc, sắp xếp theo ngày loại bỏ mới nhất.</CardDescription>
         </CardHeader>
         <CardContent>
-          {unsoldProductsInPeriod.length === 0 ? (
-            <p className="text-muted-foreground text-center py-6">Không có sản phẩm nào không bán được (và còn tồn) trong kỳ này.</p>
+          {filteredDisposedProducts.length === 0 ? (
+            <p className="text-muted-foreground text-center py-6">Không có sản phẩm nào được loại bỏ trong kỳ này.</p>
           ) : (
             <ScrollArea className="max-h-96">
               <Table>
@@ -650,34 +659,34 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="w-20">Ảnh</TableHead>
                     <TableHead>Tên Sản Phẩm</TableHead>
-                    <TableHead>Màu</TableHead>
-                    <TableHead>Chất lượng</TableHead>
-                    <TableHead>K.Thước</TableHead>
-                    <TableHead>ĐV</TableHead>
-                    <TableHead className="text-right">Tồn Kho</TableHead>
+                    <TableHead>Chi Tiết SP</TableHead>
+                    <TableHead className="text-right">SL Loại Bỏ</TableHead>
+                    <TableHead>Lý Do</TableHead>
+                    <TableHead>Ngày Loại Bỏ</TableHead>
+                    <TableHead>Nhân Viên</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {unsoldProductsInPeriod.map((product, index) => (
-                    <TableRow key={product.key}>
+                  {filteredDisposedProducts.map((entry, index) => (
+                    <TableRow key={entry.id}>
                       <TableCell>{index + 1}</TableCell>
                        <TableCell>
                         <Image 
-                            src={product.image || `https://placehold.co/40x40.png`} 
-                            alt={product.name} 
+                            src={entry.image || `https://placehold.co/40x40.png`} 
+                            alt={entry.productName} 
                             width={40} 
                             height={40} 
                             className="w-10 h-10 rounded-md object-cover aspect-square" 
-                            data-ai-hint={`${product.name.split(' ')[0]} flower`}
+                            data-ai-hint={`${entry.productName.split(' ')[0]} flower`}
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.color}</TableCell>
-                      <TableCell>{product.quality || 'N/A'}</TableCell>
-                      <TableCell>{product.size}</TableCell>
-                      <TableCell>{product.unit}</TableCell>
-                      <TableCell className="text-right">{product.currentStock}</TableCell>
+                      <TableCell className="font-medium">{entry.productName}</TableCell>
+                      <TableCell className="text-xs">{`${entry.color}, ${entry.quality || 'N/A'}, ${entry.size}, ${entry.unit}`}</TableCell>
+                      <TableCell className="text-right">{entry.quantityDisposed}</TableCell>
+                      <TableCell className="text-xs max-w-xs truncate" title={entry.reason}>{entry.reason || "Không có"}</TableCell>
+                      <TableCell>{new Date(entry.disposalDate).toLocaleDateString('vi-VN')}</TableCell>
+                      <TableCell>{entry.employeeName}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

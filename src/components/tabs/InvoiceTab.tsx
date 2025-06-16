@@ -50,10 +50,11 @@ type ReturnItemDetail = {
   quantityToReturn: string;
   name: string;
   color: string;
-  quality?: string; 
+  quality?: string;
   size: string;
   unit: string;
   price: number;
+  itemDiscount?: number;
 };
 
 export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, availableYears }: InvoiceTabProps) {
@@ -90,6 +91,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
         size: item.size,
         unit: item.unit,
         price: item.price,
+        itemDiscount: item.itemDiscount,
       };
     });
     setReturnItemsState(initialReturnItems);
@@ -331,15 +333,15 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                      <>
                         <Separator className="my-2" />
                         <div className={cn(
-                          "flex justify-between text-sm", 
-                           selectedInvoiceDetails.paymentMethod === 'Tiền mặt' && 
-                           ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0 
+                          "flex justify-between text-sm",
+                           selectedInvoiceDetails.paymentMethod === 'Tiền mặt' &&
+                           ((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) ? selectedInvoiceDetails.total : (selectedInvoiceDetails.amountPaid ?? 0)) > 0
                            ? 'text-[hsl(var(--success))]' : 'text-foreground'
                         )}>
                             <span>Đã thanh toán ({selectedInvoiceDetails.paymentMethod}):</span>
                             <span>
-                              {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0) 
-                                ? selectedInvoiceDetails.total 
+                              {((!selectedInvoiceDetails.debtAmount || selectedInvoiceDetails.debtAmount === 0)
+                                ? selectedInvoiceDetails.total
                                 : (selectedInvoiceDetails.amountPaid ?? 0)
                               ).toLocaleString('vi-VN')} VNĐ
                             </span>
@@ -352,7 +354,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                         )}
                         {selectedInvoiceDetails.debtAmount && selectedInvoiceDetails.debtAmount > 0 && (
                              <div className="flex justify-between text-sm text-[hsl(var(--destructive))]">
-                                <span>Số tiền nợ:</span>
+                                <span>Số tiền nợ của HĐ này:</span>
                                 <span>{selectedInvoiceDetails.debtAmount.toLocaleString('vi-VN')} VNĐ</span>
                             </div>
                         )}
@@ -391,35 +393,48 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
 
       {isReturnItemsDialogOpen && currentInvoiceForReturnDialog && (
         <Dialog open={isReturnItemsDialogOpen} onOpenChange={setIsReturnItemsDialogOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Hoàn trả sản phẩm cho HĐ #{currentInvoiceForReturnDialog.id.substring(0,6)}</DialogTitle>
               <DialogDescription>Chọn sản phẩm và số lượng muốn hoàn trả. Các sản phẩm sẽ được cộng lại vào kho.</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[60vh] p-1">
-              <div className="space-y-4 py-2 pr-3">
-                {Object.entries(returnItemsState).map(([productId, itemData]) => (
-                  <Card key={productId} className="p-3 bg-muted/30">
-                    <p className="font-semibold">{itemData.name} <span className="text-xs text-muted-foreground">({itemData.color}, {itemData.quality || 'N/A'}, {itemData.size})</span></p>
-                    <p className="text-sm text-muted-foreground">Đơn vị: {itemData.unit} - Giá: {itemData.price.toLocaleString('vi-VN')} VNĐ</p>
-                    <p className="text-sm text-muted-foreground">Đã mua: {itemData.originalQuantityInCart}</p>
-                    <div className="mt-2">
-                      <Label htmlFor={`return-qty-${productId}`} className="text-sm">Số lượng hoàn trả:</Label>
-                      <Input
-                        id={`return-qty-${productId}`}
-                        type="number"
-                        value={itemData.quantityToReturn}
-                        onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
-                        min="0"
-                        max={itemData.originalQuantityInCart.toString()}
-                        className="w-24 h-8 mt-1 bg-card"
-                      />
-                    </div>
-                  </Card>
-                ))}
-              </div>
+            <ScrollArea className="max-h-[60vh] mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-2/5">Sản phẩm</TableHead>
+                    <TableHead>Thuộc tính</TableHead>
+                    <TableHead className="text-right">Giá</TableHead>
+                    <TableHead className="text-center">Đã mua</TableHead>
+                    <TableHead className="text-center w-28">Hoàn trả</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(returnItemsState).map(([productId, itemData]) => (
+                    <TableRow key={productId}>
+                      <TableCell className="font-medium">{itemData.name}</TableCell>
+                      <TableCell className="text-xs">
+                        {itemData.color}, {itemData.quality || 'N/A'}, {itemData.size}, {itemData.unit}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{itemData.price.toLocaleString('vi-VN')} VNĐ</TableCell>
+                      <TableCell className="text-center text-xs">{itemData.originalQuantityInCart}</TableCell>
+                      <TableCell className="text-center">
+                        <Input
+                          id={`return-qty-${productId}`}
+                          type="number"
+                          value={itemData.quantityToReturn}
+                          onChange={(e) => handleReturnItemQuantityChange(productId, e.target.value)}
+                          min="0"
+                          max={itemData.originalQuantityInCart.toString()}
+                          className="w-20 h-8 text-center bg-card hide-number-spinners"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </ScrollArea>
-            <DialogFooter className="mt-4">
+            <DialogFooter className="mt-6">
               <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
               <Button
                 onClick={handleConfirmSelectiveReturn}

@@ -273,14 +273,6 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
       .sort((a, b) => b.currentStock - a.currentStock);
   }, [productSalesPerformanceInPeriod]);
 
-  const productsToWatch = useMemo(() => {
-    const WATCH_THRESHOLD_LOW_SALES = 3; // Example: sold less than 3 items
-    const WATCH_THRESHOLD_HIGH_STOCK = 5; // Example: stock greater than 5 items
-    return productSalesPerformanceInPeriod
-      .filter(p => p.soldInPeriod > 0 && p.soldInPeriod < WATCH_THRESHOLD_LOW_SALES && p.currentStock >= WATCH_THRESHOLD_HIGH_STOCK)
-      .sort((a, b) => b.currentStock - a.currentStock); // Prioritize higher stock items
-  }, [productSalesPerformanceInPeriod]);
-
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -662,63 +654,11 @@ export function RevenueTab({ invoices, inventory, filter: filterProp, onFilterCh
           )}
         </CardContent>
       </Card>
-
-       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold">Sản Phẩm Cần Lưu Ý</CardTitle>
-          <CardDescription>Tồn kho cao ( &gt; 5) nhưng bán được ít ( &lt; 3 và &gt; 0) trong khoảng thời gian đã lọc. Sắp xếp theo tồn kho giảm dần.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {productsToWatch.length === 0 ? (
-            <p className="text-muted-foreground text-center py-6">Không có sản phẩm nào cần lưu ý đặc biệt theo tiêu chí này.</p>
-          ) : (
-            <ScrollArea className="max-h-96">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">STT</TableHead>
-                    <TableHead className="w-20">Ảnh</TableHead>
-                    <TableHead>Chi tiết Sản phẩm</TableHead>
-                    <TableHead className="text-right">Tồn Kho</TableHead>
-                    <TableHead className="text-right">SL Bán</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productsToWatch.map((product, index) => (
-                    <TableRow key={product.key}>
-                      <TableCell>{index + 1}</TableCell>
-                       <TableCell>
-                        <Image 
-                            src={product.image || `https://placehold.co/40x40.png`} 
-                            alt={product.name} 
-                            width={40} 
-                            height={40} 
-                            className="w-10 h-10 rounded-md object-cover aspect-square" 
-                            data-ai-hint={`${product.name.split(' ')[0]} flower`}
-                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {product.color}, {product.quality || 'N/A'}, {product.size}, {product.unit}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{product.currentStock}</TableCell>
-                      <TableCell className="text-right">{product.soldInPeriod}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-
     </div>
   );
 }
     
+
 
 
 

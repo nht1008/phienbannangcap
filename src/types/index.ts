@@ -136,3 +136,24 @@ export interface UserAccessRequest {
   reviewDate?: string; // ISO date string
   rejectionReason?: string;
 }
+
+// This type will be used for the shared product form
+export type ProductFormData = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice' | 'maxDiscountPerUnitVND'> & {
+  quantity: string;
+  price: string; // Price in Nghin VND for form input
+  costPrice: string; // Cost price in Nghin VND for form input
+  maxDiscountPerUnitVND: string; // Max discount in Nghin VND for form input
+};
+
+export const initialProductFormData: ProductFormData = {
+  name: '',
+  color: '',
+  quality: '',
+  size: '',
+  unit: '',
+  quantity: '0',
+  price: '0',
+  costPrice: '',
+  image: '',
+  maxDiscountPerUnitVND: '0',
+};

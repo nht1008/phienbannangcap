@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil, Users, CheckCircle, XCircle } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -93,6 +94,7 @@ interface EmployeeTabProps {
   onUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
   adminEmail: string;
   isCurrentUserAdmin: boolean;
+  onDeleteEmployee: (employeeId: string) => Promise<void>;
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -110,7 +112,8 @@ export function EmployeeTab({
     onToggleEmployeeRole,
     onUpdateEmployeeInfo,
     adminEmail,
-    isCurrentUserAdmin
+    isCurrentUserAdmin,
+    onDeleteEmployee,
 }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
@@ -135,6 +138,9 @@ export function EmployeeTab({
   const [isReviewEmployeeRequestsDialogOpen, setIsReviewEmployeeRequestsDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [requestToReject, setRequestToReject] = useState<UserAccessRequest | null>(null);
+
+  const [isConfirmDeleteEmployeeOpen, setIsConfirmDeleteEmployeeOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
 
   useEffect(() => {
@@ -323,6 +329,26 @@ export function EmployeeTab({
     setEditingEmployee(null);
   };
 
+  const handleOpenDeleteEmployeeDialog = (employee: Employee) => {
+    if (employee.email === adminEmail) {
+      toast({ title: "Không thể xóa", description: "Không thể xóa tài khoản Quản trị viên.", variant: "destructive" });
+      return;
+    }
+    setEmployeeToDelete(employee);
+    setIsConfirmDeleteEmployeeOpen(true);
+  };
+
+  const handleConfirmDeleteEmployee = async () => {
+    if (employeeToDelete && employeeToDelete.email !== adminEmail) {
+      await onDeleteEmployee(employeeToDelete.id);
+    }
+    setIsConfirmDeleteEmployeeOpen(false);
+    setEmployeeToDelete(null);
+    if (selectedEmployee?.id === employeeToDelete?.id) {
+      setSelectedEmployee(null);
+    }
+  };
+
 
   return (
     <>
@@ -442,6 +468,28 @@ export function EmployeeTab({
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                        )}
+                        {isCurrentUserAdmin && emp.email !== adminEmail && (
+                            <TooltipProvider delayDuration={0}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="destructive"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenDeleteEmployeeDialog(emp);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-destructive text-destructive-foreground">
+                                        <p>Xóa nhân viên</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         )}
                       </TableCell>
                     </TableRow>
@@ -763,6 +811,26 @@ export function EmployeeTab({
         </Dialog>
       )}
 
+    {employeeToDelete && isCurrentUserAdmin && (
+        <AlertDialog open={isConfirmDeleteEmployeeOpen} onOpenChange={setIsConfirmDeleteEmployeeOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitleComponent>Xác nhận xóa nhân viên?</AlertDialogTitleComponent>
+              <AlertDialogDescription>
+                Bạn có chắc chắn muốn xóa nhân viên "{employeeToDelete.name}" (Email: {employeeToDelete.email})?
+                Hành động này không thể hoàn tác và sẽ xóa cả yêu cầu truy cập liên quan (nếu có).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setIsConfirmDeleteEmployeeOpen(false); setEmployeeToDelete(null); }}>Hủy</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeleteEmployee} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                Xóa nhân viên
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+    )}
+
       {isCurrentUserAdmin && (
         <Dialog open={isReviewEmployeeRequestsDialogOpen} onOpenChange={setIsReviewEmployeeRequestsDialogOpen}>
             <DialogContent className="sm:max-w-5xl"> 
@@ -845,4 +913,3 @@ export function EmployeeTab({
     </>
   );
 }
-

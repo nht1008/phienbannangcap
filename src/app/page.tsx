@@ -246,6 +246,7 @@ interface FleurManagerLayoutContentProps {
   handleDebtFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
   handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
+  handleDeleteEmployee: (employeeId: string) => Promise<void>;
   handleDisposeProductItems: (
     productId: string, 
     quantityToDecrease: number, 
@@ -269,7 +270,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
-    handleUpdateEmployeeInfo, handleDisposeProductItems
+    handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -376,6 +377,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onUpdateEmployeeInfo={handleUpdateEmployeeInfo}
                     adminEmail={ADMIN_EMAIL}
                     isCurrentUserAdmin={isCurrentUserAdmin}
+                    onDeleteEmployee={handleDeleteEmployee}
                   />,
   }), [
       inventory, customersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
@@ -388,7 +390,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
-      handleUpdateEmployeeInfo, handleDisposeProductItems
+      handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems
   ]);
 
   return (
@@ -1121,6 +1123,30 @@ export default function FleurManagerPage() {
     }
   };
 
+  const handleDeleteEmployee = async (employeeId: string) => {
+    if (!isCurrentUserAdmin) {
+      toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+      return;
+    }
+    const targetEmployee = employeesData.find(emp => emp.id === employeeId);
+    if (!targetEmployee || targetEmployee.email === ADMIN_EMAIL) {
+      toast({ title: "Lỗi", description: "Không thể xóa tài khoản này.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const updates: Record<string, any> = {};
+      updates[`employees/${employeeId}`] = null;
+      updates[`userAccessRequests/${employeeId}`] = null; // Also remove their access request if any
+
+      await update(ref(db), updates);
+      toast({ title: "Thành công", description: `Nhân viên ${targetEmployee.name} đã được xóa.` });
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast({ title: "Lỗi", description: "Không thể xóa nhân viên. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
   const handleDisposeProductItems = useCallback(async (
     productId: string, 
     quantityToDecrease: number, 
@@ -1283,6 +1309,7 @@ export default function FleurManagerPage() {
         handleDebtFilterChange={handleDebtFilterChange}
         handleToggleEmployeeRole={handleToggleEmployeeRole}
         handleUpdateEmployeeInfo={handleUpdateEmployeeInfo}
+        handleDeleteEmployee={handleDeleteEmployee}
         handleDisposeProductItems={handleDisposeProductItems}
       />
 
@@ -1309,4 +1336,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

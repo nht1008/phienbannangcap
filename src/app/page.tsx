@@ -81,7 +81,8 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
-
+// QUAN TRỌNG: Email này xác định tài khoản quản trị viên chính của hệ thống.
+// Nút "Xét duyệt nhân viên" và các chức năng admin khác sẽ phụ thuộc vào email này.
 const ADMIN_EMAIL = "admin@fleurmanager.com"; 
 const ADMIN_NAME = "Quản trị viên";
 
@@ -616,6 +617,7 @@ export default function FleurManagerPage() {
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
   const [isConfirmingDebtDelete, setIsConfirmingDebtDelete] = useState(false);
 
+  // Logic xác định quyền admin dựa trên ADMIN_EMAIL
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
   
@@ -1210,7 +1212,6 @@ export default function FleurManagerPage() {
   }
   
   if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'approved') {
-     // Check if customer is approved by checking customersData
     const isApprovedCustomer = customersData.some(customer => customer.id === currentUser.uid && userAccessRequest?.status === 'approved' && userAccessRequest?.requestedRole === 'customer');
     if (!isApprovedCustomer) {
         return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;

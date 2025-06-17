@@ -83,7 +83,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // QUAN TRỌNG: Email này xác định tài khoản quản trị viên chính của hệ thống.
 // Nút "Xét duyệt nhân viên" và các chức năng admin khác sẽ phụ thuộc vào email này.
-const ADMIN_EMAIL = "admin@fleurmanager.com"; 
+const ADMIN_EMAIL = "nthe1008@gmail.com"; 
 const ADMIN_NAME = "Quản trị viên";
 
 

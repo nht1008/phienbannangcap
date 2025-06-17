@@ -132,15 +132,17 @@ export function RequestAccessDialog({
       <DialogContent className="sm:max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-2xl">Hoàn tất thông tin truy cập</DialogTitle>
-          <DialogDescription>
-            Chào {currentUserName || 'bạn'}, vui lòng chọn vai trò và cung cấp một số thông tin để gửi yêu cầu truy cập.
-            {existingRequestStatus === 'rejected' && (
-                <div className="mt-2 text-sm text-destructive bg-destructive/10 p-2 rounded-md">
-                    Yêu cầu trước đó của bạn đã bị từ chối.
-                    {rejectionReason && ` Lý do: ${rejectionReason}.`}
-                    Vui lòng xem lại thông tin và gửi lại yêu cầu nếu cần.
-                </div>
-            )}
+          <DialogDescription asChild>
+            <div>
+              Chào {currentUserName || 'bạn'}, vui lòng chọn vai trò và cung cấp một số thông tin để gửi yêu cầu truy cập.
+              {existingRequestStatus === 'rejected' && (
+                  <div className="mt-2 text-sm text-destructive bg-destructive/10 p-2 rounded-md">
+                      Yêu cầu trước đó của bạn đã bị từ chối.
+                      {rejectionReason && ` Lý do: ${rejectionReason}.`}
+                      Vui lòng xem lại thông tin và gửi lại yêu cầu nếu cần.
+                  </div>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">

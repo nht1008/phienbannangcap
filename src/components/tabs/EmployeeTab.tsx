@@ -152,6 +152,7 @@ export function EmployeeTab({
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
+            // Only load pending employee requests for this specific dialog
             if (data[key].status === 'pending' && data[key].requestedRole === 'employee') {
               loadedRequests.push({ id: key, ...data[key] });
             }
@@ -216,13 +217,25 @@ export function EmployeeTab({
 
 
   const displayEmployees = useMemo(() => {
-    if (isCurrentUserAdmin) return employees;
-    const adminEmployee = employees.find(emp => emp.email === adminEmail);
-    const selfEmployee = employees.find(emp => emp.id === currentUser?.uid);
-    const result = [];
-    if (adminEmployee) result.push(adminEmployee);
-    if (selfEmployee && selfEmployee.id !== adminEmployee?.id) result.push(selfEmployee);
-    return result;
+    if (isCurrentUserAdmin) {
+        const adminEmp = employees.find(emp => emp.email === adminEmail);
+        // `employees` is already sorted by name from page.tsx
+        const otherEmps = employees.filter(emp => emp.email !== adminEmail); 
+        if (adminEmp) {
+            return [adminEmp, ...otherEmps];
+        }
+        return otherEmps; 
+    } else {
+        // Non-admin view: show admin and self, admin first.
+        const adminEmployeeRecord = employees.find(emp => emp.email === adminEmail);
+        const selfEmployeeRecord = employees.find(emp => emp.id === currentUser?.uid);
+        const result = [];
+        if (adminEmployeeRecord) result.push(adminEmployeeRecord);
+        if (selfEmployeeRecord && (!adminEmployeeRecord || selfEmployeeRecord.id !== adminEmployeeRecord.id)) {
+            result.push(selfEmployeeRecord);
+        }
+        return result;
+    }
   }, [employees, currentUser, isCurrentUserAdmin, adminEmail]);
 
   const employeeBaseInvoices = useMemo(() => {
@@ -913,3 +926,4 @@ export function EmployeeTab({
     </>
   );
 }
+

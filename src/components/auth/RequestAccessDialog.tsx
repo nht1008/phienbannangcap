@@ -30,7 +30,7 @@ interface RequestAccessDialogProps {
     address: string;
     requestedRole: RequestedRole;
   }) => Promise<void>;
-  existingRequestStatus?: UserAccessRequestStatus | null;
+  existingRequestStatus?: UserAccessRequest['status'] | null;
   rejectionReason?: string | null;
 }
 
@@ -135,11 +135,11 @@ export function RequestAccessDialog({
           <DialogDescription>
             Chào {currentUserName || 'bạn'}, vui lòng chọn vai trò và cung cấp một số thông tin để gửi yêu cầu truy cập.
             {existingRequestStatus === 'rejected' && (
-                <p className="mt-2 text-sm text-destructive bg-destructive/10 p-2 rounded-md">
+                <div className="mt-2 text-sm text-destructive bg-destructive/10 p-2 rounded-md">
                     Yêu cầu trước đó của bạn đã bị từ chối.
                     {rejectionReason && ` Lý do: ${rejectionReason}.`}
                     Vui lòng xem lại thông tin và gửi lại yêu cầu nếu cần.
-                </p>
+                </div>
             )}
           </DialogDescription>
         </DialogHeader>

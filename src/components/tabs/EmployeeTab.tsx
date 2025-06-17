@@ -6,7 +6,7 @@ import type { Employee, Invoice, Debt, EmployeePosition, UserAccessRequest } fro
 import type { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatPhoneNumber, cn } from '@/lib/utils';
+import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -146,6 +146,7 @@ export function EmployeeTab({
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
+            // Filter for employee-specific requests here
             if (data[key].status === 'pending' && data[key].requestedRole === 'employee') {
               loadedRequests.push({ id: key, ...data[key] });
             }
@@ -173,8 +174,8 @@ export function EmployeeTab({
         name: request.name,
         email: request.email,
         phone: request.phone || '',
-        address: request.address || '', // Employees might not have address as mandatory
-        position: 'Nhân viên' as EmployeePosition, // Default to 'Nhân viên'
+        address: request.address || '', 
+        position: 'Nhân viên' as EmployeePosition, 
       };
       
       await update(ref(db), updates);
@@ -336,7 +337,7 @@ export function EmployeeTab({
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary/10"
               >
-                <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên ({employeeAccessRequests.length})
+                <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên ({employeeAccessRequests.filter(req => req.requestedRole === 'employee').length})
               </Button>
             )}
         </div>
@@ -452,16 +453,16 @@ export function EmployeeTab({
           </div>
         </div>
 
-        {isCurrentUserAdmin && employeeAccessRequests.length > 0 && (
+        {isCurrentUserAdmin && employeeAccessRequests.filter(req => req.requestedRole === 'employee').length > 0 && (
           <>
             <Separator className="my-6"/>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của nhân viên ({employeeAccessRequests.length})</CardTitle>
+                    <CardTitle className="text-xl font-semibold flex items-center"><Users className="mr-2 h-5 w-5 text-primary"/> Yêu cầu truy cập của nhân viên ({employeeAccessRequests.filter(req => req.requestedRole === 'employee').length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground">
-                        Hiện có {employeeAccessRequests.length} yêu cầu 'Nhân viên' đang chờ xử lý. Nhấn nút "Xét duyệt nhân viên" ở trên để quản lý.
+                        Hiện có {employeeAccessRequests.filter(req => req.requestedRole === 'employee').length} yêu cầu 'Nhân viên' đang chờ xử lý. Nhấn nút "Xét duyệt nhân viên" ở trên để quản lý.
                     </p>
                 </CardContent>
             </Card>
@@ -780,12 +781,11 @@ export function EmployeeTab({
         </Dialog>
       )}
 
-      {/* Dialog for reviewing employee access requests */}
       {isCurrentUserAdmin && (
         <Dialog open={isReviewEmployeeRequestsDialogOpen} onOpenChange={setIsReviewEmployeeRequestsDialogOpen}>
-            <DialogContent className="sm:max-w-5xl"> {/* Increased width for better table display */}
+            <DialogContent className="sm:max-w-5xl"> 
                 <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu nhân viên ({employeeAccessRequests.length})</DialogTitle>
+                    <DialogTitle>Xét duyệt yêu cầu nhân viên ({employeeAccessRequests.filter(req => req.requestedRole === 'employee').length})</DialogTitle>
                     <DialogDescription>
                         Duyệt hoặc từ chối các yêu cầu truy cập với vai trò nhân viên.
                     </DialogDescription>
@@ -793,7 +793,7 @@ export function EmployeeTab({
                 <div className="mt-4">
                     {isLoadingEmployeeRequests ? (
                         <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : employeeAccessRequests.length === 0 ? (
+                    ) : employeeAccessRequests.filter(req => req.requestedRole === 'employee').length === 0 ? (
                         <p className="text-center text-muted-foreground py-4">Không có yêu cầu nhân viên nào đang chờ xử lý.</p>
                     ) : (
                         <ScrollArea className="max-h-[60vh]">
@@ -809,7 +809,7 @@ export function EmployeeTab({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {employeeAccessRequests.map(req => (
+                                    {employeeAccessRequests.filter(req => req.requestedRole === 'employee').map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell>{req.name}</TableCell>
                                             <TableCell>{req.email}</TableCell>
@@ -838,7 +838,6 @@ export function EmployeeTab({
         </Dialog>
       )}
 
-      {/* Dialog for rejection reason */}
       {requestToReject && (
         <Dialog open={!!requestToReject} onOpenChange={() => setRequestToReject(null)}>
           <DialogContent>

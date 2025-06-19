@@ -152,7 +152,7 @@ export const initialProductFormData: ProductFormData = {
   quality: '',
   size: '',
   unit: '',
-  quantity: '0',
+  quantity: '', // Changed from '0' to ''
   price: '0',
   costPrice: '',
   image: '',

@@ -69,7 +69,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             const requestDetails = requestsData[userId];
             loadedRequests.push({
               id: userId,
-              name: requestDetails.name || 'Chưa có tên',
+              fullName: requestDetails.fullName || 'Chưa có tên',
               email: requestDetails.email || '',
               phone: requestDetails.phone || '',
               address: requestDetails.address || '',
@@ -100,18 +100,17 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       updates[`users/${request.id}/approvalStatus`] = 'approved';
       updates[`users/${request.id}/reviewedBy`] = currentUser.uid;
       updates[`users/${request.id}/reviewDate`] = new Date().toISOString();
-      updates[`users/${request.id}/displayName`] = request.name;
+      updates[`users/${request.id}/displayName`] = request.fullName;
       updates[`users/${request.id}/email`] = request.email;
       updates[`users/${request.id}/phone`] = request.phone || '';
       updates[`users/${request.id}/address`] = request.address || '';
       updates[`users/${request.id}/zaloName`] = request.zaloName || '';
-      // Assuming requestDate from the queue is the profileCompletionDate or similar marker
       updates[`users/${request.id}/profileCompletionDate`] = request.requestDate;
 
 
       // 2. Add to admin app's customer list
       updates[`customers/${request.id}`] = {
-        name: request.name,
+        name: request.fullName, // Use fullName here for consistency in the customer list's name field
         email: request.email, 
         phone: request.phone || '',
         address: request.address || '',
@@ -122,7 +121,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       updates[`khach_hang_cho_duyet/${request.id}`] = null;
       
       await update(ref(db), updates);
-      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.name}.`, variant: "default" });
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.fullName}.`, variant: "default" });
     } catch (error) {
       console.error("Error approving customer request:", error);
       toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu khách hàng.", variant: "destructive" });
@@ -149,7 +148,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
       await update(ref(db), updates);
 
-      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.name}.`, variant: "default" });
+      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.fullName}.`, variant: "default" });
       setCustomerRequestToReject(null);
       setCustomerRejectionReason("");
     } catch (error) {
@@ -595,7 +594,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tên</TableHead>
+                        <TableHead>Họ và tên</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>SĐT</TableHead>
                         <TableHead>Tên Zalo</TableHead>
@@ -607,7 +606,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     <TableBody>
                       {customerAccessRequests.map((req) => (
                         <TableRow key={req.id}>
-                          <TableCell>{req.name}</TableCell>
+                          <TableCell>{req.fullName}</TableCell>
                           <TableCell>{req.email}</TableCell>
                           <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
                           <TableCell>{req.zaloName || 'N/A'}</TableCell>
@@ -648,7 +647,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <Dialog open={!!customerRequestToReject} onOpenChange={() => setCustomerRequestToReject(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Từ chối yêu cầu của {customerRequestToReject.name}?</DialogTitle>
+              <DialogTitle>Từ chối yêu cầu của {customerRequestToReject.fullName}?</DialogTitle>
               <DialogDescription>
                 Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
               </DialogDescription>
@@ -669,4 +668,3 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
-

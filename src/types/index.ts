@@ -126,7 +126,7 @@ export type UserAccessRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface UserAccessRequest {
   id: string; 
-  name: string; 
+  fullName: string; 
   email: string;
   phone: string;
   address: string;
@@ -152,7 +152,7 @@ export const initialProductFormData: ProductFormData = {
   quality: '',
   size: '',
   unit: '',
-  quantity: '', // Changed from '0' to ''
+  quantity: '', 
   price: '0',
   costPrice: '',
   image: '',

@@ -6,7 +6,7 @@ import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest } from '@/ty
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from "@/components/ui/label"; // Added missing import
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
-import { ref, onValue, update, set, serverTimestamp } from "firebase/database";
+import { ref, onValue, update, set, serverTimestamp, remove } from "firebase/database";
 
 interface CustomerTabProps {
   customers: Customer[];
@@ -60,33 +60,31 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   useEffect(() => {
     if (hasFullAccessRights) {
       setIsLoadingCustomerRequests(true);
-      const usersRef = ref(db, 'users'); 
-      const unsubscribe = onValue(usersRef, (snapshot) => {
-        const usersData = snapshot.val();
+      const requestsRef = ref(db, 'khach_hang_cho_duyet'); 
+      const unsubscribe = onValue(requestsRef, (snapshot) => {
+        const requestsData = snapshot.val();
         const loadedRequests: UserAccessRequest[] = [];
-        if (usersData) {
-          Object.keys(usersData).forEach(userId => {
-            const userData = usersData[userId];
-            if (userData.approvalStatus === 'pending_approval') {
-              loadedRequests.push({
-                id: userId,
-                name: userData.displayName || userData.name || 'Chưa có tên',
-                email: userData.email || '',
-                phone: userData.phone || '',
-                address: userData.address || '',
-                zaloName: userData.zaloName || '',
-                requestedRole: 'customer', 
-                status: 'pending', 
-                requestDate: userData.profileCompletionDate || userData.requestDate || new Date().toISOString(),
-              });
-            }
+        if (requestsData) {
+          Object.keys(requestsData).forEach(userId => {
+            const requestDetails = requestsData[userId];
+            loadedRequests.push({
+              id: userId,
+              name: requestDetails.name || 'Chưa có tên',
+              email: requestDetails.email || '',
+              phone: requestDetails.phone || '',
+              address: requestDetails.address || '',
+              zaloName: requestDetails.zaloName || '',
+              requestedRole: 'customer', 
+              status: 'pending', 
+              requestDate: requestDetails.requestDate || new Date().toISOString(),
+            });
           });
         }
         setCustomerAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
         setIsLoadingCustomerRequests(false);
       }, (error) => {
-        console.error("Error fetching user data for customer approval:", error);
-        toast({ title: "Lỗi tải yêu cầu khách hàng", description: "Không thể tải danh sách yêu cầu từ nút 'users'.", variant: "destructive" });
+        console.error("Error fetching customer approval requests from khach_hang_cho_duyet:", error);
+        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu từ 'khach_hang_cho_duyet'.", variant: "destructive" });
         setIsLoadingCustomerRequests(false);
       });
       return () => unsubscribe();
@@ -97,10 +95,21 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     if (!hasFullAccessRights || !currentUser) return;
     try {
       const updates: Record<string, any> = {};
+      
+      // 1. Update main users node
       updates[`users/${request.id}/approvalStatus`] = 'approved';
       updates[`users/${request.id}/reviewedBy`] = currentUser.uid;
       updates[`users/${request.id}/reviewDate`] = new Date().toISOString();
+      updates[`users/${request.id}/displayName`] = request.name;
+      updates[`users/${request.id}/email`] = request.email;
+      updates[`users/${request.id}/phone`] = request.phone || '';
+      updates[`users/${request.id}/address`] = request.address || '';
+      updates[`users/${request.id}/zaloName`] = request.zaloName || '';
+      // Assuming requestDate from the queue is the profileCompletionDate or similar marker
+      updates[`users/${request.id}/profileCompletionDate`] = request.requestDate;
 
+
+      // 2. Add to admin app's customer list
       updates[`customers/${request.id}`] = {
         name: request.name,
         email: request.email, 
@@ -108,6 +117,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         address: request.address || '',
         zaloName: request.zaloName || '',
       };
+      
+      // 3. Remove from queue
+      updates[`khach_hang_cho_duyet/${request.id}`] = null;
       
       await update(ref(db), updates);
       toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.name}.`, variant: "default" });
@@ -125,12 +137,18 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const handleConfirmRejectCustomerRequest = async () => {
     if (!hasFullAccessRights || !currentUser || !customerRequestToReject) return;
     try {
-      await update(ref(db, `users/${customerRequestToReject.id}`), {
-        approvalStatus: 'rejected',
-        reviewedBy: currentUser.uid,
-        reviewDate: new Date().toISOString(),
-        rejectionReason: customerRejectionReason.trim() || "Không có lý do cụ thể.",
-      });
+      const updates: Record<string, any> = {};
+      // 1. Update main users node
+      updates[`users/${customerRequestToReject.id}/approvalStatus`] = 'rejected';
+      updates[`users/${customerRequestToReject.id}/reviewedBy`] = currentUser.uid;
+      updates[`users/${customerRequestToReject.id}/reviewDate`] = new Date().toISOString();
+      updates[`users/${customerRequestToReject.id}/rejectionReason`] = customerRejectionReason.trim() || "Không có lý do cụ thể.";
+
+      // 2. Remove from queue
+      updates[`khach_hang_cho_duyet/${customerRequestToReject.id}`] = null;
+
+      await update(ref(db), updates);
+
       toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.name}.`, variant: "default" });
       setCustomerRequestToReject(null);
       setCustomerRejectionReason("");
@@ -569,7 +587,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             </DialogHeader>
             <div className="mt-4">
               {isLoadingCustomerRequests ? (
-                <p>Đang tải danh sách yêu cầu...</p>
+                <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
               ) : customerAccessRequests.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
               ) : (

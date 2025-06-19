@@ -747,9 +747,13 @@ export default function FleurManagerPage() {
     if (authLoading || !currentUser) return;
 
     setIsLoadingAccessRequest(true);
-    const employeesRef = ref(db, 'employees');
     
-    const unsubscribeEmployees = onValue(employeesRef, async (snapshot) => {
+    let unsubscribeEmployees = () => {};
+    let unsubscribeShopInfo = () => {};
+    let unsubscribeDisposalLog = () => {};
+
+    const employeesRef = ref(db, 'employees');
+    unsubscribeEmployees = onValue(employeesRef, async (snapshot) => {
         const data = snapshot.val();
         const loadedEmployees: Employee[] = [];
         if (data) {
@@ -766,45 +770,39 @@ export default function FleurManagerPage() {
             } else {
                 setIsSettingName(false);
             }
-            setUserAccessRequest(null); // Admin doesn't have an "access request"
+            setUserAccessRequest(null); 
             setIsLoadingAccessRequest(false);
         } else {
             const currentEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
-            if (currentEmployee) { // User is an active employee in this app
+            if (currentEmployee) { 
                 if (!currentUser.displayName) {
                     setIsSettingName(true);
                 } else {
                     setIsSettingName(false);
                 }
-                // Represent their status as an 'approved' request for consistency if needed by UI, though not strictly an "access request" anymore
                 setUserAccessRequest({ 
                     id: currentUser.uid, 
                     status: 'approved', 
                     email: currentUser.email || '', 
                     fullName: currentUser.displayName || '', 
                     phone: currentEmployee.phone || '', 
-                    address: '', // Address might not be relevant for employee entity
+                    address: currentEmployee.address || '', 
                     zaloName: currentEmployee.zaloName || '',
                     requestedRole: 'employee', 
-                    requestDate: new Date().toISOString() // Placeholder date
+                    requestDate: new Date().toISOString() 
                 });
                 setIsLoadingAccessRequest(false);
-            } else { // Not an admin, not in current employeesData, check access requests for this app
+            } else { 
                 const employeeRequestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
                 try {
                     const employeeSnapshot = await get(employeeRequestRef);
                     if (employeeSnapshot.exists()) {
                         const requestData = employeeSnapshot.val() as UserAccessRequest;
-                        setUserAccessRequest(requestData); // This will be the request for 'employee' role
-                        setIsSettingName(!currentUser.displayName); // Prompt to set name if not already set
+                        setUserAccessRequest(requestData); 
+                        setIsSettingName(!currentUser.displayName); 
                     } else {
-                        // No active employee record, no pending/rejected employee request
                         setUserAccessRequest(null); 
-                        setIsSettingName(!currentUser.displayName); // Still prompt for name
-                         // Here, if no request is found at all, the user effectively has no standing.
-                         // They should probably be signed out or shown a generic "no access" message
-                         // if they somehow bypassed the login page's auth checks without an employee record.
-                         // For now, page.tsx will show "LoadingScreen" if !userAccessRequest && !currentUserEmployeeData
+                        setIsSettingName(!currentUser.displayName); 
                     }
                 } catch (error) {
                     console.error("Error fetching employee user access request:", error);
@@ -816,7 +814,8 @@ export default function FleurManagerPage() {
         }
     });
 
-    let unsubscribeShopInfo = () => {};
+    // Shop Info listener only if user has rights (derived from employeesData, so it's after employee data is loaded)
+    // This logic is fine, but the hasFullAccessRights dependency will be handled carefully
     if (hasFullAccessRights) {
         setIsLoadingShopInfo(true);
         const shopInfoRef = ref(db, 'shopInfo');
@@ -843,11 +842,11 @@ export default function FleurManagerPage() {
         });
     } else {
         setShopInfo(null);
-        setIsLoadingShopInfo(false);
+        setIsLoadingShopInfo(false); // Ensure this is set if no rights
     }
 
     const disposalLogRef = ref(db, 'disposalLog');
-    const unsubscribeDisposalLog = onValue(disposalLogRef, (snapshot) => {
+    unsubscribeDisposalLog = onValue(disposalLogRef, (snapshot) => {
       const data = snapshot.val();
       const loadedEntries: DisposalLogEntry[] = [];
       if (data) {
@@ -859,8 +858,12 @@ export default function FleurManagerPage() {
     });
 
 
-    return () => { unsubscribeEmployees(); unsubscribeShopInfo(); unsubscribeDisposalLog(); };
-  }, [currentUser, authLoading, hasFullAccessRights, toast]);
+    return () => { 
+        unsubscribeEmployees(); 
+        unsubscribeShopInfo(); 
+        unsubscribeDisposalLog(); 
+    };
+  }, [currentUser, authLoading, hasFullAccessRights, toast]); // hasFullAccessRights is a key dependency
 
 
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
@@ -1334,155 +1337,102 @@ export default function FleurManagerPage() {
   }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
 
-  if (authLoading || isLoadingAccessRequest) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
-  if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
-  if (isSettingName) { return ( <SetNameDialog onNameSet={handleNameSet} /> ); }
-  
-  if (userAccessRequest && userAccessRequest.status === 'pending' && !isCurrentUserAdmin) {
+  // --- Conditional Rendering Logic ---
+  if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
+  if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; // Should be handled by useEffect redirect
+  if (isSettingName) return <SetNameDialog onNameSet={handleNameSet} />;
+  if (isLoadingAccessRequest && !isCurrentUserAdmin && !currentUserEmployeeData) { // Only show this generic loading if we don't yet have employee data AND are still loading access details
+      return <LoadingScreen message="Đang tải dữ liệu truy cập..." />;
+  }
+
+  // If user is an active employee (or admin), let them in
+  if (currentUserEmployeeData) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
-        <HelpCircle className="w-16 h-16 text-primary mb-4" />
-        <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
-        <p className="text-muted-foreground">
-          Yêu cầu truy cập của bạn cho vai trò Nhân viên đã được gửi.
-        </p>
-        <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
-         <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
-      </div>
+      <SidebarProvider>
+        <FleurManagerLayoutContent
+          currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} inventory={inventory}
+          customersData={customersData} ordersData={ordersData} invoicesData={invoicesData} debtsData={debtsData}
+          employeesData={employeesData} disposalLogEntries={disposalLogEntries} shopInfo={shopInfo} isLoadingShopInfo={isLoadingShopInfo}
+          cart={cart} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions}
+          sizeOptions={sizeOptions} unitOptions={unitOptions} revenueFilter={revenueFilter} invoiceFilter={invoiceFilter}
+          debtFilter={debtFilter} orderFilter={orderFilter} isUserInfoDialogOpen={isUserInfoDialogOpen}
+          setIsUserInfoDialogOpen={setIsUserInfoDialogOpen} isScreenLocked={isScreenLocked} setIsScreenLocked={setIsScreenLocked}
+          isSettingsDialogOpen={isSettingsDialogOpen} setIsSettingsDialogOpen={setIsSettingsDialogOpen}
+          overallFontSize={overallFontSize} setOverallFontSize={setOverallFontSize} numericDisplaySize={numericDisplaySize}
+          setNumericDisplaySize={setNumericDisplaySize} isCurrentUserAdmin={isCurrentUserAdmin}
+          currentUserEmployeeData={currentUserEmployeeData} hasFullAccessRights={hasFullAccessRights}
+          filteredInvoicesForRevenue={filteredInvoicesForRevenue} filteredInvoicesForInvoiceTab={filteredInvoicesForInvoiceTab}
+          filteredDebtsForDebtTab={filteredDebtsForDebtTab} filteredOrdersForOrderTab={filteredOrdersForOrderTab}
+          handleCreateInvoice={handleCreateInvoice} handleAddProductOption={handleAddProductOption}
+          handleDeleteProductOption={handleDeleteProductOption} handleImportProducts={handleImportProducts}
+          handleProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
+          handleUpdateDebtStatus={handleUpdateDebtStatus} handleAddCustomer={handleAddCustomer}
+          handleUpdateCustomer={handleUpdateCustomer} handleDeleteCustomer={handleDeleteCustomer}
+          handleDeleteDebt={handleDeleteDebt} handleSaveShopInfo={handleSaveShopInfo} handleSignOut={handleSignOut}
+          signIn={signIn} onAddToCart={onAddToCart} onUpdateCartQuantity={onUpdateCartQuantity}
+          onItemDiscountChange={onItemDiscountChange} onClearCart={onClearCart}
+          handleRevenueFilterChange={handleRevenueFilterChange} handleInvoiceFilterChange={handleInvoiceFilterChange}
+          handleDebtFilterChange={handleDebtFilterChange} handleOrderFilterChange={handleOrderFilterChange}
+          handleUpdateOrderStatus={handleUpdateOrderStatus} handleToggleEmployeeRole={handleToggleEmployeeRole}
+          handleUpdateEmployeeInfo={handleUpdateEmployeeInfo} handleDeleteEmployee={handleDeleteEmployee}
+          handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
+          openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
+        />
+        <ProductFormDialog isOpen={isProductFormOpen} onClose={handleCloseProductFormDialog} onSubmit={handleProductFormSubmit} initialData={currentEditingProduct} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions} sizeOptions={sizeOptions} unitOptions={unitOptions} isEditMode={isProductFormEditMode} defaultFormState={productFormDefaultState} />
+        {productToDeleteId && (<AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>)}
+        {debtToDelete && (<AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?{debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa công nợ</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> )}
+      </SidebarProvider>
     );
   }
+
+  // If not an employee yet, check access request status
+  if (userAccessRequest && !isCurrentUserAdmin) { // Ensure this check doesn't apply to admins
+    if (userAccessRequest.status === 'pending') {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+          <HelpCircle className="w-16 h-16 text-primary mb-4" />
+          <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
+          <p className="text-muted-foreground">Yêu cầu truy cập của bạn cho vai trò Nhân viên đã được gửi.</p>
+          <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
+          <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
+        </div>
+      );
+    }
+    if (userAccessRequest.status === 'approved') {
+        // This case means their request in userAccessRequests is 'approved',
+        // but they are not yet in the 'employees' list (or employeesData state hasn't updated).
+        // This should be a transient state.
+        return <LoadingScreen message="Đang đồng bộ hóa quyền truy cập..." />;
+    }
+     if (userAccessRequest.status === 'rejected') {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+                <UserX className="w-16 h-16 text-destructive mb-4" />
+                <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đã bị từ chối</h1>
+                <p className="text-muted-foreground">
+                    Yêu cầu truy cập của bạn đã bị từ chối.
+                    {userAccessRequest.rejectionReason && ` Lý do: ${userAccessRequest.rejectionReason}`}
+                </p>
+                <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên để biết thêm chi tiết.</p>
+                <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
+            </div>
+        );
+    }
+  }
   
-  // Simplified access check: If not admin, not an active employee, and no pending/approved request, show loading (or could be an error/redirect)
-  if (!isCurrentUserAdmin && !currentUserEmployeeData && !userAccessRequest && !isSettingName) { 
-      return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
+  // Fallback for non-admin users if no employee data and no specific userAccessRequest status applies
+  // This implies they are not recognized by the system yet or their request is missing/in an unknown state.
+  if (!isCurrentUserAdmin) {
+      toast({title: "Không có quyền truy cập", description: "Không tìm thấy thông tin nhân viên hoặc yêu cầu truy cập hợp lệ. Vui lòng đăng ký hoặc liên hệ quản trị viên.", variant: "destructive" });
+      // Consider signing out if this state is reached unexpectedly after login
+      // signOut(); 
+      return <LoadingScreen message="Không có quyền truy cập." />;
   }
 
-
-  return (
-    <SidebarProvider>
-      <FleurManagerLayoutContent
-        currentUser={currentUser}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        inventory={inventory}
-        customersData={customersData}
-        ordersData={ordersData}
-        invoicesData={invoicesData}
-        debtsData={debtsData}
-        employeesData={employeesData}
-        disposalLogEntries={disposalLogEntries}
-        shopInfo={shopInfo}
-        isLoadingShopInfo={isLoadingShopInfo}
-        cart={cart}
-        productNameOptions={productNameOptions}
-        colorOptions={colorOptions}
-        productQualityOptions={productQualityOptions}
-        sizeOptions={sizeOptions}
-        unitOptions={unitOptions}
-        revenueFilter={revenueFilter}
-        invoiceFilter={invoiceFilter}
-        debtFilter={debtFilter}
-        orderFilter={orderFilter}
-        isUserInfoDialogOpen={isUserInfoDialogOpen}
-        setIsUserInfoDialogOpen={setIsUserInfoDialogOpen}
-        isScreenLocked={isScreenLocked}
-        setIsScreenLocked={setIsScreenLocked}
-        isSettingsDialogOpen={isSettingsDialogOpen}
-        setIsSettingsDialogOpen={setIsSettingsDialogOpen}
-        overallFontSize={overallFontSize}
-        setOverallFontSize={setOverallFontSize}
-        numericDisplaySize={numericDisplaySize}
-        setNumericDisplaySize={setNumericDisplaySize}
-        isCurrentUserAdmin={isCurrentUserAdmin}
-        currentUserEmployeeData={currentUserEmployeeData}
-        hasFullAccessRights={hasFullAccessRights}
-        filteredInvoicesForRevenue={filteredInvoicesForRevenue}
-        filteredInvoicesForInvoiceTab={filteredInvoicesForInvoiceTab}
-        filteredDebtsForDebtTab={filteredDebtsForDebtTab}
-        filteredOrdersForOrderTab={filteredOrdersForOrderTab}
-        handleCreateInvoice={handleCreateInvoice}
-        handleAddProductOption={handleAddProductOption}
-        handleDeleteProductOption={handleDeleteProductOption}
-        handleImportProducts={handleImportProducts}
-        handleProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
-        handleUpdateDebtStatus={handleUpdateDebtStatus}
-        handleAddCustomer={handleAddCustomer}
-        handleUpdateCustomer={handleUpdateCustomer}
-        handleDeleteCustomer={handleDeleteCustomer}
-        handleDeleteDebt={handleDeleteDebt}
-        handleSaveShopInfo={handleSaveShopInfo}
-        handleSignOut={handleSignOut}
-        signIn={signIn}
-        onAddToCart={onAddToCart}
-        onUpdateCartQuantity={onUpdateCartQuantity}
-        onItemDiscountChange={onItemDiscountChange}
-        onClearCart={onClearCart}
-        handleRevenueFilterChange={handleRevenueFilterChange}
-        handleInvoiceFilterChange={handleInvoiceFilterChange}
-        handleDebtFilterChange={handleDebtFilterChange}
-        handleOrderFilterChange={handleOrderFilterChange}
-        handleUpdateOrderStatus={handleUpdateOrderStatus}
-        handleToggleEmployeeRole={handleToggleEmployeeRole}
-        handleUpdateEmployeeInfo={handleUpdateEmployeeInfo}
-        handleDeleteEmployee={handleDeleteEmployee}
-        handleDisposeProductItems={handleDisposeProductItems}
-        openAddProductDialog={handleOpenAddProductDialog}
-        openEditProductDialog={handleOpenEditProductDialog}
-        handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
-      />
-
-      <ProductFormDialog
-        isOpen={isProductFormOpen}
-        onClose={handleCloseProductFormDialog}
-        onSubmit={handleProductFormSubmit}
-        initialData={currentEditingProduct}
-        productNameOptions={productNameOptions}
-        colorOptions={colorOptions}
-        productQualityOptions={productQualityOptions}
-        sizeOptions={sizeOptions}
-        unitOptions={unitOptions}
-        isEditMode={isProductFormEditMode}
-        defaultFormState={productFormDefaultState} 
-      />
-
-      {productToDeleteId && (
-        <AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent>
-                <AlertDialogDescription>
-                    Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {debtToDelete && (
-            <AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent>
-                        <AlertDialogDescription>
-                            Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?
-                            {debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}
-                            Hành động này không thể hoàn tác.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                            Xóa công nợ
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        )}
-    </SidebarProvider>
-  );
+  // If execution reaches here, it means user is admin but perhaps initial data for admin (like shopInfo) is still loading
+  // or some other admin-specific setup is pending. Or it's an unhandled case.
+  // For safety, return a loading screen, but ideally admins should pass the currentUserEmployeeData check earlier.
+  return <LoadingScreen message="Đang hoàn tất tải ứng dụng cho quản trị viên..." />;
 }
 
+    

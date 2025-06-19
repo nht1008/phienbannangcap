@@ -23,7 +23,8 @@ export interface Customer {
   name: string;
   phone: string;
   address?: string;
-  email?: string; // Added for login/request tracking
+  email?: string; 
+  zaloName?: string;
 }
 
 export interface Supplier {
@@ -124,25 +125,25 @@ export interface DisposalLogEntry {
 export type UserAccessRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface UserAccessRequest {
-  id: string; // Same as user's UID
-  name: string; // Display name
+  id: string; 
+  name: string; 
   email: string;
   phone: string;
   address: string;
   requestedRole: 'employee' | 'customer';
   status: UserAccessRequestStatus;
-  requestDate: string; // ISO date string
-  reviewedBy?: string; // Admin UID
-  reviewDate?: string; // ISO date string
+  requestDate: string; 
+  reviewedBy?: string; 
+  reviewDate?: string; 
   rejectionReason?: string;
+  zaloName?: string;
 }
 
-// This type will be used for the shared product form
 export type ProductFormData = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice' | 'maxDiscountPerUnitVND'> & {
   quantity: string;
-  price: string; // Price in Nghin VND for form input
-  costPrice: string; // Cost price in Nghin VND for form input
-  maxDiscountPerUnitVND: string; // Max discount in Nghin VND for form input
+  price: string; 
+  costPrice: string; 
+  maxDiscountPerUnitVND: string; 
 };
 
 export const initialProductFormData: ProductFormData = {
@@ -157,3 +158,73 @@ export const initialProductFormData: ProductFormData = {
   image: '',
   maxDiscountPerUnitVND: '0',
 };
+
+// Order Management Types
+export type OrderStatus =
+  | 'Chờ xác nhận'
+  | 'Đã xác nhận'
+  | 'Đang chuẩn bị hàng'
+  | 'Đang giao hàng'
+  | 'Đã giao hàng'
+  | 'Hoàn thành'
+  | 'Đã hủy'
+  | 'Yêu cầu hủy';
+
+export const ALL_ORDER_STATUSES: OrderStatus[] = [
+  'Chờ xác nhận',
+  'Đã xác nhận',
+  'Đang chuẩn bị hàng',
+  'Đang giao hàng',
+  'Đã giao hàng',
+  'Hoàn thành',
+  'Đã hủy',
+  'Yêu cầu hủy',
+];
+
+export type PaymentStatus =
+  | 'Chưa thanh toán'
+  | 'Đã thanh toán một phần'
+  | 'Đã thanh toán'
+  | 'Đã hoàn tiền';
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  color: string;
+  quality?: string;
+  size: string;
+  unit: string;
+  quantity: number;
+  priceAtOrder: number; 
+  image?: string;
+}
+
+export interface Order {
+  id: string; 
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerUserId?: string; 
+  items: OrderItem[];
+  orderTotal: number; 
+  orderDate: string; 
+  status: OrderStatus;
+  paymentMethod?: string; 
+  paymentStatus: PaymentStatus;
+  shippingAddress?: string; 
+  shippingFee: number;
+  discountCode?: string;
+  discountAmount: number; 
+  finalAmount: number; 
+  notes?: string; 
+  reviewedByEmployeeId?: string;
+  reviewedByEmployeeName?: string;
+  cancellationReason?: string; 
+  history?: Array<{
+    status: OrderStatus;
+    changedAt: string; 
+    changedByEmployeeId?: string;
+    changedByEmployeeName?: string;
+    reason?: string;
+  }>; 
+}

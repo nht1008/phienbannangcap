@@ -36,7 +36,7 @@ import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { cn } from '@/lib/utils';
-import { UserX } from 'lucide-react';
+import { UserX, HelpCircle } from 'lucide-react';
 
 import {
   Dialog,
@@ -80,7 +80,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, HelpCircle, Store, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, Store, Pencil, Trash2, PlusCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -788,19 +788,27 @@ export default function FleurManagerPage() {
                 phone: currentLoadedEmployee.phone || '',
                 address: currentLoadedEmployee.address || '',
                 zaloName: currentLoadedEmployee.zaloName || '',
-                requestedRole: 'employee',
+                requestedRole: 'employee', // Implicitly employee for this app's internal users
                 requestDate: new Date().toISOString()
             });
             setIsLoadingAccessRequest(false);
         } else {
+            // User is not ADMIN and not in employees list, check userAccessRequests
             const employeeRequestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
             try {
                 const employeeSnapshot = await get(employeeRequestRef);
                 if (employeeSnapshot.exists()) {
                     const requestData = employeeSnapshot.val() as UserAccessRequest;
-                    setUserAccessRequest(requestData);
-                    setIsSettingName(!currentUser.displayName);
+                     if (requestData.requestedRole === 'employee') { // Ensure it's an employee request
+                        setUserAccessRequest(requestData);
+                        setIsSettingName(!currentUser.displayName);
+                    } else {
+                        // This was a customer request or some other role, not relevant for this app's access
+                        setUserAccessRequest(null);
+                        setIsSettingName(!currentUser.displayName);
+                    }
                 } else {
+                    // No request found for this user
                     setUserAccessRequest(null);
                     setIsSettingName(!currentUser.displayName);
                 }
@@ -1333,13 +1341,15 @@ export default function FleurManagerPage() {
     }
   }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
+  const noAccessToastShown = React.useRef(false);
   useEffect(() => {
-    if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'pending' && userAccessRequest?.status !== 'approved' && !isLoadingAccessRequest && !authLoading && currentUser && !isSettingName) {
+    if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'pending' && userAccessRequest?.status !== 'approved' && !isLoadingAccessRequest && !authLoading && currentUser && !isSettingName && !noAccessToastShown.current) {
       toast({
         title: "Không có quyền truy cập",
         description: "Không tìm thấy thông tin nhân viên hoặc yêu cầu truy cập hợp lệ. Vui lòng đăng ký hoặc liên hệ quản trị viên.",
         variant: "destructive"
       });
+      noAccessToastShown.current = true; 
     }
   }, [isCurrentUserAdmin, currentUserEmployeeData, userAccessRequest, isLoadingAccessRequest, toast, authLoading, currentUser, isSettingName]);
 
@@ -1348,11 +1358,14 @@ export default function FleurManagerPage() {
   if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
   if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
   if (isSettingName) return <SetNameDialog onNameSet={handleNameSet} />;
-  if (isLoadingAccessRequest && !isCurrentUserAdmin && !currentUserEmployeeData) {
-      return <LoadingScreen message="Đang tải dữ liệu truy cập..." />;
+  
+  // New: Loading state for employee data if request is approved but employee data not yet synced
+  if (userAccessRequest?.status === 'approved' && !currentUserEmployeeData && !isCurrentUserAdmin) {
+    return <LoadingScreen message="Đang đồng bộ hóa quyền truy cập..." />;
   }
 
-  if (currentUserEmployeeData) {
+
+  if (currentUserEmployeeData || isCurrentUserAdmin) { // Admin always gets access
     return (
       <SidebarProvider>
         <FleurManagerLayoutContent
@@ -1391,20 +1404,17 @@ export default function FleurManagerPage() {
     );
   }
 
-  if (userAccessRequest) {
+  if (userAccessRequest && userAccessRequest.requestedRole === 'employee') {
     if (userAccessRequest.status === 'pending') {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
           <HelpCircle className="w-16 h-16 text-primary mb-4" />
           <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
-          <p className="text-muted-foreground">Yêu cầu truy cập của bạn cho vai trò Nhân viên đã được gửi.</p>
+          <p className="text-muted-foreground">Yêu cầu truy cập vai trò Nhân viên của bạn đã được gửi.</p>
           <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
-          <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
+          <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Đăng xuất</Button>
         </div>
       );
-    }
-    if (userAccessRequest.status === 'approved' && !currentUserEmployeeData) {
-        return <LoadingScreen message="Đang đồng bộ hóa quyền truy cập..." />;
     }
      if (userAccessRequest.status === 'rejected') {
         return (
@@ -1415,16 +1425,37 @@ export default function FleurManagerPage() {
                     Yêu cầu truy cập của bạn đã bị từ chối.
                     {userAccessRequest.rejectionReason && ` Lý do: ${userAccessRequest.rejectionReason}.`}
                 </p>
-                <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên để biết thêm chi tiết hoặc đăng ký lại với thông tin chính xác.</p>
-                <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
+                <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên hoặc đăng ký lại với thông tin chính xác.</p>
+                <Button onClick={handleSignOut} className="mt-6 bg-destructive text-destructive-foreground hover:bg-destructive/90">Đăng xuất</Button>
             </div>
         );
     }
   }
+  
+  if (isLoadingAccessRequest && !isCurrentUserAdmin && !currentUserEmployeeData) {
+      return <LoadingScreen message="Đang tải dữ liệu truy cập..." />;
+  }
 
+  // Fallback for users who are not admin, not an employee, and have no pending/approved/rejected *employee* request
+  // This screen is reached if:
+  // - Not admin
+  // - Not in employeesData
+  // - No 'employee' request found in userAccessRequests OR the request was for 'customer' (which is ignored by this app now)
   if (!isCurrentUserAdmin && !currentUserEmployeeData && !isLoadingAccessRequest) {
-      return <LoadingScreen message="Không có quyền truy cập. Vui lòng đăng ký hoặc liên hệ quản trị viên." />;
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+            <UserX className="w-16 h-16 text-destructive mb-4" />
+            <h1 className="text-2xl font-bold mb-2 text-foreground">Không có quyền truy cập</h1>
+            <p className="text-muted-foreground">
+                Bạn không có quyền truy cập vào ứng dụng này.
+            </p>
+            <p className="text-muted-foreground">Vui lòng đăng ký tài khoản nhân viên từ trang đăng nhập hoặc liên hệ quản trị viên.</p>
+            <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Về trang đăng nhập</Button>
+        </div>
+    );
   }
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
+

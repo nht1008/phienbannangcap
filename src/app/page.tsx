@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
 import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry, UserAccessRequest, UserAccessRequestStatus, ProductFormData, Order, OrderStatus, PaymentStatus } from '@/types';
-import { initialProductFormData as defaultProductFormData } from '@/types'; // Corrected import
+import { initialProductFormData as defaultProductFormData } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
 import type { User } from 'firebase/auth';
@@ -32,7 +32,6 @@ import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { OrdersTab } from '@/components/tabs/OrdersTab';
 import { StorefrontTab } from '@/components/tabs/StorefrontTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
-// import { RequestAccessDialog } from '@/components/auth/RequestAccessDialog'; // Removed
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
@@ -610,7 +609,6 @@ export default function FleurManagerPage() {
   const { toast } = useToast();
 
   const [isSettingName, setIsSettingName] = useState(false);
-  // const [showRequestAccessDialog, setShowRequestAccessDialog] = useState(false); // Removed
   const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
   const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
 
@@ -768,83 +766,50 @@ export default function FleurManagerPage() {
             } else {
                 setIsSettingName(false);
             }
-            // setShowRequestAccessDialog(false); // Removed
-            setUserAccessRequest(null);
+            setUserAccessRequest(null); // Admin doesn't have an "access request"
             setIsLoadingAccessRequest(false);
         } else {
             const currentEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
-            if (currentEmployee) { // User is an active employee
+            if (currentEmployee) { // User is an active employee in this app
                 if (!currentUser.displayName) {
                     setIsSettingName(true);
                 } else {
                     setIsSettingName(false);
                 }
-                // setShowRequestAccessDialog(false); // Removed
+                // Represent their status as an 'approved' request for consistency if needed by UI, though not strictly an "access request" anymore
                 setUserAccessRequest({ 
                     id: currentUser.uid, 
                     status: 'approved', 
                     email: currentUser.email || '', 
                     fullName: currentUser.displayName || '', 
                     phone: currentEmployee.phone || '', 
-                    address: '', 
+                    address: '', // Address might not be relevant for employee entity
                     zaloName: currentEmployee.zaloName || '',
                     requestedRole: 'employee', 
-                    requestDate: new Date().toISOString() 
+                    requestDate: new Date().toISOString() // Placeholder date
                 });
                 setIsLoadingAccessRequest(false);
-            } else { // Not an admin, not in current employeesData, check access requests
-                let requestFound = false;
+            } else { // Not an admin, not in current employeesData, check access requests for this app
                 const employeeRequestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
                 try {
                     const employeeSnapshot = await get(employeeRequestRef);
                     if (employeeSnapshot.exists()) {
-                        requestFound = true;
                         const requestData = employeeSnapshot.val() as UserAccessRequest;
-                        setUserAccessRequest(requestData);
-                        if (requestData.status === 'approved') {
-                            // setShowRequestAccessDialog(false); // Removed
-                            setIsSettingName(!currentUser.displayName);
-                        } else { 
-                            setIsSettingName(!currentUser.displayName); 
-                            // setShowRequestAccessDialog(!!currentUser.displayName && requestData.status === 'rejected'); // Removed
-                        }
+                        setUserAccessRequest(requestData); // This will be the request for 'employee' role
+                        setIsSettingName(!currentUser.displayName); // Prompt to set name if not already set
+                    } else {
+                        // No active employee record, no pending/rejected employee request
+                        setUserAccessRequest(null); 
+                        setIsSettingName(!currentUser.displayName); // Still prompt for name
+                         // Here, if no request is found at all, the user effectively has no standing.
+                         // They should probably be signed out or shown a generic "no access" message
+                         // if they somehow bypassed the login page's auth checks without an employee record.
+                         // For now, page.tsx will show "LoadingScreen" if !userAccessRequest && !currentUserEmployeeData
                     }
                 } catch (error) {
                     console.error("Error fetching employee user access request:", error);
-                    toast({ title: "Lỗi tải yêu cầu (NV)", description: (error as Error).message, variant: "destructive" });
-                }
-
-                if (!requestFound) {
-                    const customerRequestRef = ref(db, `khach_hang_cho_duyet/${currentUser.uid}`);
-                    try {
-                        const customerSnapshot = await get(customerRequestRef);
-                        if (customerSnapshot.exists()) {
-                            requestFound = true;
-                            const customerRequestData = customerSnapshot.val();
-                            setUserAccessRequest({
-                                id: currentUser.uid,
-                                fullName: customerRequestData.fullName || currentUser.displayName || '',
-                                email: customerRequestData.email || currentUser.email || '',
-                                phone: customerRequestData.phone || '',
-                                address: customerRequestData.address || '',
-                                zaloName: customerRequestData.zaloName || '',
-                                requestedRole: 'customer',
-                                status: 'pending', 
-                                requestDate: customerRequestData.requestDate || new Date().toISOString(),
-                            });
-                            // setShowRequestAccessDialog(false); // Removed
-                            setIsSettingName(!currentUser.displayName);
-                        }
-                    } catch (error) {
-                        console.error("Error fetching customer access request:", error);
-                        toast({ title: "Lỗi tải yêu cầu (KH)", description: (error as Error).message, variant: "destructive" });
-                    }
-                }
-                
-                if (!requestFound) {
+                    toast({ title: "Lỗi tải yêu cầu", description: (error as Error).message, variant: "destructive" });
                     setUserAccessRequest(null);
-                    setIsSettingName(!currentUser.displayName);
-                    // setShowRequestAccessDialog(!!currentUser.displayName); // Removed
                 }
                 setIsLoadingAccessRequest(false);
             }
@@ -1158,8 +1123,7 @@ export default function FleurManagerPage() {
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa tùy chọn sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast, hasFullAccessRights]);
   const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
   const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
-  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); /* if (!isSuperAdminEmail) {setShowRequestAccessDialog(true);} // Removed */ } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
-  // const handleSaveAccessRequest = async (details: { fullName: string; email: string; phone: string; address: string; zaloName: string; requestedRole: UserAccessRequest['requestedRole']; }) => { if (!currentUser) { toast({ title: "Lỗi", description: "Không có người dùng hiện tại.", variant: "destructive" }); return; } const requestData: UserAccessRequest = { ...details, id: currentUser.uid, status: 'pending', requestDate: new Date().toISOString(), }; try { await set(ref(db, `userAccessRequests/${currentUser.uid}`), requestData); setUserAccessRequest(requestData); /* setShowRequestAccessDialog(false); */ toast({ title: "Yêu cầu đã được gửi", description: "Vui lòng chờ quản trị viên phê duyệt.", variant: "default" }); } catch (error) { console.error("Error saving access request:", error); toast({ title: "Lỗi", description: "Không thể gửi yêu cầu. Vui lòng thử lại.", variant: "destructive" }); } }; // Removed
+  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
 
   const handleDeleteDebt = (debtId: string) => {
     const debt = debtsData.find(d => d.id === debtId);
@@ -1210,7 +1174,7 @@ export default function FleurManagerPage() {
       
       if (newStatus === 'Hoàn thành') {
         updates[`orders/${orderId}/completionDate`] = new Date().toISOString();
-        updates[`orders/${orderId}/paymentStatus`] = 'Đã thanh toán' as PaymentStatus; // Assuming completed orders are paid
+        updates[`orders/${orderId}/paymentStatus`] = 'Đã thanh toán' as PaymentStatus;
       }
       
       await update(ref(db), updates);
@@ -1374,27 +1338,23 @@ export default function FleurManagerPage() {
   if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
   if (isSettingName) { return ( <SetNameDialog onNameSet={handleNameSet} /> ); }
   
-  // Removed RequestAccessDialog rendering block
-  
   if (userAccessRequest && userAccessRequest.status === 'pending' && !isCurrentUserAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
         <HelpCircle className="w-16 h-16 text-primary mb-4" />
         <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
         <p className="text-muted-foreground">
-          Yêu cầu truy cập của bạn cho vai trò <span className="font-semibold text-primary">{userAccessRequest.requestedRole === 'employee' ? 'Nhân viên' : 'Khách hàng'}</span> đã được gửi.
+          Yêu cầu truy cập của bạn cho vai trò Nhân viên đã được gửi.
         </p>
         <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
          <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
       </div>
     );
   }
-
-  if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'approved') {
-      const isApprovedCustomer = customersData.some(customer => customer.id === currentUser?.uid && userAccessRequest?.status === 'approved' && userAccessRequest?.requestedRole === 'customer');
-      if (!isApprovedCustomer && !isSettingName) { 
-          return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
-      }
+  
+  // Simplified access check: If not admin, not an active employee, and no pending/approved request, show loading (or could be an error/redirect)
+  if (!isCurrentUserAdmin && !currentUserEmployeeData && !userAccessRequest && !isSettingName) { 
+      return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
   }
 
 

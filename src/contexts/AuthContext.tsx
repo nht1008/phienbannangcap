@@ -8,12 +8,12 @@ import {
   onAuthStateChanged, 
   updateProfile,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
-  createUserWithEmailAndPassword // Added for registration
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { auth, db } from '@/lib/firebase'; 
-import { ref, get, child, set } from "firebase/database"; // Added set
-import type { UserAccessRequest } from '@/types'; // Added for typing
+import { ref, get, child, set } from "firebase/database";
+import type { UserAccessRequest } from '@/types';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -22,7 +22,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateUserProfileName: (name: string) => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
-  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => Promise<void>; // New function type
+  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & {password: string}) => Promise<void>;
   error: AuthError | null;
   setError: React.Dispatch<React.SetStateAction<AuthError | null>>;
 }
@@ -64,33 +64,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
-
-      // Check if user is an employee first (defined in 'employees' node)
-      const employeeRef = child(ref(db), `employees/${user.uid}`);
-      const employeeSnapshot = await get(employeeRef);
-      if (employeeSnapshot.exists()) {
-        // This is an employee, allow login directly
-        setCurrentUser(user);
-        return user;
-      }
-      
-      // If not an employee, check customer approval status in 'users' node
-      const userStatusRef = child(ref(db), `users/${user.uid}`);
-      const snapshot = await get(userStatusRef);
-
-      if (snapshot.exists() && snapshot.val().approvalStatus === 'approved' && snapshot.val().requestedRole === 'customer') {
-        setCurrentUser(user);
-        return user;
-      } else {
-        // For all other cases (not approved customer, or user not in 'employees' and not in 'users' with approval)
-        await firebaseSignOut(auth); // Sign out immediately
-        setCurrentUser(null);
-        setError({
-          code: 'auth/account-not-approved',
-          message: 'Tài khoản của bạn đang chờ phê duyệt, chưa được kích hoạt, hoặc không có quyền truy cập.'
-        } as AuthError);
-        return null;
-      }
+      // Basic authentication successful. Further authorization (employee, admin, pending)
+      // is handled by the logic in page.tsx based on currentUser state.
+      setCurrentUser(user);
+      return user;
     } catch (err) {
       setError(err as AuthError);
       return null;
@@ -116,7 +93,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (auth.currentUser) {
       try {
         await updateProfile(auth.currentUser, { displayName: name });
-         // Manually update currentUser state if needed, as onAuthStateChanged might not fire immediately
         setCurrentUser(prevUser => prevUser ? ({ ...prevUser, displayName: name }) : null);
       } catch (err) {
         setError(err as AuthError);
@@ -139,10 +115,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => {
+  // Simplified: all registrations via this app are for 'employee' role
+  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & {password: string}) => {
     setLoading(true);
     setError(null);
-    const { email, password, fullName, phone, address, zaloName, requestedRole } = details;
+    const { email, password, fullName, phone, address, zaloName } = details;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -155,29 +132,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         phone,
         address,
         zaloName,
-        requestedRole,
+        requestedRole: 'employee', // Hardcoded to 'employee'
         status: 'pending',
         requestDate: new Date().toISOString(),
       };
-
-      let dbPath = '';
-      if (requestedRole === 'customer') {
-        dbPath = `khach_hang_cho_duyet/${user.uid}`;
-      } else if (requestedRole === 'employee') {
-        dbPath = `userAccessRequests/${user.uid}`;
-      } else {
-        throw new Error("Vai trò yêu cầu không hợp lệ.");
-      }
       
-      await set(ref(db, dbPath), accessRequestData);
+      // Always write to userAccessRequests for employee role
+      await set(ref(db, `userAccessRequests/${user.uid}`), accessRequestData);
       
-      // Sign out immediately after registration and request submission
       await firebaseSignOut(auth);
-      setCurrentUser(null); // Ensure local state is also cleared
+      setCurrentUser(null);
 
     } catch (err) {
       setError(err as AuthError);
-      throw err; // Re-throw for the calling component to handle
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -191,7 +159,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut,
     updateUserProfileName,
     sendPasswordResetEmail,
-    signUpAndRequestAccess, // Provide new function
+    signUpAndRequestAccess,
     error,
     setError,
   };

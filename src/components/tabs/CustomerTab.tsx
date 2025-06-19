@@ -6,6 +6,7 @@ import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest } from '@/ty
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from "@/components/ui/label"; // Added missing import
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
@@ -59,14 +60,13 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   useEffect(() => {
     if (hasFullAccessRights) {
       setIsLoadingCustomerRequests(true);
-      const usersRef = ref(db, 'users'); // Changed from userAccessRequests
+      const usersRef = ref(db, 'users'); 
       const unsubscribe = onValue(usersRef, (snapshot) => {
         const usersData = snapshot.val();
         const loadedRequests: UserAccessRequest[] = [];
         if (usersData) {
           Object.keys(usersData).forEach(userId => {
             const userData = usersData[userId];
-            // Assuming BloomEase sets approvalStatus for users needing approval
             if (userData.approvalStatus === 'pending_approval') {
               loadedRequests.push({
                 id: userId,
@@ -75,9 +75,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 phone: userData.phone || '',
                 address: userData.address || '',
                 zaloName: userData.zaloName || '',
-                requestedRole: 'customer', // Assuming these are customer requests
-                status: 'pending', // For internal state management of this dialog
-                requestDate: userData.profileCompletionDate || userData.requestTimestamp || new Date().toISOString(),
+                requestedRole: 'customer', 
+                status: 'pending', 
+                requestDate: userData.profileCompletionDate || userData.requestDate || new Date().toISOString(),
               });
             }
           });
@@ -97,12 +97,10 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     if (!hasFullAccessRights || !currentUser) return;
     try {
       const updates: Record<string, any> = {};
-      // Update the 'users' node (from BloomEase)
       updates[`users/${request.id}/approvalStatus`] = 'approved';
       updates[`users/${request.id}/reviewedBy`] = currentUser.uid;
       updates[`users/${request.id}/reviewDate`] = new Date().toISOString();
 
-      // Add to local 'customers' node
       updates[`customers/${request.id}`] = {
         name: request.name,
         email: request.email, 
@@ -127,7 +125,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const handleConfirmRejectCustomerRequest = async () => {
     if (!hasFullAccessRights || !currentUser || !customerRequestToReject) return;
     try {
-      // Update the 'users' node (from BloomEase)
       await update(ref(db, `users/${customerRequestToReject.id}`), {
         approvalStatus: 'rejected',
         reviewedBy: currentUser.uid,

@@ -36,6 +36,7 @@ import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { cn } from '@/lib/utils';
+import { UserX } from 'lucide-react';
 
 import {
   Dialog,
@@ -260,7 +261,7 @@ interface FleurManagerLayoutContentProps {
   ) => Promise<void>;
   openAddProductDialog: () => void;
   openEditProductDialog: (product: Product) => void;
-  handleDeleteProductFromAnywhere: (productId: string) => void; 
+  handleDeleteProductFromAnywhere: (productId: string) => void;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -663,7 +664,7 @@ export default function FleurManagerPage() {
   }, [currentUser, currentUserEmployeeData]);
 
   const productFormDefaultState = useMemo<ProductFormData>(() => ({
-    ...defaultProductFormData, 
+    ...defaultProductFormData,
     name: productNameOptions.length > 0 ? productNameOptions[0] : '',
     color: colorOptions.length > 0 ? colorOptions[0] : '',
     quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
@@ -747,7 +748,7 @@ export default function FleurManagerPage() {
     if (authLoading || !currentUser) return;
 
     setIsLoadingAccessRequest(true);
-    
+
     let unsubscribeEmployees = () => {};
     let unsubscribeShopInfo = () => {};
     let unsubscribeDisposalLog = () => {};
@@ -763,59 +764,55 @@ export default function FleurManagerPage() {
         }
         setEmployeesData(loadedEmployees.sort((a, b) => a.name.localeCompare(b.name)));
 
+        const currentLoadedEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
+
         if (currentUser.email === ADMIN_EMAIL) {
-            const adminEmployeeRecord = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
-            if (!currentUser.displayName || !adminEmployeeRecord || (adminEmployeeRecord && adminEmployeeRecord.position !== 'ADMIN')) {
+            if (!currentUser.displayName || !currentLoadedEmployee || (currentLoadedEmployee && currentLoadedEmployee.position !== 'ADMIN')) {
                 setIsSettingName(true);
             } else {
                 setIsSettingName(false);
             }
-            setUserAccessRequest(null); 
+            setUserAccessRequest(null);
+            setIsLoadingAccessRequest(false);
+        } else if (currentLoadedEmployee) {
+             if (!currentUser.displayName) {
+                setIsSettingName(true);
+            } else {
+                setIsSettingName(false);
+            }
+            setUserAccessRequest({
+                id: currentUser.uid,
+                status: 'approved',
+                email: currentUser.email || '',
+                fullName: currentUser.displayName || '',
+                phone: currentLoadedEmployee.phone || '',
+                address: currentLoadedEmployee.address || '',
+                zaloName: currentLoadedEmployee.zaloName || '',
+                requestedRole: 'employee',
+                requestDate: new Date().toISOString()
+            });
             setIsLoadingAccessRequest(false);
         } else {
-            const currentEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
-            if (currentEmployee) { 
-                if (!currentUser.displayName) {
-                    setIsSettingName(true);
+            const employeeRequestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
+            try {
+                const employeeSnapshot = await get(employeeRequestRef);
+                if (employeeSnapshot.exists()) {
+                    const requestData = employeeSnapshot.val() as UserAccessRequest;
+                    setUserAccessRequest(requestData);
+                    setIsSettingName(!currentUser.displayName);
                 } else {
-                    setIsSettingName(false);
-                }
-                setUserAccessRequest({ 
-                    id: currentUser.uid, 
-                    status: 'approved', 
-                    email: currentUser.email || '', 
-                    fullName: currentUser.displayName || '', 
-                    phone: currentEmployee.phone || '', 
-                    address: currentEmployee.address || '', 
-                    zaloName: currentEmployee.zaloName || '',
-                    requestedRole: 'employee', 
-                    requestDate: new Date().toISOString() 
-                });
-                setIsLoadingAccessRequest(false);
-            } else { 
-                const employeeRequestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
-                try {
-                    const employeeSnapshot = await get(employeeRequestRef);
-                    if (employeeSnapshot.exists()) {
-                        const requestData = employeeSnapshot.val() as UserAccessRequest;
-                        setUserAccessRequest(requestData); 
-                        setIsSettingName(!currentUser.displayName); 
-                    } else {
-                        setUserAccessRequest(null); 
-                        setIsSettingName(!currentUser.displayName); 
-                    }
-                } catch (error) {
-                    console.error("Error fetching employee user access request:", error);
-                    toast({ title: "Lỗi tải yêu cầu", description: (error as Error).message, variant: "destructive" });
                     setUserAccessRequest(null);
+                    setIsSettingName(!currentUser.displayName);
                 }
-                setIsLoadingAccessRequest(false);
+            } catch (error) {
+                console.error("Error fetching employee user access request:", error);
+                toast({ title: "Lỗi tải yêu cầu", description: (error as Error).message, variant: "destructive" });
+                setUserAccessRequest(null);
             }
+            setIsLoadingAccessRequest(false);
         }
     });
 
-    // Shop Info listener only if user has rights (derived from employeesData, so it's after employee data is loaded)
-    // This logic is fine, but the hasFullAccessRights dependency will be handled carefully
     if (hasFullAccessRights) {
         setIsLoadingShopInfo(true);
         const shopInfoRef = ref(db, 'shopInfo');
@@ -842,7 +839,7 @@ export default function FleurManagerPage() {
         });
     } else {
         setShopInfo(null);
-        setIsLoadingShopInfo(false); // Ensure this is set if no rights
+        setIsLoadingShopInfo(false);
     }
 
     const disposalLogRef = ref(db, 'disposalLog');
@@ -858,12 +855,12 @@ export default function FleurManagerPage() {
     });
 
 
-    return () => { 
-        unsubscribeEmployees(); 
-        unsubscribeShopInfo(); 
-        unsubscribeDisposalLog(); 
+    return () => {
+        unsubscribeEmployees();
+        unsubscribeShopInfo();
+        unsubscribeDisposalLog();
     };
-  }, [currentUser, authLoading, hasFullAccessRights, toast]); // hasFullAccessRights is a key dependency
+  }, [currentUser, authLoading, hasFullAccessRights, toast]);
 
 
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
@@ -1167,19 +1164,19 @@ export default function FleurManagerPage() {
       setDebtToDelete(null);
     }
   };
-  
+
   const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: OrderStatus, currentEmployeeId: string, currentEmployeeName: string) => {
     try {
       const updates: Record<string, any> = {};
       updates[`orders/${orderId}/orderStatus`] = newStatus;
       updates[`orders/${orderId}/updatedBy`] = currentEmployeeId;
       updates[`orders/${orderId}/updatedAt`] = new Date().toISOString();
-      
+
       if (newStatus === 'Hoàn thành') {
         updates[`orders/${orderId}/completionDate`] = new Date().toISOString();
         updates[`orders/${orderId}/paymentStatus`] = 'Đã thanh toán' as PaymentStatus;
       }
-      
+
       await update(ref(db), updates);
       toast({ title: "Thành công", description: `Trạng thái đơn hàng #${orderId.substring(0,6)}... đã được cập nhật thành "${newStatus}".` });
     } catch (error) {
@@ -1238,7 +1235,7 @@ export default function FleurManagerPage() {
       const updates: Partial<Employee> = { name: data.name };
       if (data.phone !== undefined) updates.phone = data.phone;
       if (data.zaloName !== undefined) updates.zaloName = data.zaloName;
-      
+
       await update(ref(db, `employees/${employeeId}`), updates);
 
       if (currentUser && employeeId === currentUser.uid && data.name !== currentUser.displayName) {
@@ -1266,7 +1263,7 @@ export default function FleurManagerPage() {
     try {
       const updates: Record<string, any> = {};
       updates[`employees/${employeeId}`] = null;
-      updates[`userAccessRequests/${employeeId}`] = null; 
+      updates[`userAccessRequests/${employeeId}`] = null;
 
       await update(ref(db), updates);
       toast({ title: "Thành công", description: `Nhân viên ${targetEmployee.name} đã được xóa.` });
@@ -1336,16 +1333,25 @@ export default function FleurManagerPage() {
     }
   }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
+  useEffect(() => {
+    if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'pending' && userAccessRequest?.status !== 'approved' && !isLoadingAccessRequest && !authLoading && currentUser && !isSettingName) {
+      toast({
+        title: "Không có quyền truy cập",
+        description: "Không tìm thấy thông tin nhân viên hoặc yêu cầu truy cập hợp lệ. Vui lòng đăng ký hoặc liên hệ quản trị viên.",
+        variant: "destructive"
+      });
+    }
+  }, [isCurrentUserAdmin, currentUserEmployeeData, userAccessRequest, isLoadingAccessRequest, toast, authLoading, currentUser, isSettingName]);
+
 
   // --- Conditional Rendering Logic ---
   if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
-  if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; // Should be handled by useEffect redirect
+  if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
   if (isSettingName) return <SetNameDialog onNameSet={handleNameSet} />;
-  if (isLoadingAccessRequest && !isCurrentUserAdmin && !currentUserEmployeeData) { // Only show this generic loading if we don't yet have employee data AND are still loading access details
+  if (isLoadingAccessRequest && !isCurrentUserAdmin && !currentUserEmployeeData) {
       return <LoadingScreen message="Đang tải dữ liệu truy cập..." />;
   }
 
-  // If user is an active employee (or admin), let them in
   if (currentUserEmployeeData) {
     return (
       <SidebarProvider>
@@ -1385,8 +1391,7 @@ export default function FleurManagerPage() {
     );
   }
 
-  // If not an employee yet, check access request status
-  if (userAccessRequest && !isCurrentUserAdmin) { // Ensure this check doesn't apply to admins
+  if (userAccessRequest) {
     if (userAccessRequest.status === 'pending') {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
@@ -1398,10 +1403,7 @@ export default function FleurManagerPage() {
         </div>
       );
     }
-    if (userAccessRequest.status === 'approved') {
-        // This case means their request in userAccessRequests is 'approved',
-        // but they are not yet in the 'employees' list (or employeesData state hasn't updated).
-        // This should be a transient state.
+    if (userAccessRequest.status === 'approved' && !currentUserEmployeeData) {
         return <LoadingScreen message="Đang đồng bộ hóa quyền truy cập..." />;
     }
      if (userAccessRequest.status === 'rejected') {
@@ -1411,28 +1413,18 @@ export default function FleurManagerPage() {
                 <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đã bị từ chối</h1>
                 <p className="text-muted-foreground">
                     Yêu cầu truy cập của bạn đã bị từ chối.
-                    {userAccessRequest.rejectionReason && ` Lý do: ${userAccessRequest.rejectionReason}`}
+                    {userAccessRequest.rejectionReason && ` Lý do: ${userAccessRequest.rejectionReason}.`}
                 </p>
-                <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên để biết thêm chi tiết.</p>
+                <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên để biết thêm chi tiết hoặc đăng ký lại với thông tin chính xác.</p>
                 <Button onClick={handleSignOut} className="mt-6">Đăng xuất</Button>
             </div>
         );
     }
   }
-  
-  // Fallback for non-admin users if no employee data and no specific userAccessRequest status applies
-  // This implies they are not recognized by the system yet or their request is missing/in an unknown state.
-  if (!isCurrentUserAdmin) {
-      toast({title: "Không có quyền truy cập", description: "Không tìm thấy thông tin nhân viên hoặc yêu cầu truy cập hợp lệ. Vui lòng đăng ký hoặc liên hệ quản trị viên.", variant: "destructive" });
-      // Consider signing out if this state is reached unexpectedly after login
-      // signOut(); 
-      return <LoadingScreen message="Không có quyền truy cập." />;
+
+  if (!isCurrentUserAdmin && !currentUserEmployeeData && !isLoadingAccessRequest) {
+      return <LoadingScreen message="Không có quyền truy cập. Vui lòng đăng ký hoặc liên hệ quản trị viên." />;
   }
 
-  // If execution reaches here, it means user is admin but perhaps initial data for admin (like shopInfo) is still loading
-  // or some other admin-specific setup is pending. Or it's an unhandled case.
-  // For safety, return a loading screen, but ideally admins should pass the currentUserEmployeeData check earlier.
-  return <LoadingScreen message="Đang hoàn tất tải ứng dụng cho quản trị viên..." />;
+  return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
-
-    

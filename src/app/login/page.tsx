@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+// import Link from 'next/link'; // No longer needed for /register
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,11 +17,12 @@ import { ref, onValue } from "firebase/database";
 import type { ShopInfo } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
+import { RegistrationRequestDialog } from '@/components/auth/RegistrationRequestDialog'; // New Dialog
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, currentUser, loading: authLoading, error, setError, sendPasswordResetEmail } = useAuth();
+  const { signIn, currentUser, loading: authLoading, error, setError, sendPasswordResetEmail, signUpAndRequestAccess } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -31,6 +32,8 @@ export default function LoginPage() {
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
+
+  const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false);
 
 
   useEffect(() => {
@@ -114,6 +117,34 @@ export default function LoginPage() {
       toast({ title: "Lỗi gửi email", description: err.message || "Không thể gửi email đặt lại mật khẩu.", variant: "destructive" });
     } finally {
       setIsSendingResetEmail(false);
+    }
+  };
+
+  const handleRegistrationSubmit = async (details: Omit<Parameters<typeof signUpAndRequestAccess>[0], 'id' | 'status' | 'requestDate'> & { password: string }) => {
+    try {
+      await signUpAndRequestAccess(details);
+      toast({
+        title: "Yêu cầu đã được gửi",
+        description: "Vui lòng chờ quản trị viên phê duyệt tài khoản của bạn.",
+        variant: "default",
+      });
+      setIsRegistrationDialogOpen(false);
+      return true; // Indicate success
+    } catch (err: any) {
+      let errorMessage = "Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại.";
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = "Địa chỉ email này đã được sử dụng. Vui lòng sử dụng email khác hoặc thử đăng nhập.";
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = "Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn (ít nhất 6 ký tự).";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      toast({
+        title: "Lỗi đăng ký",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return false; // Indicate failure
     }
   };
   
@@ -219,16 +250,13 @@ export default function LoginPage() {
               >
                 Quên mật khẩu?
               </Button>
-              <Link 
-                href="/register" 
-                className={cn(
-                    "text-sm text-muted-foreground hover:text-primary",
-                    "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-                    "p-0 h-auto"
-                )}
+              <Button
+                variant="link"
+                onClick={() => setIsRegistrationDialogOpen(true)}
+                className="text-sm text-muted-foreground hover:text-primary p-0 h-auto"
               >
                 Chưa có tài khoản? Đăng ký
-              </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -273,7 +301,12 @@ export default function LoginPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <RegistrationRequestDialog
+        isOpen={isRegistrationDialogOpen}
+        onClose={() => setIsRegistrationDialogOpen(false)}
+        onSubmitRegistration={handleRegistrationSubmit}
+      />
     </>
   );
 }
-

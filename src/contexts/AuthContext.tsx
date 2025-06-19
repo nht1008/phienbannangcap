@@ -7,11 +7,13 @@ import {
   signOut as firebaseSignOut, 
   onAuthStateChanged, 
   updateProfile,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail // Import new function
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  createUserWithEmailAndPassword // Added for registration
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { auth, db } from '@/lib/firebase'; // Import db
-import { ref, get, child } from "firebase/database"; // Import Realtime Database functions
+import { auth, db } from '@/lib/firebase'; 
+import { ref, get, child, set } from "firebase/database"; // Added set
+import type { UserAccessRequest } from '@/types'; // Added for typing
 
 interface AuthContextType {
   currentUser: User | null;
@@ -19,7 +21,8 @@ interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<User | null>;
   signOut: () => Promise<void>;
   updateUserProfileName: (name: string) => Promise<void>;
-  sendPasswordResetEmail: (email: string) => Promise<void>; // Add new function type
+  sendPasswordResetEmail: (email: string) => Promise<void>;
+  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => Promise<void>; // New function type
   error: AuthError | null;
   setError: React.Dispatch<React.SetStateAction<AuthError | null>>;
 }
@@ -62,29 +65,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
 
-      // Check employee status first (higher priority)
+      // Check if user is an employee first (defined in 'employees' node)
       const employeeRef = child(ref(db), `employees/${user.uid}`);
       const employeeSnapshot = await get(employeeRef);
-
       if (employeeSnapshot.exists()) {
-        // User is an employee, allow login
+        // This is an employee, allow login directly
         setCurrentUser(user);
         return user;
       }
-
-      // If not an employee, check customer approval status
+      
+      // If not an employee, check customer approval status in 'users' node
       const userStatusRef = child(ref(db), `users/${user.uid}`);
       const snapshot = await get(userStatusRef);
 
-      if (snapshot.exists() && snapshot.val().approvalStatus === 'approved') {
+      if (snapshot.exists() && snapshot.val().approvalStatus === 'approved' && snapshot.val().requestedRole === 'customer') {
         setCurrentUser(user);
         return user;
       } else {
-        await firebaseSignOut(auth);
+        // For all other cases (not approved customer, or user not in 'employees' and not in 'users' with approval)
+        await firebaseSignOut(auth); // Sign out immediately
         setCurrentUser(null);
         setError({
           code: 'auth/account-not-approved',
-          message: 'Tài khoản của bạn đang chờ phê duyệt hoặc chưa được kích hoạt.'
+          message: 'Tài khoản của bạn đang chờ phê duyệt, chưa được kích hoạt, hoặc không có quyền truy cập.'
         } as AuthError);
         return null;
       }
@@ -113,6 +116,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (auth.currentUser) {
       try {
         await updateProfile(auth.currentUser, { displayName: name });
+         // Manually update currentUser state if needed, as onAuthStateChanged might not fire immediately
+        setCurrentUser(prevUser => prevUser ? ({ ...prevUser, displayName: name }) : null);
       } catch (err) {
         setError(err as AuthError);
         throw err; 
@@ -130,9 +135,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await firebaseSendPasswordResetEmail(auth, emailAddress);
     } catch (err) {
       setError(err as AuthError);
-      throw err; // Re-throw to allow error handling in the component
+      throw err; 
     }
   };
+
+  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => {
+    setLoading(true);
+    setError(null);
+    const { email, password, fullName, phone, address, zaloName, requestedRole } = details;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, { displayName: fullName });
+
+      const accessRequestData: Omit<UserAccessRequest, 'id'> = {
+        fullName,
+        email,
+        phone,
+        address,
+        zaloName,
+        requestedRole,
+        status: 'pending',
+        requestDate: new Date().toISOString(),
+      };
+
+      let dbPath = '';
+      if (requestedRole === 'customer') {
+        dbPath = `khach_hang_cho_duyet/${user.uid}`;
+      } else if (requestedRole === 'employee') {
+        dbPath = `userAccessRequests/${user.uid}`;
+      } else {
+        throw new Error("Vai trò yêu cầu không hợp lệ.");
+      }
+      
+      await set(ref(db, dbPath), accessRequestData);
+      
+      // Sign out immediately after registration and request submission
+      await firebaseSignOut(auth);
+      setCurrentUser(null); // Ensure local state is also cleared
+
+    } catch (err) {
+      setError(err as AuthError);
+      throw err; // Re-throw for the calling component to handle
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const value = {
     currentUser,
@@ -140,7 +190,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signIn,
     signOut,
     updateUserProfileName,
-    sendPasswordResetEmail, // Provide new function
+    sendPasswordResetEmail,
+    signUpAndRequestAccess, // Provide new function
     error,
     setError,
   };

@@ -219,14 +219,15 @@ export default function LoginPage() {
               >
                 Quên mật khẩu?
               </Button>
-              <Link href="/register" legacyBehavior passHref>
-                <a className={cn(
+              <Link 
+                href="/register" 
+                className={cn(
                     "text-sm text-muted-foreground hover:text-primary",
-                    "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", // Base button styles
-                    "p-0 h-auto" // Link-specific adjustments
-                )}>
-                  Chưa có tài khoản? Đăng ký
-                </a>
+                    "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                    "p-0 h-auto"
+                )}
+              >
+                Chưa có tài khoản? Đăng ký
               </Link>
             </div>
           </CardContent>
@@ -275,3 +276,4 @@ export default function LoginPage() {
     </>
   );
 }
+

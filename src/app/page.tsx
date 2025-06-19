@@ -750,66 +750,108 @@ export default function FleurManagerPage() {
 
     setIsLoadingAccessRequest(true);
     const employeesRef = ref(db, 'employees');
-    const unsubscribeEmployees = onValue(employeesRef, (snapshot) => {
-      const data = snapshot.val();
-      const loadedEmployees: Employee[] = [];
-      if (data) {
-        Object.keys(data).forEach(key => {
-          loadedEmployees.push({ id: key, ...data[key] });
-        });
-      }
-      setEmployeesData(loadedEmployees.sort((a, b) => a.name.localeCompare(b.name)));
+    
+    const unsubscribeEmployees = onValue(employeesRef, async (snapshot) => {
+        const data = snapshot.val();
+        const loadedEmployees: Employee[] = [];
+        if (data) {
+            Object.keys(data).forEach(key => {
+                loadedEmployees.push({ id: key, ...data[key] });
+            });
+        }
+        setEmployeesData(loadedEmployees.sort((a, b) => a.name.localeCompare(b.name)));
 
-      if (currentUser.email === ADMIN_EMAIL) {
-        const adminEmployeeRecord = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
-        if (!currentUser.displayName || !adminEmployeeRecord || (adminEmployeeRecord && adminEmployeeRecord.position !== 'ADMIN')) {
-           setIsSettingName(true);
-        } else {
-           setIsSettingName(false);
-        }
-        setShowRequestAccessDialog(false);
-        setUserAccessRequest(null);
-        setIsLoadingAccessRequest(false);
-      } else {
-        const currentEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
-        if (currentEmployee) {
-          if (!currentUser.displayName) {
-            setIsSettingName(true);
-          } else {
-            setIsSettingName(false);
-          }
-          setShowRequestAccessDialog(false);
-          setUserAccessRequest({ id: currentUser.uid, status: 'approved', email: currentUser.email || '', fullName: currentUser.displayName || '', phone: '', address: '', zaloName: '', requestedRole: 'employee', requestDate: new Date().toISOString() });
-          setIsLoadingAccessRequest(false);
-        } else {
-          const requestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
-          get(requestRef).then((requestSnapshot) => {
-            if (requestSnapshot.exists()) {
-              const requestData = requestSnapshot.val() as UserAccessRequest;
-              setUserAccessRequest(requestData);
-              if (requestData.status === 'approved') {
-                setShowRequestAccessDialog(false);
-                setIsSettingName(!currentUser.displayName);
-              } else if (requestData.status === 'pending' || requestData.status === 'rejected') {
-                setIsSettingName(!currentUser.displayName);
-                setShowRequestAccessDialog(!!currentUser.displayName);
-              }
+        if (currentUser.email === ADMIN_EMAIL) {
+            const adminEmployeeRecord = loadedEmployees.find(emp => emp.email === ADMIN_EMAIL);
+            if (!currentUser.displayName || !adminEmployeeRecord || (adminEmployeeRecord && adminEmployeeRecord.position !== 'ADMIN')) {
+                setIsSettingName(true);
             } else {
-              setUserAccessRequest(null);
-              setIsSettingName(!currentUser.displayName);
-              setShowRequestAccessDialog(!!currentUser.displayName);
+                setIsSettingName(false);
             }
-          }).catch(error => {
-            console.error("Error fetching user access request:", error);
-            toast({ title: "Lỗi tải yêu cầu", description: error.message, variant: "destructive" });
+            setShowRequestAccessDialog(false);
             setUserAccessRequest(null);
-            setIsSettingName(!currentUser.displayName);
-            setShowRequestAccessDialog(!!currentUser.displayName);
-          }).finally(() => {
             setIsLoadingAccessRequest(false);
-          });
+        } else {
+            const currentEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
+            if (currentEmployee) { // User is an active employee
+                if (!currentUser.displayName) {
+                    setIsSettingName(true);
+                } else {
+                    setIsSettingName(false);
+                }
+                setShowRequestAccessDialog(false);
+                setUserAccessRequest({ 
+                    id: currentUser.uid, 
+                    status: 'approved', 
+                    email: currentUser.email || '', 
+                    fullName: currentUser.displayName || '', 
+                    phone: currentEmployee.phone || '', 
+                    address: '', // Employees might not have address in this context
+                    zaloName: currentEmployee.zaloName || '',
+                    requestedRole: 'employee', 
+                    requestDate: new Date().toISOString() 
+                });
+                setIsLoadingAccessRequest(false);
+            } else { // Not an admin, not in current employeesData, check access requests
+                let requestFound = false;
+                // 1. Check userAccessRequests (typically for employee roles)
+                const employeeRequestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
+                try {
+                    const employeeSnapshot = await get(employeeRequestRef);
+                    if (employeeSnapshot.exists()) {
+                        requestFound = true;
+                        const requestData = employeeSnapshot.val() as UserAccessRequest;
+                        setUserAccessRequest(requestData);
+                        if (requestData.status === 'approved') {
+                            setShowRequestAccessDialog(false); // Should become an employee soon
+                            setIsSettingName(!currentUser.displayName);
+                        } else { // 'pending' or 'rejected' for employee role
+                            setIsSettingName(!currentUser.displayName); // Prompt for name if not set
+                            setShowRequestAccessDialog(!!currentUser.displayName && requestData.status === 'rejected'); // Show re-apply dialog if rejected AND name is set
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching employee user access request:", error);
+                    toast({ title: "Lỗi tải yêu cầu (NV)", description: (error as Error).message, variant: "destructive" });
+                }
+
+                // 2. If no request found in userAccessRequests, check khach_hang_cho_duyet
+                if (!requestFound) {
+                    const customerRequestRef = ref(db, `khach_hang_cho_duyet/${currentUser.uid}`);
+                    try {
+                        const customerSnapshot = await get(customerRequestRef);
+                        if (customerSnapshot.exists()) {
+                            requestFound = true;
+                            const customerRequestData = customerSnapshot.val();
+                            setUserAccessRequest({
+                                id: currentUser.uid,
+                                fullName: customerRequestData.fullName || currentUser.displayName || '',
+                                email: customerRequestData.email || currentUser.email || '',
+                                phone: customerRequestData.phone || '',
+                                address: customerRequestData.address || '',
+                                zaloName: customerRequestData.zaloName || '',
+                                requestedRole: 'customer',
+                                status: 'pending', // Implicitly pending
+                                requestDate: customerRequestData.requestDate || new Date().toISOString(),
+                            });
+                            setShowRequestAccessDialog(false); // Don't show RequestAccessDialog if pending customer request
+                            setIsSettingName(!currentUser.displayName);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching customer access request:", error);
+                        toast({ title: "Lỗi tải yêu cầu (KH)", description: (error as Error).message, variant: "destructive" });
+                    }
+                }
+                
+                // 3. If no request found in either location
+                if (!requestFound) {
+                    setUserAccessRequest(null);
+                    setIsSettingName(!currentUser.displayName);
+                    setShowRequestAccessDialog(!!currentUser.displayName); // Show main RequestAccessDialog if name is set
+                }
+                setIsLoadingAccessRequest(false);
+            }
         }
-      }
     });
 
     let unsubscribeShopInfo = () => {};
@@ -1334,18 +1376,19 @@ export default function FleurManagerPage() {
   if (authLoading || isLoadingAccessRequest) { return <LoadingScreen message="Đang tải ứng dụng..." />; }
   if (!currentUser) { return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />; }
   if (isSettingName) { return ( <SetNameDialog onNameSet={handleNameSet} /> ); }
-  if (showRequestAccessDialog && currentUser && !isCurrentUserAdmin && (!userAccessRequest || userAccessRequest.status === 'rejected') ) {
+  
+  if (showRequestAccessDialog && currentUser && !isCurrentUserAdmin && userAccessRequest?.status !== 'approved' && userAccessRequest?.status !== 'pending') {
      return (
       <RequestAccessDialog
         currentUserName={currentUser.displayName}
         currentUserEmail={currentUser.email}
         onSubmitRequest={handleSaveAccessRequest}
-        existingRequestStatus={userAccessRequest?.status}
+        existingRequestStatus={userAccessRequest?.status} // Pass current status for re-apply/rejected cases
         rejectionReason={userAccessRequest?.rejectionReason}
       />
     );
   }
-
+  
   if (userAccessRequest && userAccessRequest.status === 'pending' && !isCurrentUserAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
@@ -1360,11 +1403,14 @@ export default function FleurManagerPage() {
     );
   }
 
+  // This covers cases where user is not admin, not an active employee, and has no pending/approved customer request
   if (!isCurrentUserAdmin && !currentUserEmployeeData && userAccessRequest?.status !== 'approved') {
-    const isApprovedCustomer = customersData.some(customer => customer.id === currentUser.uid && userAccessRequest?.status === 'approved' && userAccessRequest?.requestedRole === 'customer');
-    if (!isApprovedCustomer) {
-        return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
-    }
+      // Further check if they are an approved customer (who wouldn't be in employeesData or have an employee request)
+      const isApprovedCustomer = customersData.some(customer => customer.id === currentUser?.uid && userAccessRequest?.status === 'approved' && userAccessRequest?.requestedRole === 'customer');
+      // If they are not an approved customer either, and no other valid state, show loading or error
+      if (!isApprovedCustomer && !showRequestAccessDialog && !isSettingName) { // Added !showRequestAccessDialog and !isSettingName to prevent premature loading screen
+          return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
+      }
   }
 
 
@@ -1495,4 +1541,3 @@ export default function FleurManagerPage() {
     </SidebarProvider>
   );
 }
-

@@ -18,7 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { ShopInfo } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, Save } from 'lucide-react'; // Added Save icon
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 export type OverallFontSize = 'sm' | 'md' | 'lg';
 export type NumericDisplaySize = 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl';
@@ -42,11 +43,11 @@ interface SettingsDialogProps {
   onNumericDisplaySizeChange: (size: NumericDisplaySize) => void;
   shopInfo: ShopInfo | null;
   onSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
-  hasAdminOrManagerRights: boolean; // Changed from isAdmin
+  hasAdminOrManagerRights: boolean;
   isLoadingShopInfo: boolean;
 }
 
-const MAX_LOGO_SIZE_MB = 2;
+const MAX_LOGO_SIZE_MB = 3; // Updated
 const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
 export function SettingsDialog({
@@ -58,7 +59,7 @@ export function SettingsDialog({
   onNumericDisplaySizeChange,
   shopInfo,
   onSaveShopInfo,
-  hasAdminOrManagerRights, // Changed from isAdmin
+  hasAdminOrManagerRights,
   isLoadingShopInfo
 }: SettingsDialogProps) {
   const [currentOverallSize, setCurrentOverallSize] = useState<OverallFontSize>(overallFontSize);
@@ -74,7 +75,7 @@ export function SettingsDialog({
   useEffect(() => {
     setCurrentNumericSize(numericDisplaySize);
   }, [numericDisplaySize]);
-  
+
   useEffect(() => {
     setEditableShopInfo(shopInfo || defaultShopInfo);
   }, [shopInfo]);
@@ -116,14 +117,13 @@ export function SettingsDialog({
       }
       reader.readAsDataURL(file);
     } else {
-      // If no file is selected (e.g., user cancels dialog), reset to default or previous if any
        setEditableShopInfo(prev => ({ ...prev, logoUrl: shopInfo?.logoUrl || defaultShopInfo.logoUrl }));
     }
   };
 
   const handleSaveShopInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasAdminOrManagerRights) { // Changed from isAdmin
+    if (!hasAdminOrManagerRights) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
     }
@@ -195,13 +195,16 @@ export function SettingsDialog({
             </div>
           </section>
 
-          {hasAdminOrManagerRights && ( // Changed from isAdmin
+          {hasAdminOrManagerRights && (
             <>
               <Separator />
               <section>
                 <h3 className="text-lg font-semibold mb-3 text-primary">Thông tin cửa hàng (Quản trị viên/Quản lý)</h3>
                 {isLoadingShopInfo ? (
-                  <p>Đang tải thông tin cửa hàng...</p>
+                  <div className="flex items-center text-muted-foreground">
+                    <LoadingSpinner size={20} className="mr-2" />
+                    Đang tải thông tin cửa hàng...
+                  </div>
                 ) : (
                 <form onSubmit={handleSaveShopInfoSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -218,15 +221,15 @@ export function SettingsDialog({
                     <Label htmlFor="shopAddress">Địa chỉ cửa hàng</Label>
                     <Input id="shopAddress" name="address" value={editableShopInfo.address} onChange={handleShopInfoInputChange} placeholder="VD: 123 Đường Hoa, Phường X, Quận Y, TP. Z" />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="shopLogoFile" className="mb-1 block">Logo cửa hàng (Tối đa ${MAX_LOGO_SIZE_MB}MB)</Label>
                     <div className="flex items-center gap-4">
-                        <Input 
-                            id="shopLogoFile" 
-                            name="logoUrl" 
-                            type="file" 
-                            accept="image/*" 
+                        <Input
+                            id="shopLogoFile"
+                            name="logoUrl"
+                            type="file"
+                            accept="image/*"
                             onChange={handleLogoFileChange}
                             className="bg-card flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                         />
@@ -240,7 +243,7 @@ export function SettingsDialog({
                                 data-ai-hint="shop logo"
                                 onError={(e) => {
                                     const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none'; // Hide broken image
+                                    target.style.display = 'none';
                                 }}
                             />
                         ) : (
@@ -268,8 +271,18 @@ export function SettingsDialog({
                         <Input id="bankName" name="bankName" value={editableShopInfo.bankName} onChange={handleShopInfoInputChange} placeholder="VD: Vietcombank - CN ABC" />
                     </div>
 
-                  <Button type="submit" className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white" disabled={isSavingShopInfo}>
-                    {isSavingShopInfo ? 'Đang lưu...' : 'Lưu thông tin cửa hàng'}
+                  <Button type="submit" className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white" disabled={isSavingShopInfo}>
+                    {isSavingShopInfo ? (
+                        <>
+                            <LoadingSpinner size={20} className="mr-2 text-white" />
+                            Đang lưu...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Lưu thông tin cửa hàng
+                        </>
+                    )}
                   </Button>
                 </form>
                 )}

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from "@/components/ui/label";
-// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Removed
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Re-added
 import {
   Dialog,
   DialogContent,
@@ -19,12 +19,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { UserAccessRequest } from '@/types';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
-// type RequestedRole = UserAccessRequest['requestedRole']; // No longer needed for selection
+type RequestedRole = UserAccessRequest['requestedRole']; // Re-added
 
 interface RegistrationRequestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmitRegistration: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & { password: string }) => Promise<boolean>;
+  onSubmitRegistration: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & { password: string }) => Promise<boolean>;
 }
 
 export function RegistrationRequestDialog({
@@ -39,7 +39,7 @@ export function RegistrationRequestDialog({
   const [phone, setPhone] = useState('');
   const [zaloName, setZaloName] = useState('');
   const [address, setAddress] = useState('');
-  // const [requestedRole, setRequestedRole] = useState<RequestedRole>('employee'); // Default to employee, no selection needed
+  const [requestedRole, setRequestedRole] = useState<RequestedRole>('employee'); // Default to employee
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -51,14 +51,14 @@ export function RegistrationRequestDialog({
     setPhone('');
     setZaloName('');
     setAddress('');
-    // setRequestedRole('employee');
+    setRequestedRole('employee'); // Reset role
     setIsLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim()) {
-      toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc (*).", variant: "destructive" });
+    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim() || !requestedRole) {
+      toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc (*), bao gồm cả vai trò.", variant: "destructive" });
       return;
     }
     if (password !== confirmPassword) {
@@ -69,11 +69,10 @@ export function RegistrationRequestDialog({
       toast({ title: "Lỗi mật khẩu", description: "Mật khẩu phải có ít nhất 6 ký tự.", variant: "destructive" });
       return;
     }
-    // Address is now optional for employees
-    // if (requestedRole === 'customer' && !address.trim()) {
-    //   toast({ title: "Thiếu thông tin", description: "Vui lòng nhập địa chỉ cho khách hàng.", variant: "destructive" });
-    //   return;
-    // }
+    if (requestedRole === 'customer' && !address.trim()) {
+      toast({ title: "Thiếu thông tin", description: "Vui lòng nhập địa chỉ cho khách hàng.", variant: "destructive" });
+      return;
+    }
 
     setIsLoading(true);
     const success = await onSubmitRegistration({
@@ -81,9 +80,9 @@ export function RegistrationRequestDialog({
       password,
       fullName: fullName.trim(),
       phone: phone.trim(),
-      address: address.trim(), // Can be empty
+      address: address.trim(),
       zaloName: zaloName.trim(),
-      // requestedRole is implicitly 'employee' now for this context
+      requestedRole, // Pass the selected role
     });
     setIsLoading(false);
     if (success) {
@@ -96,9 +95,9 @@ export function RegistrationRequestDialog({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { resetForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Đăng ký tài khoản Nhân viên</DialogTitle>
+          <DialogTitle className="text-2xl">Đăng ký tài khoản</DialogTitle>
           <DialogDescription>
-            Vui lòng điền thông tin bên dưới để tạo tài khoản và gửi yêu cầu truy cập vai trò Nhân viên.
+            Vui lòng điền thông tin bên dưới để tạo tài khoản và gửi yêu cầu truy cập.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-2">
@@ -131,11 +130,10 @@ export function RegistrationRequestDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="reg-address">Địa chỉ (Tùy chọn)</Label>
-            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" />
+            <Label htmlFor="reg-address">Địa chỉ {requestedRole === 'customer' ? '(*)' : '(Tùy chọn cho nhân viên)'}</Label>
+            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} required={requestedRole === 'customer'} className="text-base min-h-[70px]" />
           </div>
-          {/* Removed Role Selection RadioGroup */}
-          {/*
+          
           <div>
             <Label className="mb-2 block">Đăng ký với vai trò? (*)</Label>
             <RadioGroup value={requestedRole} onValueChange={(value: string) => setRequestedRole(value as RequestedRole)} className="flex space-x-4">
@@ -149,7 +147,7 @@ export function RegistrationRequestDialog({
               </div>
             </RadioGroup>
           </div>
-          */}
+          
           <DialogFooter className="pt-3">
             <Button type="button" variant="outline" onClick={() => { resetForm(); onClose(); }} disabled={isLoading}>Hủy</Button>
             <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>

@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-// import Link from 'next/link'; // No longer needed for /register
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,10 +13,10 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import Image from 'next/image';
 import { db } from '@/lib/firebase';
 import { ref, onValue } from "firebase/database";
-import type { ShopInfo } from '@/types';
+import type { ShopInfo, UserAccessRequest } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
-import { RegistrationRequestDialog } from '@/components/auth/RegistrationRequestDialog'; // New Dialog
+import { RegistrationRequestDialog } from '@/components/auth/RegistrationRequestDialog'; 
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -120,9 +119,9 @@ export default function LoginPage() {
     }
   };
 
-  const handleRegistrationSubmit = async (details: Omit<Parameters<typeof signUpAndRequestAccess>[0], 'id' | 'status' | 'requestDate'> & { password: string }) => {
+  const handleRegistrationSubmit = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & { password: string }) => {
     try {
-      await signUpAndRequestAccess(details);
+      await signUpAndRequestAccess(details); // Pass the full details including requestedRole
       toast({
         title: "Yêu cầu đã được gửi",
         description: "Vui lòng chờ quản trị viên phê duyệt tài khoản của bạn.",
@@ -228,6 +227,8 @@ export default function LoginPage() {
                     ? 'Lỗi kết nối mạng. Vui lòng kiểm tra lại đường truyền.'
                     : error.code === 'auth/account-not-approved'
                     ? 'Tài khoản của bạn đang chờ phê duyệt hoặc chưa được kích hoạt.'
+                     : error.code === 'auth/account-rejected'
+                    ? error.message // This will contain the rejection reason if set
                     : error.message}
                 </p>
               )}

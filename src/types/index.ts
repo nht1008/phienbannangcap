@@ -23,7 +23,8 @@ export interface Customer {
   name: string;
   phone: string;
   address?: string;
-  email?: string; // Added for login/request tracking
+  email?: string;
+  zaloName?: string; // Added Zalo Name
 }
 
 export interface Supplier {
@@ -60,6 +61,41 @@ export interface Invoice {
   employeeName?: string; 
 }
 
+export interface OrderItem extends InvoiceCartItem { // Similar to InvoiceCartItem but for orders
+  // Any order-specific item properties can be added here
+}
+
+export type OrderStatus = 'Chờ xác nhận' | 'Đã xác nhận' | 'Đang chuẩn bị' | 'Đang giao hàng' | 'Hoàn thành' | 'Đã hủy' | 'Yêu cầu hủy';
+export type PaymentStatus = 'Chưa thanh toán' | 'Đã thanh toán' | 'Thanh toán một phần' | 'Đã hoàn tiền';
+
+
+export interface Order {
+  id: string; // Firebase key
+  orderNumber: string; // Human-readable order number
+  customerId: string; // UID of the customer from Firebase Auth
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  customerZaloName?: string;
+  items: OrderItem[];
+  subTotal: number; // Sum of (item.price * item.quantityInCart - item.itemDiscount)
+  shippingFee: number;
+  totalAmount: number; // subTotal + shippingFee - overallDiscount
+  overallDiscount?: number; // Discount on the entire order
+  paymentMethod: string; // e.g., 'COD', 'Bank Transfer', 'Online'
+  paymentStatus: PaymentStatus;
+  orderStatus: OrderStatus;
+  notes?: string; // Customer notes
+  internalNotes?: string; // Shop notes
+  orderDate: string; // ISO string
+  shipDate?: string; // ISO string
+  completionDate?: string; // ISO string
+  cancellationReason?: string; // If cancelled
+  updatedBy?: string; // UID of employee who last updated
+  updatedAt?: string; // ISO string of last update
+}
+
+
 export interface Debt {
   id: string;
   supplier: string; 
@@ -93,6 +129,7 @@ export interface Employee {
   email: string;
   position: EmployeePosition;
   phone?: string;
+  zaloName?: string; // Added Zalo Name
 }
 
 export interface ShopInfo {
@@ -103,6 +140,12 @@ export interface ShopInfo {
   bankAccountName: string;
   bankAccountNumber: string;
   bankName: string;
+  showShopLogoOnInvoice: boolean;
+  showShopAddressOnInvoice: boolean;
+  showShopPhoneOnInvoice: boolean;
+  showShopBankDetailsOnInvoice: boolean;
+  showEmployeeNameOnInvoice: boolean;
+  invoiceThankYouMessage: string;
 }
 
 export interface DisposalLogEntry {
@@ -124,25 +167,25 @@ export interface DisposalLogEntry {
 export type UserAccessRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface UserAccessRequest {
-  id: string; // Same as user's UID
-  name: string; // Display name
+  id: string; 
+  fullName: string; 
   email: string;
   phone: string;
   address: string;
+  zaloName: string; // Added Zalo Name
   requestedRole: 'employee' | 'customer';
   status: UserAccessRequestStatus;
-  requestDate: string; // ISO date string
-  reviewedBy?: string; // Admin UID
-  reviewDate?: string; // ISO date string
+  requestDate: string; 
+  reviewedBy?: string; 
+  reviewDate?: string; 
   rejectionReason?: string;
 }
 
-// This type will be used for the shared product form
 export type ProductFormData = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice' | 'maxDiscountPerUnitVND'> & {
   quantity: string;
-  price: string; // Price in Nghin VND for form input
-  costPrice: string; // Cost price in Nghin VND for form input
-  maxDiscountPerUnitVND: string; // Max discount in Nghin VND for form input
+  price: string; 
+  costPrice: string; 
+  maxDiscountPerUnitVND: string; 
 };
 
 export const initialProductFormData: ProductFormData = {
@@ -151,9 +194,10 @@ export const initialProductFormData: ProductFormData = {
   quality: '',
   size: '',
   unit: '',
-  quantity: '0',
+  quantity: '', // Changed from '0' to empty string
   price: '0',
-  costPrice: '',
+  costPrice: '', // Kept as empty for optional input initially, but will be required by form logic
   image: '',
   maxDiscountPerUnitVND: '0',
 };
+

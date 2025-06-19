@@ -91,7 +91,7 @@ interface EmployeeTabProps {
   numericDisplaySize: NumericDisplaySize;
   onDeleteDebt: (debtId: string) => void;
   onToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
-  onUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
+  onUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string; zaloName?: string; }) => Promise<void>;
   adminEmail: string;
   isCurrentUserAdmin: boolean;
   onDeleteEmployee: (employeeId: string) => Promise<void>;
@@ -130,7 +130,7 @@ export function EmployeeTab({
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [editFormData, setEditFormData] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
+  const [editFormData, setEditFormData] = useState<{ name: string; phone: string; zaloName: string }>({ name: '', phone: '', zaloName: '' });
   const { toast } = useToast();
 
   const [employeeAccessRequests, setEmployeeAccessRequests] = useState<UserAccessRequest[]>([]);
@@ -152,7 +152,6 @@ export function EmployeeTab({
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
-            // Only load pending employee requests for this specific dialog
             if (data[key].status === 'pending' && data[key].requestedRole === 'employee') {
               loadedRequests.push({ id: key, ...data[key] });
             }
@@ -177,15 +176,16 @@ export function EmployeeTab({
       updates[`userAccessRequests/${request.id}/reviewedBy`] = currentUser.uid;
       updates[`userAccessRequests/${request.id}/reviewDate`] = new Date().toISOString();
       updates[`employees/${request.id}`] = {
-        name: request.name,
+        name: request.fullName, // Use fullName
         email: request.email,
         phone: request.phone || '',
         address: request.address || '', 
+        zaloName: request.zaloName || '', // Added Zalo Name
         position: 'Nhân viên' as EmployeePosition, 
       };
       
       await update(ref(db), updates);
-      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của nhân viên ${request.name}.`, variant: "default" });
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của nhân viên ${request.fullName}.`, variant: "default" });
     } catch (error) {
       console.error("Error approving employee request:", error);
       toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu nhân viên.", variant: "destructive" });
@@ -206,7 +206,7 @@ export function EmployeeTab({
         reviewDate: new Date().toISOString(),
         rejectionReason: rejectionReason.trim() || "Không có lý do cụ thể.",
       });
-      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${requestToReject.name}.`, variant: "default" });
+      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${requestToReject.fullName}.`, variant: "default" });
       setRequestToReject(null);
       setRejectionReason("");
     } catch (error) {
@@ -219,14 +219,12 @@ export function EmployeeTab({
   const displayEmployees = useMemo(() => {
     if (isCurrentUserAdmin) {
         const adminEmp = employees.find(emp => emp.email === adminEmail);
-        // `employees` is already sorted by name from page.tsx
         const otherEmps = employees.filter(emp => emp.email !== adminEmail); 
         if (adminEmp) {
             return [adminEmp, ...otherEmps];
         }
         return otherEmps; 
     } else {
-        // Non-admin view: show admin and self, admin first.
         const adminEmployeeRecord = employees.find(emp => emp.email === adminEmail);
         const selfEmployeeRecord = employees.find(emp => emp.id === currentUser?.uid);
         const result = [];
@@ -320,7 +318,7 @@ export function EmployeeTab({
       return;
     }
     setEditingEmployee(employee);
-    setEditFormData({ name: employee.name, phone: employee.phone || '' });
+    setEditFormData({ name: employee.name, phone: employee.phone || '', zaloName: employee.zaloName || '' });
     setIsEditModalOpen(true);
   };
 
@@ -336,7 +334,8 @@ export function EmployeeTab({
     }
     await onUpdateEmployeeInfo(editingEmployee.id, {
       name: editFormData.name.trim(),
-      phone: editFormData.phone.trim() || undefined
+      phone: editFormData.phone.trim() || undefined,
+      zaloName: editFormData.zaloName.trim() || undefined, // Added Zalo Name
     });
     setIsEditModalOpen(false);
     setEditingEmployee(null);
@@ -390,14 +389,15 @@ export function EmployeeTab({
                   <TableHead>Họ và tên</TableHead>
                   <TableHead>Chức vụ</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Số điện thoại</TableHead>
+                  <TableHead>SĐT</TableHead>
+                  <TableHead>Tên Zalo</TableHead>
                   <TableHead className="text-center">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {displayEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                       Chưa có nhân viên nào trong danh sách.
                     </TableCell>
                   </TableRow>
@@ -429,6 +429,7 @@ export function EmployeeTab({
                       </TableCell>
                       <TableCell>{emp.email}</TableCell>
                       <TableCell>{formatPhoneNumber(emp.phone) || 'Chưa cập nhật'}</TableCell>
+                      <TableCell>{emp.zaloName || 'N/A'}</TableCell>
                       <TableCell className="text-center space-x-1">
                         {isCurrentUserAdmin && emp.email !== adminEmail && (
                            <TooltipProvider delayDuration={0}>
@@ -784,7 +785,7 @@ export function EmployeeTab({
             <DialogHeader>
               <DialogTitle>Chỉnh sửa thông tin nhân viên</DialogTitle>
               <DialogDescription>
-                Cập nhật tên và số điện thoại cho {editingEmployee.name}.
+                Cập nhật thông tin cho {editingEmployee.name}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -809,6 +810,18 @@ export function EmployeeTab({
                   id="edit-phone"
                   name="phone"
                   value={editFormData.phone}
+                  onChange={handleEditFormChange}
+                  className="col-span-3 bg-card"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4"> {/* Added Zalo Name field */}
+                <Label htmlFor="edit-zaloName" className="text-right">
+                  Tên Zalo
+                </Label>
+                <Input
+                  id="edit-zaloName"
+                  name="zaloName"
+                  value={editFormData.zaloName}
                   onChange={handleEditFormChange}
                   className="col-span-3 bg-card"
                 />
@@ -863,9 +876,10 @@ export function EmployeeTab({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Tên</TableHead>
+                                        <TableHead>Họ và tên</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>SĐT</TableHead>
+                                        <TableHead>Tên Zalo</TableHead>
                                         <TableHead>Địa chỉ</TableHead>
                                         <TableHead>Ngày YC</TableHead>
                                         <TableHead className="text-center">Hành động</TableHead>
@@ -874,9 +888,10 @@ export function EmployeeTab({
                                 <TableBody>
                                     {employeeAccessRequests.map(req => (
                                         <TableRow key={req.id}>
-                                            <TableCell>{req.name}</TableCell>
+                                            <TableCell>{req.fullName}</TableCell>
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                                            <TableCell>{req.zaloName || 'N/A'}</TableCell>
                                             <TableCell className="text-xs max-w-[150px] truncate" title={req.address || 'N/A'}>{req.address || 'N/A'}</TableCell>
                                             <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
                                             <TableCell className="text-center space-x-1">
@@ -905,7 +920,7 @@ export function EmployeeTab({
         <Dialog open={!!requestToReject} onOpenChange={() => setRequestToReject(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Từ chối yêu cầu của {requestToReject.name}?</DialogTitle>
+              <DialogTitle>Từ chối yêu cầu của {requestToReject.fullName}?</DialogTitle>
               <DialogDescription>
                 Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
               </DialogDescription>
@@ -926,4 +941,3 @@ export function EmployeeTab({
     </>
   );
 }
-

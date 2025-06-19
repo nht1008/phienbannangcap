@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import type { UserAccessRequest } from '@/types';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 type RequestedRole = UserAccessRequest['requestedRole'];
 
@@ -24,10 +25,11 @@ interface RequestAccessDialogProps {
   currentUserName: string | null;
   currentUserEmail: string | null;
   onSubmitRequest: (details: {
-    name: string;
+    fullName: string; // Changed from name to fullName
     email: string;
     phone: string;
     address: string;
+    zaloName: string; // Added Zalo Name
     requestedRole: RequestedRole;
   }) => Promise<void>;
   existingRequestStatus?: UserAccessRequest['status'] | null;
@@ -44,6 +46,7 @@ export function RequestAccessDialog({
   const [requestedRole, setRequestedRole] = useState<RequestedRole>('employee');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [zaloName, setZaloName] = useState(''); // Added Zalo Name state
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -65,6 +68,14 @@ export function RequestAccessDialog({
       });
       return;
     }
+    if (!zaloName.trim()) { // Added Zalo Name validation
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng nhập Tên Zalo.",
+        variant: "destructive",
+      });
+      return;
+    }
      if (!address.trim() && requestedRole === 'customer') {
       toast({
         title: "Thiếu thông tin",
@@ -77,13 +88,13 @@ export function RequestAccessDialog({
     setIsLoading(true);
     try {
       await onSubmitRequest({
-        name: currentUserName,
+        fullName: currentUserName, // Use fullName
         email: currentUserEmail,
         phone: phone.trim(),
         address: address.trim(),
+        zaloName: zaloName.trim(), // Pass Zalo Name
         requestedRole,
       });
-      // Success toast should be handled by the parent component after status update
     } catch (error) {
       toast({
         title: "Lỗi gửi yêu cầu",
@@ -111,7 +122,6 @@ export function RequestAccessDialog({
   }
   
   if (existingRequestStatus === 'approved') {
-     // This case should ideally be handled by parent component by not showing the dialog
     return (
       <Dialog open={true} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
@@ -176,6 +186,19 @@ export function RequestAccessDialog({
               className="text-base"
             />
           </div>
+          
+          <div className="space-y-2"> {/* Added Zalo Name field */}
+            <Label htmlFor="zaloName">Tên Zalo (*)</Label>
+            <Input
+              id="zaloName"
+              type="text"
+              placeholder="Nhập tên Zalo của bạn"
+              value={zaloName}
+              onChange={(e) => setZaloName(e.target.value)}
+              required
+              className="text-base"
+            />
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="address">Địa chỉ {requestedRole === 'customer' ? '(*)' : '(Tùy chọn cho nhân viên)'}</Label>
@@ -191,7 +214,7 @@ export function RequestAccessDialog({
 
           <DialogFooter>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Đang gửi...' : 'Gửi yêu cầu'}
+              {isLoading ? <><LoadingSpinner className="mr-2" />Đang gửi...</> : 'Gửi yêu cầu'}
             </Button>
           </DialogFooter>
         </form>

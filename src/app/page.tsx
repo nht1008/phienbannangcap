@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry, UserAccessRequest, UserAccessRequestStatus, ProductFormData } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry, UserAccessRequest, UserAccessRequestStatus, ProductFormData, Order, OrderStatus, PaymentStatus } from '@/types';
 import { initialProductFormData as defaultProductFormData } from '@/types'; // Corrected import
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
@@ -85,8 +85,6 @@ import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
-// QUAN TRỌNG: Email này xác định tài khoản quản trị viên chính của hệ thống.
-// Nút "Xét duyệt nhân viên" và các chức năng admin khác sẽ phụ thuộc vào email này.
 const ADMIN_EMAIL = "nthe1008@gmail.com";
 const ADMIN_NAME = "Quản trị viên";
 
@@ -194,6 +192,7 @@ interface FleurManagerLayoutContentProps {
   setActiveTab: React.Dispatch<React.SetStateAction<TabName>>;
   inventory: Product[];
   customersData: Customer[];
+  ordersData: Order[];
   invoicesData: Invoice[];
   debtsData: Debt[];
   employeesData: Employee[];
@@ -209,6 +208,7 @@ interface FleurManagerLayoutContentProps {
   revenueFilter: ActivityDateTimeFilter;
   invoiceFilter: ActivityDateTimeFilter;
   debtFilter: ActivityDateTimeFilter;
+  orderFilter: ActivityDateTimeFilter;
   isUserInfoDialogOpen: boolean;
   setIsUserInfoDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isScreenLocked: boolean;
@@ -225,14 +225,15 @@ interface FleurManagerLayoutContentProps {
   filteredInvoicesForRevenue: Invoice[];
   filteredInvoicesForInvoiceTab: Invoice[];
   filteredDebtsForDebtTab: Debt[];
+  filteredOrdersForOrderTab: Order[];
   handleCreateInvoice: (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => Promise<boolean>;
   handleAddProductOption: (type: ProductOptionType, name: string) => Promise<void>;
   handleDeleteProductOption: (type: ProductOptionType, name: string) => Promise<void>;
   handleImportProducts: (supplierName: string | undefined, itemsToProcess: SubmitItemToImport[], totalImportCostVND: number, employeeId: string, employeeName: string) => Promise<boolean>;
   handleProcessInvoiceCancellationOrReturn: (invoiceId: string, operationType: "delete" | "return", itemsToReturnArray?: { productId: string; name: string; quantityToReturn: number; }[] | undefined) => Promise<boolean>;
   handleUpdateDebtStatus: (debtId: string, newStatus: "Chưa thanh toán" | "Đã thanh toán", employeeId: string, employeeName: string, isUndoOperation?: boolean) => Promise<void>;
-  handleAddCustomer: (newCustomerData: Omit<Customer, "id" | "email">) => Promise<void>;
-  handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, "id" | "email">) => Promise<void>;
+  handleAddCustomer: (newCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => Promise<void>;
+  handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => Promise<void>;
   handleDeleteCustomer: (customerId: string) => Promise<void>;
   handleDeleteDebt: (debtId: string) => void;
   handleSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
@@ -245,8 +246,10 @@ interface FleurManagerLayoutContentProps {
   handleRevenueFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleInvoiceFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleDebtFilterChange: (newFilter: ActivityDateTimeFilter) => void;
+  handleOrderFilterChange: (newFilter: ActivityDateTimeFilter) => void;
+  handleUpdateOrderStatus: (orderId: string, newStatus: OrderStatus, currentEmployeeId: string, currentEmployeeName: string) => Promise<void>;
   handleToggleEmployeeRole: (employeeId: string, currentPosition: EmployeePosition) => Promise<void>;
-  handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string }) => Promise<void>;
+  handleUpdateEmployeeInfo: (employeeId: string, data: { name: string; phone?: string; zaloName?: string; }) => Promise<void>;
   handleDeleteEmployee: (employeeId: string) => Promise<void>;
   handleDisposeProductItems: (
     productId: string,
@@ -256,26 +259,25 @@ interface FleurManagerLayoutContentProps {
     employeeId: string,
     employeeName: string
   ) => Promise<void>;
-  // Product form dialog handlers
   openAddProductDialog: () => void;
   openEditProductDialog: (product: Product) => void;
-  handleDeleteProductFromAnywhere: (productId: string) => void; // Renamed to avoid conflict
+  handleDeleteProductFromAnywhere: (productId: string) => void; 
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const {
-    currentUser, activeTab, setActiveTab, inventory, customersData, invoicesData, debtsData, employeesData, disposalLogEntries,
+    currentUser, activeTab, setActiveTab, inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries,
     shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
-    unitOptions, revenueFilter, invoiceFilter, debtFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
+    unitOptions, revenueFilter, invoiceFilter, debtFilter, orderFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
     setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, hasFullAccessRights,
-    filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab,
+    filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab, filteredOrdersForOrderTab,
     handleCreateInvoice, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
-    handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
+    handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
+    handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
     openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere
   } = props;
 
@@ -339,7 +341,13 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onDisposeProductItems={handleDisposeProductItems}
                     currentUser={currentUser}
                   />,
-    'Đơn hàng': <OrdersTab />,
+    'Đơn hàng': <OrdersTab
+                  orders={filteredOrdersForOrderTab}
+                  onUpdateStatus={handleUpdateOrderStatus}
+                  filter={orderFilter}
+                  onFilterChange={handleOrderFilterChange}
+                  currentUser={currentUser}
+                />,
     'Nhập hàng': <ImportTab
                     inventory={inventory}
                     onImportProducts={handleImportProducts}
@@ -395,17 +403,17 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onDeleteEmployee={handleDeleteEmployee}
                   />,
   }), [
-      inventory, customersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
+      inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
-      filteredDebtsForDebtTab, debtFilter, isCurrentUserAdmin, hasFullAccessRights,
-      handleCreateInvoice,
-      handleAddProductOption, handleDeleteProductOption, handleImportProducts,
+      filteredDebtsForDebtTab, debtFilter, filteredOrdersForOrderTab, orderFilter,
+      isCurrentUserAdmin, hasFullAccessRights,
+      handleCreateInvoice, handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
-      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleToggleEmployeeRole,
-      handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
+      handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
+      handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
       openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere
   ]);
 
@@ -609,6 +617,7 @@ export default function FleurManagerPage() {
   const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
+  const [ordersData, setOrdersData] = useState<Order[]>([]);
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([]);
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
@@ -623,6 +632,8 @@ export default function FleurManagerPage() {
   const [revenueFilter, setRevenueFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
   const [invoiceFilter, setInvoiceFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
   const [debtFilter, setDebtFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter(true, false));
+  const [orderFilter, setOrderFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
+
 
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
@@ -641,7 +652,6 @@ export default function FleurManagerPage() {
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
   const [isConfirmingProductDelete, setIsConfirmingProductDelete] = useState(false);
 
-  // Logic xác định quyền admin dựa trên ADMIN_EMAIL
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
 
@@ -655,7 +665,7 @@ export default function FleurManagerPage() {
   }, [currentUser, currentUserEmployeeData]);
 
   const productFormDefaultState = useMemo<ProductFormData>(() => ({
-    ...defaultProductFormData, // Use the imported alias
+    ...defaultProductFormData, 
     name: productNameOptions.length > 0 ? productNameOptions[0] : '',
     color: colorOptions.length > 0 ? colorOptions[0] : '',
     quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
@@ -769,7 +779,7 @@ export default function FleurManagerPage() {
             setIsSettingName(false);
           }
           setShowRequestAccessDialog(false);
-          setUserAccessRequest({ id: currentUser.uid, status: 'approved', email: currentUser.email || '', name: currentUser.displayName || '', phone: '', address: '', requestedRole: 'employee', requestDate: new Date().toISOString() });
+          setUserAccessRequest({ id: currentUser.uid, status: 'approved', email: currentUser.email || '', fullName: currentUser.displayName || '', phone: '', address: '', zaloName: '', requestedRole: 'employee', requestDate: new Date().toISOString() });
           setIsLoadingAccessRequest(false);
         } else {
           const requestRef = ref(db, `userAccessRequests/${currentUser.uid}`);
@@ -851,6 +861,7 @@ export default function FleurManagerPage() {
 
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const customersRef = ref(db, 'customers'); const unsubscribe = onValue(customersRef, (snapshot) => { const data = snapshot.val(); if (data) { const customersArray: Customer[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setCustomersData(customersArray.sort((a,b) => a.name.localeCompare(b.name))); } else { setCustomersData([]); } }); return () => unsubscribe(); }, [currentUser]);
+  useEffect(() => { if (!currentUser) return; const ordersRef = ref(db, 'orders'); const unsubscribe = onValue(ordersRef, (snapshot) => { const data = snapshot.val(); if (data) { const loadedOrders: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setOrdersData(loadedOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())); } else { setOrdersData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); const unsubscribe = onValue(invoicesRef, (snapshot) => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser]);
@@ -858,13 +869,17 @@ export default function FleurManagerPage() {
   const handleRevenueFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setRevenueFilter(newFilter), []);
   const handleInvoiceFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setInvoiceFilter(newFilter), []);
   const handleDebtFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setDebtFilter(newFilter), []);
+  const handleOrderFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setOrderFilter(newFilter), []);
+
 
   const filteredInvoicesForRevenue = useMemo(() => filterActivityByDateTimeRange(invoicesData, revenueFilter), [invoicesData, revenueFilter]);
   const filteredInvoicesForInvoiceTab = useMemo(() => filterActivityByDateTimeRange(invoicesData, invoiceFilter), [invoicesData, invoiceFilter]);
   const filteredDebtsForDebtTab = useMemo(() => filterActivityByDateTimeRange(debtsData, debtFilter).filter(debt => debt.status === 'Chưa thanh toán'), [debtsData, debtFilter]);
+  const filteredOrdersForOrderTab = useMemo(() => filterActivityByDateTimeRange(ordersData.map(o => ({...o, date: o.orderDate })), orderFilter), [ordersData, orderFilter]);
 
-  const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id' | 'email'>) => { try { const newCustomerRef = push(ref(db, 'customers')); await set(newCustomerRef, newCustomerData); toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" }); } catch (error) { console.error("Error adding customer:", error); toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
-  const handleUpdateCustomer = useCallback(async (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email'>) => { try { await update(ref(db, `customers/${customerId}`), updatedCustomerData); toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating customer:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
+
+  const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => { try { const newCustomerRef = push(ref(db, 'customers')); await set(newCustomerRef, newCustomerData); toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" }); } catch (error) { console.error("Error adding customer:", error); toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
+  const handleUpdateCustomer = useCallback(async (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => { try { await update(ref(db, `customers/${customerId}`), updatedCustomerData); toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating customer:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
   const handleDeleteCustomer = useCallback(async (customerId: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa khách hàng.", variant: "destructive" }); return; } try { await remove(ref(db, `customers/${customerId}`)); toast({ title: "Thành công", description: "Khách hàng đã được xóa.", variant: "default" }); } catch (error) { console.error("Error deleting customer:", error); toast({ title: "Lỗi", description: "Không thể xóa khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast, hasFullAccessRights]);
 
   const onAddToCart = useCallback((item: Product) => {
@@ -1105,7 +1120,7 @@ export default function FleurManagerPage() {
   const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
   const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
   const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); if (!isSuperAdminEmail) {setShowRequestAccessDialog(true);} } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
-  const handleSaveAccessRequest = async (details: { name: string; email: string; phone: string; address: string; requestedRole: UserAccessRequest['requestedRole']; }) => { if (!currentUser) { toast({ title: "Lỗi", description: "Không có người dùng hiện tại.", variant: "destructive" }); return; } const requestData: UserAccessRequest = { ...details, id: currentUser.uid, status: 'pending', requestDate: new Date().toISOString(), }; try { await set(ref(db, `userAccessRequests/${currentUser.uid}`), requestData); setUserAccessRequest(requestData); setShowRequestAccessDialog(false); toast({ title: "Yêu cầu đã được gửi", description: "Vui lòng chờ quản trị viên phê duyệt.", variant: "default" }); } catch (error) { console.error("Error saving access request:", error); toast({ title: "Lỗi", description: "Không thể gửi yêu cầu. Vui lòng thử lại.", variant: "destructive" }); } };
+  const handleSaveAccessRequest = async (details: { fullName: string; email: string; phone: string; address: string; zaloName: string; requestedRole: UserAccessRequest['requestedRole']; }) => { if (!currentUser) { toast({ title: "Lỗi", description: "Không có người dùng hiện tại.", variant: "destructive" }); return; } const requestData: UserAccessRequest = { ...details, id: currentUser.uid, status: 'pending', requestDate: new Date().toISOString(), }; try { await set(ref(db, `userAccessRequests/${currentUser.uid}`), requestData); setUserAccessRequest(requestData); setShowRequestAccessDialog(false); toast({ title: "Yêu cầu đã được gửi", description: "Vui lòng chờ quản trị viên phê duyệt.", variant: "default" }); } catch (error) { console.error("Error saving access request:", error); toast({ title: "Lỗi", description: "Không thể gửi yêu cầu. Vui lòng thử lại.", variant: "destructive" }); } };
 
   const handleDeleteDebt = (debtId: string) => {
     const debt = debtsData.find(d => d.id === debtId);
@@ -1146,6 +1161,27 @@ export default function FleurManagerPage() {
       setDebtToDelete(null);
     }
   };
+  
+  const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: OrderStatus, currentEmployeeId: string, currentEmployeeName: string) => {
+    try {
+      const updates: Record<string, any> = {};
+      updates[`orders/${orderId}/orderStatus`] = newStatus;
+      updates[`orders/${orderId}/updatedBy`] = currentEmployeeId;
+      updates[`orders/${orderId}/updatedAt`] = new Date().toISOString();
+      
+      if (newStatus === 'Hoàn thành') {
+        updates[`orders/${orderId}/completionDate`] = new Date().toISOString();
+        updates[`orders/${orderId}/paymentStatus`] = 'Đã thanh toán' as PaymentStatus; // Assuming completed orders are paid
+      }
+      
+      await update(ref(db), updates);
+      toast({ title: "Thành công", description: `Trạng thái đơn hàng #${orderId.substring(0,6)}... đã được cập nhật thành "${newStatus}".` });
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      toast({ title: "Lỗi", description: `Không thể cập nhật trạng thái đơn hàng: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+    }
+  }, [toast]);
+
 
   const handleToggleEmployeeRole = async (employeeId: string, currentPosition: EmployeePosition) => {
     if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
@@ -1181,7 +1217,7 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleUpdateEmployeeInfo = async (employeeId: string, data: { name: string; phone?: string }) => {
+  const handleUpdateEmployeeInfo = async (employeeId: string, data: { name: string; phone?: string; zaloName?: string; }) => {
     if (!isCurrentUserAdmin) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
@@ -1194,9 +1230,9 @@ export default function FleurManagerPage() {
 
     try {
       const updates: Partial<Employee> = { name: data.name };
-      if (data.phone !== undefined) {
-        updates.phone = data.phone;
-      }
+      if (data.phone !== undefined) updates.phone = data.phone;
+      if (data.zaloName !== undefined) updates.zaloName = data.zaloName;
+      
       await update(ref(db, `employees/${employeeId}`), updates);
 
       if (currentUser && employeeId === currentUser.uid && data.name !== currentUser.displayName) {
@@ -1224,7 +1260,7 @@ export default function FleurManagerPage() {
     try {
       const updates: Record<string, any> = {};
       updates[`employees/${employeeId}`] = null;
-      updates[`userAccessRequests/${employeeId}`] = null; // Also remove their access request if any
+      updates[`userAccessRequests/${employeeId}`] = null; 
 
       await update(ref(db), updates);
       toast({ title: "Thành công", description: `Nhân viên ${targetEmployee.name} đã được xóa.` });
@@ -1340,6 +1376,7 @@ export default function FleurManagerPage() {
         setActiveTab={setActiveTab}
         inventory={inventory}
         customersData={customersData}
+        ordersData={ordersData}
         invoicesData={invoicesData}
         debtsData={debtsData}
         employeesData={employeesData}
@@ -1355,6 +1392,7 @@ export default function FleurManagerPage() {
         revenueFilter={revenueFilter}
         invoiceFilter={invoiceFilter}
         debtFilter={debtFilter}
+        orderFilter={orderFilter}
         isUserInfoDialogOpen={isUserInfoDialogOpen}
         setIsUserInfoDialogOpen={setIsUserInfoDialogOpen}
         isScreenLocked={isScreenLocked}
@@ -1371,6 +1409,7 @@ export default function FleurManagerPage() {
         filteredInvoicesForRevenue={filteredInvoicesForRevenue}
         filteredInvoicesForInvoiceTab={filteredInvoicesForInvoiceTab}
         filteredDebtsForDebtTab={filteredDebtsForDebtTab}
+        filteredOrdersForOrderTab={filteredOrdersForOrderTab}
         handleCreateInvoice={handleCreateInvoice}
         handleAddProductOption={handleAddProductOption}
         handleDeleteProductOption={handleDeleteProductOption}
@@ -1391,6 +1430,8 @@ export default function FleurManagerPage() {
         handleRevenueFilterChange={handleRevenueFilterChange}
         handleInvoiceFilterChange={handleInvoiceFilterChange}
         handleDebtFilterChange={handleDebtFilterChange}
+        handleOrderFilterChange={handleOrderFilterChange}
+        handleUpdateOrderStatus={handleUpdateOrderStatus}
         handleToggleEmployeeRole={handleToggleEmployeeRole}
         handleUpdateEmployeeInfo={handleUpdateEmployeeInfo}
         handleDeleteEmployee={handleDeleteEmployee}
@@ -1411,7 +1452,7 @@ export default function FleurManagerPage() {
         sizeOptions={sizeOptions}
         unitOptions={unitOptions}
         isEditMode={isProductFormEditMode}
-        defaultFormState={productFormDefaultState} // Pass the aliased default state
+        defaultFormState={productFormDefaultState} 
       />
 
       {productToDeleteId && (

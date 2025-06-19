@@ -12,32 +12,35 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
-import { ref, onValue, update, set, serverTimestamp } from "firebase/database";
+import { ref, onValue, update, set, remove as firebaseRemove, get } from "firebase/database"; // Renamed remove to firebaseRemove
 
 interface CustomerTabProps {
   customers: Customer[];
   invoices: Invoice[];
-  onAddCustomer: (newCustomerData: Omit<Customer, 'id' | 'email'>) => Promise<void>;
-  onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email'>) => Promise<void>;
+  onAddCustomer: (newCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => Promise<void>;
+  onUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email'| 'zaloName'> & { zaloName?: string }) => Promise<void>;
   onDeleteCustomer: (customerId: string) => Promise<void>;
   hasFullAccessRights: boolean;
   currentUser: User | null;
 }
 
-const initialFormState: Omit<Customer, 'id' | 'email'> = { name: '', phone: '', address: '' };
+const initialFormState: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string } = { name: '', phone: '', address: '', zaloName: '' };
+
 
 export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights, currentUser }: CustomerTabProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id' | 'email'>>(initialFormState);
+  const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }>(initialFormState);
 
   const [isEditing, setIsEditing] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
-  const [editedCustomer, setEditedCustomer] = useState<Omit<Customer, 'id' | 'email'>>(initialFormState);
+  const [editedCustomer, setEditedCustomer] = useState<Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }>(initialFormState);
+
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -59,22 +62,32 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   useEffect(() => {
     if (hasFullAccessRights) {
       setIsLoadingCustomerRequests(true);
-      const requestsRef = ref(db, 'userAccessRequests');
+      const requestsRef = ref(db, 'khach_hang_cho_duyet'); // Changed path
       const unsubscribe = onValue(requestsRef, (snapshot) => {
         const data = snapshot.val();
         const loadedRequests: UserAccessRequest[] = [];
         if (data) {
           Object.keys(data).forEach(key => {
-            if (data[key].status === 'pending' && data[key].requestedRole === 'customer') {
-              loadedRequests.push({ id: key, ...data[key] });
-            }
+            const requestDetails = data[key];
+            // Assuming all entries in khach_hang_cho_duyet are pending customers
+            loadedRequests.push({ 
+              id: key, // UID from Firebase Auth, now key of this node
+              fullName: requestDetails.fullName || 'Chưa có tên', // Use fullName
+              email: requestDetails.email || '',
+              phone: requestDetails.phone || '',
+              address: requestDetails.address || '',
+              zaloName: requestDetails.zaloName || '', // Added Zalo Name
+              requestedRole: 'customer', // Implicitly customer
+              status: 'pending', // Implicitly pending
+              requestDate: requestDetails.requestDate || new Date().toISOString(),
+            });
           });
         }
         setCustomerAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
         setIsLoadingCustomerRequests(false);
       }, (error) => {
-        console.error("Error fetching customer access requests:", error);
-        toast({ title: "Lỗi tải yêu cầu khách hàng", description: "Không thể tải danh sách yêu cầu.", variant: "destructive" });
+        console.error("Error fetching customer access requests from khach_hang_cho_duyet:", error);
+        toast({ title: "Lỗi tải yêu cầu khách hàng", description: "Không thể tải danh sách yêu cầu từ khach_hang_cho_duyet.", variant: "destructive" });
         setIsLoadingCustomerRequests(false);
       });
       return () => unsubscribe();
@@ -85,19 +98,34 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     if (!hasFullAccessRights || !currentUser) return;
     try {
       const updates: Record<string, any> = {};
-      updates[`userAccessRequests/${request.id}/status`] = 'approved';
-      updates[`userAccessRequests/${request.id}/reviewedBy`] = currentUser.uid;
-      updates[`userAccessRequests/${request.id}/reviewDate`] = new Date().toISOString();
+      // 1. Update the users node (or create if not exists) with approval status
+      updates[`users/${request.id}`] = { // This assumes a general 'users' node for approval status
+        email: request.email,
+        fullName: request.fullName,
+        phone: request.phone,
+        address: request.address,
+        zaloName: request.zaloName,
+        approvalStatus: 'approved',
+        requestedRole: 'customer',
+        requestDate: request.requestDate,
+        reviewedBy: currentUser.uid,
+        reviewDate: new Date().toISOString(),
+      };
 
+      // 2. Add to this app's 'customers' list
       updates[`customers/${request.id}`] = {
-        name: request.name,
-        email: request.email, // Store email for potential future use
+        name: request.fullName, // Use fullName for the 'name' field in Customer type
+        email: request.email,
         phone: request.phone || '',
         address: request.address || '',
+        zaloName: request.zaloName || '', // Add Zalo Name
       };
       
       await update(ref(db), updates);
-      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.name}.`, variant: "default" });
+      // 3. Remove from khach_hang_cho_duyet
+      await firebaseRemove(ref(db, `khach_hang_cho_duyet/${request.id}`));
+
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.fullName}.`, variant: "default" });
     } catch (error) {
       console.error("Error approving customer request:", error);
       toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu khách hàng.", variant: "destructive" });
@@ -106,19 +134,24 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const openRejectCustomerDialog = (request: UserAccessRequest) => {
     setCustomerRequestToReject(request);
-    setCustomerRejectionReason(""); // Reset reason
+    setCustomerRejectionReason(""); 
   };
 
   const handleConfirmRejectCustomerRequest = async () => {
     if (!hasFullAccessRights || !currentUser || !customerRequestToReject) return;
     try {
-      await update(ref(db, `userAccessRequests/${customerRequestToReject.id}`), {
-        status: 'rejected',
+      // 1. Update the users node with rejection status
+      await update(ref(db, `users/${customerRequestToReject.id}`), {
+        approvalStatus: 'rejected',
         reviewedBy: currentUser.uid,
         reviewDate: new Date().toISOString(),
         rejectionReason: customerRejectionReason.trim() || "Không có lý do cụ thể.",
       });
-      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.name}.`, variant: "default" });
+      
+      // 2. Remove from khach_hang_cho_duyet
+      await firebaseRemove(ref(db, `khach_hang_cho_duyet/${customerRequestToReject.id}`));
+
+      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.fullName}.`, variant: "default" });
       setCustomerRequestToReject(null);
       setCustomerRejectionReason("");
     } catch (error) {
@@ -134,21 +167,22 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         name: customerToEdit.name,
         phone: customerToEdit.phone,
         address: customerToEdit.address || '',
+        zaloName: customerToEdit.zaloName || '', // Added Zalo Name
       });
     } else {
       setEditedCustomer(initialFormState);
     }
   }, [customerToEdit]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id' | 'email'>>>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }>>) => {
     const { name, value } = e.target;
     formSetter(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCustomer.name || !newCustomer.phone) {
-      toast({ title: "Lỗi", description: "Vui lòng điền tên và số điện thoại khách hàng.", variant: "destructive" });
+    if (!newCustomer.name || !newCustomer.phone || !newCustomer.zaloName) { // Added Zalo Name check
+      toast({ title: "Lỗi", description: "Vui lòng điền tên, số điện thoại và tên Zalo khách hàng.", variant: "destructive" });
       return;
     }
     if (customers.some(c => c.phone === newCustomer.phone)) {
@@ -168,8 +202,8 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerToEdit || !editedCustomer.name || !editedCustomer.phone) {
-      toast({ title: "Lỗi", description: "Vui lòng điền tên và số điện thoại khách hàng.", variant: "destructive" });
+    if (!customerToEdit || !editedCustomer.name || !editedCustomer.phone || !editedCustomer.zaloName) { // Added Zalo Name check
+      toast({ title: "Lỗi", description: "Vui lòng điền tên, số điện thoại và tên Zalo khách hàng.", variant: "destructive" });
       return;
     }
     if (customers.some(c => c.id !== customerToEdit.id && c.phone === editedCustomer.phone)) {
@@ -215,39 +249,64 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   };
 
   const renderCustomerForm = (
-    formState: Omit<Customer, 'id' | 'email'>,
-    formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id' | 'email'>>>,
+    formState: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string },
+    formSetter: React.Dispatch<React.SetStateAction<Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }>>,
     handleSubmit: (e: React.FormEvent) => Promise<void>,
     isEditMode: boolean,
     onCancel?: () => void
   ) => (
-     <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-        <Input
-            type="text"
-            name="name"
-            placeholder="Tên khách hàng (*)"
-            value={formState.name}
-            onChange={(e) => handleInputChange(e, formSetter)}
-            required
-            className="md:col-span-1 bg-card"
-        />
-        <Input
-            type="tel"
-            name="phone"
-            placeholder="Số điện thoại (*)"
-            value={formState.phone}
-            onChange={(e) => handleInputChange(e, formSetter)}
-            required
-            className="md:col-span-1 bg-card"
-        />
-        <Textarea
-            name="address"
-            placeholder="Địa chỉ"
-            value={formState.address}
-            onChange={(e) => handleInputChange(e, formSetter)}
-            className="md:col-span-3 h-44 resize-none bg-card"
-        />
-        <div className="md:col-span-3 flex justify-end gap-2">
+     <form onSubmit={handleSubmit} className="mb-6 p-4 bg-muted/50 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div className="space-y-1">
+            <Label htmlFor="form-name">Tên khách hàng (*)</Label>
+            <Input
+                id="form-name"
+                type="text"
+                name="name"
+                placeholder="Tên khách hàng"
+                value={formState.name}
+                onChange={(e) => handleInputChange(e, formSetter)}
+                required
+                className="bg-card"
+            />
+        </div>
+        <div className="space-y-1">
+            <Label htmlFor="form-phone">Số điện thoại (*)</Label>
+            <Input
+                id="form-phone"
+                type="tel"
+                name="phone"
+                placeholder="Số điện thoại"
+                value={formState.phone}
+                onChange={(e) => handleInputChange(e, formSetter)}
+                required
+                className="bg-card"
+            />
+        </div>
+        <div className="space-y-1 md:col-span-2"> {/* Zalo Name */}
+            <Label htmlFor="form-zaloName">Tên Zalo (*)</Label>
+            <Input
+                id="form-zaloName"
+                type="text"
+                name="zaloName"
+                placeholder="Tên Zalo"
+                value={formState.zaloName || ''}
+                onChange={(e) => handleInputChange(e, formSetter)}
+                required
+                className="bg-card"
+            />
+        </div>
+        <div className="space-y-1 md:col-span-2">
+            <Label htmlFor="form-address">Địa chỉ</Label>
+            <Textarea
+                id="form-address"
+                name="address"
+                placeholder="Địa chỉ"
+                value={formState.address || ''}
+                onChange={(e) => handleInputChange(e, formSetter)}
+                className="h-24 resize-none bg-card"
+            />
+        </div>
+        <div className="md:col-span-2 flex justify-end gap-2">
             {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>}
             <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {isEditMode ? 'Lưu thay đổi' : 'Lưu khách hàng'}
@@ -292,6 +351,8 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 <TableRow>
                   <TableHead>Họ và tên</TableHead>
                   <TableHead>Số điện thoại</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Tên Zalo</TableHead>
                   <TableHead>Địa chỉ</TableHead>
                   <TableHead className="text-center">Hành động</TableHead>
                 </TableRow>
@@ -301,6 +362,8 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   <TableRow key={customer.id}>
                     <TableCell>{customer.name}</TableCell>
                     <TableCell>{formatPhoneNumber(customer.phone)}</TableCell>
+                    <TableCell>{customer.email || 'N/A'}</TableCell>
+                    <TableCell>{customer.zaloName || 'N/A'}</TableCell>
                     <TableCell>{customer.address || 'N/A'}</TableCell>
                     <TableCell className="text-center space-x-1">
                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openCustomerDetailsDialog(customer)}>
@@ -320,7 +383,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   </TableRow>
                 ))}
                 {customers.length === 0 && !isAdding && !isEditing && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -365,6 +428,8 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               <DialogDescription asChild>
                 <div>
                   <p>Số điện thoại: {formatPhoneNumber(selectedCustomerForDetails.phone)}</p>
+                  {selectedCustomerForDetails.email && <p>Email: {selectedCustomerForDetails.email}</p>}
+                  {selectedCustomerForDetails.zaloName && <p>Tên Zalo: {selectedCustomerForDetails.zaloName}</p>}
                   {selectedCustomerForDetails.address && <p>Địa chỉ: {selectedCustomerForDetails.address}</p>}
                 </div>
               </DialogDescription>
@@ -529,9 +594,10 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tên</TableHead>
+                        <TableHead>Họ và tên</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>SĐT</TableHead>
+                        <TableHead>Tên Zalo</TableHead>
                         <TableHead>Địa chỉ</TableHead>
                         <TableHead>Ngày yêu cầu</TableHead>
                         <TableHead className="text-center">Hành động</TableHead>
@@ -540,9 +606,10 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     <TableBody>
                       {customerAccessRequests.map((req) => (
                         <TableRow key={req.id}>
-                          <TableCell>{req.name}</TableCell>
+                          <TableCell>{req.fullName}</TableCell>
                           <TableCell>{req.email}</TableCell>
                           <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                          <TableCell>{req.zaloName || 'N/A'}</TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate" title={req.address}>{req.address || 'N/A'}</TableCell>
                           <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
                           <TableCell className="text-center space-x-2">
@@ -580,7 +647,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <Dialog open={!!customerRequestToReject} onOpenChange={() => setCustomerRequestToReject(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Từ chối yêu cầu của {customerRequestToReject.name}?</DialogTitle>
+              <DialogTitle>Từ chối yêu cầu của {customerRequestToReject.fullName}?</DialogTitle>
               <DialogDescription>
                 Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
               </DialogDescription>
@@ -601,4 +668,3 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
-

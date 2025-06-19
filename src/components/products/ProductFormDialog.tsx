@@ -62,7 +62,7 @@ export function ProductFormDialog({
           unit: initialData.unit,
           quantity: initialData.quantity.toString(),
           price: (initialData.price / 1000).toString(),
-          costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : '',
+          costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : (initialData.costPrice === 0 ? '0' : ''),
           image: initialData.image || placeholderImage,
           maxDiscountPerUnitVND: initialData.maxDiscountPerUnitVND ? (initialData.maxDiscountPerUnitVND / 1000).toString() : '0',
         };
@@ -115,19 +115,24 @@ export function ProductFormDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const priceNum = parseFloat(formState.price);
-    const costPriceNum = parseFloat(formState.costPrice) || 0;
+    const costPriceNum = parseFloat(formState.costPrice);
     const maxDiscountNum = parseFloat(formState.maxDiscountPerUnitVND) || 0;
     const quantityNum = parseInt(formState.quantity);
 
-    if (!formState.name || !formState.color || !formState.quality || !formState.size || !formState.unit || formState.quantity === '' || formState.price === '' || isNaN(quantityNum) || quantityNum < 0 || isNaN(priceNum) || priceNum < 0 || isNaN(costPriceNum) || costPriceNum < 0 || isNaN(maxDiscountNum) || maxDiscountNum < 0) {
-      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ thông tin sản phẩm hợp lệ. Số lượng, giá và giảm giá tối đa phải là số và >= 0.", variant: "destructive" });
+    if (!formState.name || !formState.color || !formState.quality || !formState.size || !formState.unit || 
+        formState.quantity === '' || formState.price === '' || formState.costPrice === '' ||
+        isNaN(quantityNum) || quantityNum < 0 || 
+        isNaN(priceNum) || priceNum < 0 || 
+        isNaN(costPriceNum) || costPriceNum < 0 || 
+        isNaN(maxDiscountNum) || maxDiscountNum < 0) {
+      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ các trường bắt buộc (*). Số lượng, giá bán, và giá gốc phải là số, không được để trống và không âm.", variant: "destructive" });
       return;
     }
-    if (priceNum <= costPriceNum && formState.costPrice !== '' && costPriceNum > 0) { // only check if costPrice is entered and positive
-      toast({ title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc.", variant: "destructive" });
+    if (priceNum <= costPriceNum && costPriceNum > 0) { 
+      toast({ title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc (nếu giá gốc > 0).", variant: "destructive" });
       return;
     }
-    if (maxDiscountNum > priceNum && priceNum > 0) { // only check if price is positive
+    if (maxDiscountNum > priceNum && priceNum > 0) { 
       toast({ title: "Lỗi", description: "Giảm giá tối đa không được vượt quá Giá bán.", variant: "destructive" });
       return;
     }
@@ -145,7 +150,6 @@ export function ProductFormDialog({
       maxDiscountPerUnitVND: maxDiscountNum * 1000,
     };
     await onSubmit(productData, isEditMode, initialData?.id);
-    // onClose(); // Parent will handle closing and state reset
   };
 
   if (!isOpen) return null;
@@ -242,8 +246,8 @@ export function ProductFormDialog({
               <Input id="prodForm-quantity" type="number" name="quantity" value={formState.quantity} onChange={handleInputChange} required min="0" className="bg-card"/>
           </div>
           <div>
-              <Label htmlFor="prodForm-costPrice" className="text-sm text-foreground">Giá gốc (Nghìn VND)</Label>
-              <Input id="prodForm-costPrice" type="number" name="costPrice" placeholder="Bỏ trống nếu không có" value={formState.costPrice} onChange={handleInputChange} min="0" step="any" className="bg-card"/>
+              <Label htmlFor="prodForm-costPrice" className="text-sm text-foreground">Giá gốc (Nghìn VND) (*)</Label>
+              <Input id="prodForm-costPrice" type="number" name="costPrice" value={formState.costPrice} onChange={handleInputChange} required min="0" step="any" className="bg-card"/>
           </div>
           <div>
               <Label htmlFor="prodForm-price" className="text-sm text-foreground">Giá bán (Nghìn VND) (*)</Label>
@@ -306,3 +310,4 @@ export function ProductFormDialog({
     </Dialog>
   );
 }
+

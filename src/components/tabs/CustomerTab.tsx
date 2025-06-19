@@ -96,7 +96,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     try {
       const updates: Record<string, any> = {};
       
-      // 1. Update main users node
       updates[`users/${request.id}/approvalStatus`] = 'approved';
       updates[`users/${request.id}/reviewedBy`] = currentUser.uid;
       updates[`users/${request.id}/reviewDate`] = new Date().toISOString();
@@ -108,16 +107,14 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       updates[`users/${request.id}/profileCompletionDate`] = request.requestDate;
 
 
-      // 2. Add to admin app's customer list
       updates[`customers/${request.id}`] = {
-        name: request.fullName, // Use fullName here for consistency in the customer list's name field
+        name: request.fullName, 
         email: request.email, 
         phone: request.phone || '',
         address: request.address || '',
         zaloName: request.zaloName || '',
       };
       
-      // 3. Remove from queue
       updates[`khach_hang_cho_duyet/${request.id}`] = null;
       
       await update(ref(db), updates);
@@ -137,13 +134,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     if (!hasFullAccessRights || !currentUser || !customerRequestToReject) return;
     try {
       const updates: Record<string, any> = {};
-      // 1. Update main users node
       updates[`users/${customerRequestToReject.id}/approvalStatus`] = 'rejected';
       updates[`users/${customerRequestToReject.id}/reviewedBy`] = currentUser.uid;
       updates[`users/${customerRequestToReject.id}/reviewDate`] = new Date().toISOString();
       updates[`users/${customerRequestToReject.id}/rejectionReason`] = customerRejectionReason.trim() || "Không có lý do cụ thể.";
 
-      // 2. Remove from queue
       updates[`khach_hang_cho_duyet/${customerRequestToReject.id}`] = null;
 
       await update(ref(db), updates);
@@ -668,3 +663,4 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     </>
   );
 }
+

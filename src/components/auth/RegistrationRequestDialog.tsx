@@ -134,21 +134,25 @@ export function RegistrationRequestDialog({
             <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} required={requestedRole === 'customer'} className="text-base min-h-[70px]" />
           </div>
           
-          <div>
-            <Label className="mb-2 block">Đăng ký với vai trò? (*)</Label>
-            <RadioGroup value={requestedRole} onValueChange={(value: string) => setRequestedRole(value as RequestedRole)} className="flex space-x-4">
+          <div className="mt-4 pt-3 border-t border-border">
+            <Label className="mb-3 block text-lg font-semibold text-primary">Đăng ký với vai trò? (*)</Label>
+            <RadioGroup 
+              value={requestedRole} 
+              onValueChange={(value: string) => setRequestedRole(value as RequestedRole)} 
+              className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 p-3 bg-primary/5 rounded-md"
+            >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="customer" id="role-customer-reg" />
-                <Label htmlFor="role-customer-reg">Khách hàng</Label>
+                <Label htmlFor="role-customer-reg" className="font-normal text-base">Khách hàng</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="employee" id="role-employee-reg" />
-                <Label htmlFor="role-employee-reg">Nhân viên</Label>
+                <Label htmlFor="role-employee-reg" className="font-normal text-base">Nhân viên</Label>
               </div>
             </RadioGroup>
           </div>
           
-          <DialogFooter className="pt-3">
+          <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => { resetForm(); onClose(); }} disabled={isLoading}>Hủy</Button>
             <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
               {isLoading ? <><LoadingSpinner className="mr-2" />Đang xử lý...</> : 'Đăng ký và Gửi yêu cầu'}

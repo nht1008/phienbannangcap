@@ -16,13 +16,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
-import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil, PlusCircle } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 
 interface ActivityDateTimeFilter {
@@ -79,6 +80,25 @@ const filterActivityByDateTimeRange = <T extends { date: string }>(
   });
 };
 
+interface NewEmployeeFormState {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  position: EmployeePosition | ''; 
+  phone: string;
+  zaloName: string;
+}
+
+const initialNewEmployeeFormState: NewEmployeeFormState = {
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  position: 'Nhân viên',
+  phone: '',
+  zaloName: '',
+};
 
 interface EmployeeTabProps {
   employees: Employee[];
@@ -92,6 +112,7 @@ interface EmployeeTabProps {
   adminEmail: string;
   isCurrentUserAdmin: boolean;
   onDeleteEmployee: (employeeId: string) => Promise<void>;
+  onAddEmployee: (employeeData: Omit<NewEmployeeFormState, 'confirmPassword'>) => Promise<boolean>;
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -111,6 +132,7 @@ export function EmployeeTab({
     adminEmail,
     isCurrentUserAdmin,
     onDeleteEmployee,
+    onAddEmployee,
 }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
@@ -132,6 +154,47 @@ export function EmployeeTab({
 
   const [isConfirmDeleteEmployeeOpen, setIsConfirmDeleteEmployeeOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [addFormState, setAddFormState] = useState<NewEmployeeFormState>(initialNewEmployeeFormState);
+  const [isAddingEmployee, setIsAddingEmployee] = useState(false);
+
+
+  const handleAddFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAddFormState(prev => ({...prev, [name]: value}));
+  };
+
+  const handleAddFormSelectChange = (value: EmployeePosition) => {
+    setAddFormState(prev => ({...prev, position: value}));
+  };
+  
+  const handleAddEmployeeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addFormState.email || !addFormState.password || !addFormState.name || !addFormState.position) {
+      toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc.", variant: "destructive"});
+      return;
+    }
+    if (addFormState.password.length < 6) {
+      toast({ title: "Mật khẩu yếu", description: "Mật khẩu phải có ít nhất 6 ký tự.", variant: "destructive"});
+      return;
+    }
+    if (addFormState.password !== addFormState.confirmPassword) {
+      toast({ title: "Lỗi mật khẩu", description: "Mật khẩu và xác nhận mật khẩu không khớp.", variant: "destructive"});
+      return;
+    }
+
+    setIsAddingEmployee(true);
+    const { confirmPassword, ...employeeData } = addFormState;
+    const success = await onAddEmployee(employeeData);
+    setIsAddingEmployee(false);
+
+    if (success) {
+      setIsAddDialogOpen(false);
+      setAddFormState(initialNewEmployeeFormState);
+    }
+  };
+
 
   const displayEmployees = useMemo(() => {
     if (isCurrentUserAdmin) {
@@ -284,7 +347,12 @@ export function EmployeeTab({
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
+            <CardTitle className="text-2xl font-bold">Quản lý Nhân sự</CardTitle>
+            {isCurrentUserAdmin && (
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Thêm nhân viên
+              </Button>
+            )}
         </div>
       </CardHeader>
       <CardContent className="flex flex-col space-y-6">
@@ -686,6 +754,63 @@ export function EmployeeTab({
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Thêm nhân viên mới</DialogTitle>
+          <DialogDescription>
+            Tạo tài khoản và hồ sơ cho nhân viên mới.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleAddEmployeeSubmit} className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-name" className="text-right">Tên (*)</Label>
+            <Input id="add-name" name="name" value={addFormState.name} onChange={handleAddFormChange} className="col-span-3 bg-card" required />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-email" className="text-right">Email (*)</Label>
+            <Input id="add-email" name="email" type="email" value={addFormState.email} onChange={handleAddFormChange} className="col-span-3 bg-card" required />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-password" className="text-right">Mật khẩu (*)</Label>
+            <Input id="add-password" name="password" type="password" value={addFormState.password} onChange={handleAddFormChange} className="col-span-3 bg-card" required />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-confirmPassword" className="text-right">Xác nhận MK (*)</Label>
+            <Input id="add-confirmPassword" name="confirmPassword" type="password" value={addFormState.confirmPassword} onChange={handleAddFormChange} className="col-span-3 bg-card" required />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-position" className="text-right">Chức vụ (*)</Label>
+            <Select value={addFormState.position} onValueChange={(value: EmployeePosition) => handleAddFormSelectChange(value)} required>
+                <SelectTrigger id="add-position" className="col-span-3 bg-card">
+                    <SelectValue placeholder="Chọn chức vụ" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Nhân viên">Nhân viên</SelectItem>
+                    <SelectItem value="Quản lý">Quản lý</SelectItem>
+                </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-phone" className="text-right">SĐT</Label>
+            <Input id="add-phone" name="phone" value={addFormState.phone} onChange={handleAddFormChange} className="col-span-3 bg-card" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="add-zaloName" className="text-right">Tên Zalo</Label>
+            <Input id="add-zaloName" name="zaloName" value={addFormState.zaloName} onChange={handleAddFormChange} className="col-span-3 bg-card" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isAddingEmployee}>Hủy</Button>
+            <Button type="submit" className="bg-primary text-primary-foreground" disabled={isAddingEmployee}>
+              {isAddingEmployee && <LoadingSpinner className="mr-2" />}
+              {isAddingEmployee ? 'Đang thêm...' : 'Thêm nhân viên'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
 
     {isEditModalOpen && editingEmployee && (
         <Dialog open={isEditModalOpen} onOpenChange={() => { setIsEditModalOpen(false); setEditingEmployee(null); }}>

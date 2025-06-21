@@ -25,6 +25,7 @@ interface AuthContextType {
   signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => Promise<void>;
   error: AuthError | null;
   setError: React.Dispatch<React.SetStateAction<AuthError | null>>;
+  getIdToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -183,6 +184,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const getIdToken = async (): Promise<string | null> => {
+    if (auth.currentUser) {
+        try {
+            return await auth.currentUser.getIdToken(true); // Force refresh
+        } catch (error) {
+            console.error("Error getting ID token:", error);
+            return null;
+        }
+    }
+    return null;
+  };
+
 
   const value = {
     currentUser,
@@ -194,6 +207,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signUpAndRequestAccess,
     error,
     setError,
+    getIdToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -20,7 +20,7 @@ import { Calendar as CalendarIcon, Eye } from 'lucide-react';
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const minuteOptionsStart = ['00', '15', '30', '45'];
 const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
-const orderStatusOptions: OrderStatus[] = ['Chờ xác nhận', 'Hoàn thành', 'Đã hủy', 'Yêu cầu hủy'];
+const employeeOrderStatusOptions: OrderStatus[] = ['Chờ xác nhận', 'Hoàn thành', 'Đã hủy'];
 
 interface OrdersTabProps {
   orders: Order[];
@@ -242,7 +242,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {orderStatusOptions.map(status => (
+                              {employeeOrderStatusOptions.map(status => (
                                 <SelectItem key={status} value={status}>{status}</SelectItem>
                               ))}
                             </SelectContent>

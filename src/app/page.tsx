@@ -269,7 +269,7 @@ interface FleurManagerLayoutContentProps {
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
-  setIsCartSheetOpen: (isOpen: boolean) => void;
+  setIsCartSheetOpen: (isOpen: boolean) => setIsCartSheetOpen;
   onOpenNoteEditor: (itemId: string) => void;
 }
 
@@ -287,7 +287,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee, onOpenNoteEditor
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee, onOpenNoteEditor, setIsCartSheetOpen
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -624,7 +624,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
-                        onClick={() => props.setIsCartSheetOpen(true)}
+                        onClick={() => setIsCartSheetOpen(true)}
                         className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:bg-primary/80 transition-transform duration-150 ease-in-out hover:scale-105 print:hidden"
                         size="icon"
                         aria-label="Xem giỏ hàng"
@@ -1271,14 +1271,52 @@ export default function FleurManagerPage() {
   const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: OrderStatus, currentEmployeeId: string, currentEmployeeName: string) => {
     try {
       const updates: Record<string, any> = {};
-      updates[`orders/${orderId}/orderStatus`] = newStatus;
-      updates[`orders/${orderId}/updatedBy`] = currentEmployeeId;
-      updates[`orders/${orderId}/updatedAt`] = new Date().toISOString();
 
       if (newStatus === 'Hoàn thành') {
+        const orderToUpdate = ordersData.find(o => o.id === orderId);
+        if (!orderToUpdate) {
+            toast({ title: "Lỗi", description: "Không tìm thấy đơn hàng để cập nhật.", variant: "destructive" });
+            return;
+        }
+        if (orderToUpdate.orderStatus === 'Hoàn thành') {
+            toast({ title: "Thông báo", description: "Đơn hàng đã được hoàn thành trước đó.", variant: "default" });
+            return;
+        }
+
+        for (const item of orderToUpdate.items) {
+          const productRef = ref(db, `inventory/${item.id}`);
+          const productSnapshot = await get(productRef);
+          if (productSnapshot.exists()) {
+            const currentQuantity = productSnapshot.val().quantity;
+            const newQuantity = currentQuantity - item.quantityInCart;
+            if (newQuantity < 0) {
+              toast({
+                title: "Lỗi tồn kho",
+                description: `Không đủ số lượng cho sản phẩm "${item.name}". Chỉ còn ${currentQuantity} trong kho.`,
+                variant: "destructive",
+                duration: 5000
+              });
+              return;
+            }
+            updates[`inventory/${item.id}/quantity`] = newQuantity;
+          } else {
+            toast({
+              title: "Lỗi sản phẩm",
+              description: `Sản phẩm "${item.name}" (ID: ${item.id}) không còn tồn tại trong kho.`,
+              variant: "destructive",
+              duration: 5000
+            });
+            return;
+          }
+        }
+        
         updates[`orders/${orderId}/completionDate`] = new Date().toISOString();
         updates[`orders/${orderId}/paymentStatus`] = 'Đã thanh toán' as PaymentStatus;
       }
+
+      updates[`orders/${orderId}/orderStatus`] = newStatus;
+      updates[`orders/${orderId}/updatedBy`] = currentEmployeeId;
+      updates[`orders/${orderId}/updatedAt`] = new Date().toISOString();
 
       await update(ref(db), updates);
       toast({ title: "Thành công", description: `Trạng thái đơn hàng #${orderId.substring(0,6)}... đã được cập nhật thành "${newStatus}".` });
@@ -1286,7 +1324,7 @@ export default function FleurManagerPage() {
       console.error("Error updating order status:", error);
       toast({ title: "Lỗi", description: `Không thể cập nhật trạng thái đơn hàng: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, ordersData]);
 
 
   const handleToggleEmployeeRole = async (employeeId: string, currentPosition: EmployeePosition) => {
@@ -1798,3 +1836,5 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
+    

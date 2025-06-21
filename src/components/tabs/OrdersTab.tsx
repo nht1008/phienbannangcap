@@ -322,7 +322,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                          />
                          {item.name}
                        </TableCell>
-                       <TableCell className="text-xs">{`${item.color}, ${item.quality}, ${item.size}`}</TableCell>
+                       <TableCell className="text-xs">{`${item.color}, ${item.quality || 'N/A'}, ${item.size}`}</TableCell>
                       <TableCell className="text-right">{item.quantityInCart}</TableCell>
                       <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell className="text-right font-semibold text-primary">

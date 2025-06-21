@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 interface CustomerCartSheetProps {
   isOpen: boolean;
@@ -139,11 +140,17 @@ export function CustomerCartSheet({
                                       <Button
                                           variant="outline"
                                           size="icon"
-                                          className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                                          className={cn(
+                                            "h-8 w-8 relative", 
+                                            item.notes ? "border-primary text-primary hover:bg-primary/5" : "text-muted-foreground hover:text-primary"
+                                          )}
                                           onClick={() => onOpenNoteEditor(item.id)}
-                                          title="Thêm ghi chú"
+                                          title={item.notes ? `Sửa ghi chú: "${item.notes}"` : "Thêm ghi chú"}
                                       >
                                           <Pencil className="h-4 w-4" />
+                                          {item.notes && (
+                                            <span className="absolute -top-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
+                                          )}
                                       </Button>
                                       <Button
                                           variant="ghost"

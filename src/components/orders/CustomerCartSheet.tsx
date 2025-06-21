@@ -36,7 +36,7 @@ export function CustomerCartSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col pr-0 sm:max-w-2xl">
+      <SheetContent className="flex w-full flex-col pr-0 sm:max-w-4xl">
         <SheetHeader className="px-4 sm:px-6 pt-6">
           <SheetTitle className="flex items-center gap-2 text-2xl">
             <ShoppingCart className="h-6 w-6" />
@@ -53,10 +53,15 @@ export function CustomerCartSheet({
                 <Table className="w-full">
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="pl-4 sm:pl-6">Sản phẩm</TableHead>
-                            <TableHead>Đơn giá</TableHead>
+                            <TableHead className="pl-4 sm:pl-6 w-[250px]">Sản phẩm</TableHead>
+                            <TableHead>Màu</TableHead>
+                            <TableHead>Chất lượng</TableHead>
+                            <TableHead>Kích thước</TableHead>
+                            <TableHead>Đơn vị</TableHead>
+                            <TableHead className="text-right">Đơn giá</TableHead>
                             <TableHead className="text-center w-[130px]">Số lượng</TableHead>
-                            <TableHead className="text-right pr-4 sm:pr-6">Thành tiền</TableHead>
+                            <TableHead className="text-right">Thành tiền</TableHead>
+                            <TableHead className="text-center">Xóa</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -64,35 +69,28 @@ export function CustomerCartSheet({
                             const stockItem = inventory.find(p => p.id === item.id);
                             const maxQuantity = stockItem?.quantity ?? 0;
                             return (
-                                <TableRow key={item.id} className="align-top">
+                                <TableRow key={item.id} className="align-middle">
                                     <TableCell className="pl-4 sm:pl-6 font-medium py-3">
-                                        <div className="flex items-start gap-3">
+                                        <div className="flex items-center gap-3">
                                             <Image
-                                                src={item.image || 'https://placehold.co/64x64.png'}
+                                                src={item.image || 'https://placehold.co/40x40.png'}
                                                 alt={item.name}
-                                                width={64}
-                                                height={64}
+                                                width={40}
+                                                height={40}
                                                 className="rounded-md object-cover aspect-square border"
                                                 data-ai-hint={`${item.name.split(' ')[0]} flower`}
                                             />
-                                            <div>
-                                                <p className="font-semibold leading-tight">{item.name}</p>
-                                                <p className="text-xs text-muted-foreground">{item.color}, {item.quality}, {item.size}</p>
-                                                <Button
-                                                    variant="link"
-                                                    className="h-auto p-0 text-xs text-destructive hover:text-destructive/80 mt-1"
-                                                    onClick={() => onRemoveItem(item.id)}
-                                                >
-                                                    <Trash2 className="h-3 w-3 mr-1" />
-                                                    Xóa
-                                                </Button>
-                                            </div>
+                                            <p className="font-semibold leading-tight">{item.name}</p>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="align-middle">
+                                    <TableCell>{item.color}</TableCell>
+                                    <TableCell>{item.quality || 'N/A'}</TableCell>
+                                    <TableCell>{item.size}</TableCell>
+                                    <TableCell>{item.unit}</TableCell>
+                                    <TableCell className="text-right">
                                         {item.price.toLocaleString('vi-VN')} VNĐ
                                     </TableCell>
-                                    <TableCell className="align-middle">
+                                    <TableCell>
                                         <div className="flex items-center justify-center gap-2">
                                             <Button
                                             type="button"
@@ -122,8 +120,18 @@ export function CustomerCartSheet({
                                             </Button>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="align-middle text-right pr-4 sm:pr-6 font-semibold text-primary">
+                                    <TableCell className="text-right font-semibold text-primary">
                                         {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:text-destructive/80"
+                                            onClick={() => onRemoveItem(item.id)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             );

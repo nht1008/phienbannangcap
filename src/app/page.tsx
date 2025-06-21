@@ -32,13 +32,14 @@ import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { OrdersTab } from '@/components/tabs/OrdersTab';
 import { StorefrontTab } from '@/components/tabs/StorefrontTab';
 import { LeaderboardTab } from '@/components/tabs/LeaderboardTab';
+import { HistoryTab } from '@/components/tabs/HistoryTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { CustomerCartSheet } from '@/components/orders/CustomerCartSheet';
 import { cn } from '@/lib/utils';
-import { UserX, HelpCircle, Trophy } from 'lucide-react';
+import { UserX, HelpCircle, Trophy, History } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
 import {
@@ -114,7 +115,7 @@ interface InvoiceCartItem {
 }
 
 
-type TabName = 'Bán hàng' | 'Gian hàng' | 'Kho hàng' | 'Đơn hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên' | 'Bảng xếp hạng';
+type TabName = 'Bán hàng' | 'Gian hàng' | 'Kho hàng' | 'Đơn hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên' | 'Bảng xếp hạng' | 'Lịch sử mua hàng';
 
 export interface ActivityDateTimeFilter {
   startDate: Date | null;
@@ -303,6 +304,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     { name: 'Gian hàng' as TabName, icon: <Store /> },
     { name: 'Kho hàng' as TabName, icon: <WarehouseIcon /> },
     { name: 'Đơn hàng' as TabName, icon: <ShoppingCart /> },
+    { name: 'Lịch sử mua hàng' as TabName, icon: <History /> },
     { name: 'Bảng xếp hạng' as TabName, icon: <Trophy /> },
     { name: 'Nhập hàng' as TabName, icon: <ImportIcon /> },
     { name: 'Hóa đơn' as TabName, icon: <InvoiceIconSvg /> },
@@ -317,13 +319,18 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       return baseNavItems.filter(item => 
         item.name === 'Gian hàng' || 
         item.name === 'Đơn hàng' ||
+        item.name === 'Lịch sử mua hàng' ||
         item.name === 'Bảng xếp hạng'
       );
     }
+    
+    let items = baseNavItems.filter(item => item.name !== 'Lịch sử mua hàng');
+
     if (currentUserEmployeeData?.position === 'Nhân viên') {
-      return baseNavItems.filter(item => item.name !== 'Nhân viên' && item.name !== 'Doanh thu');
+      items = items.filter(item => item.name !== 'Nhân viên' && item.name !== 'Doanh thu');
     }
-    return baseNavItems;
+
+    return items;
   }, [baseNavItems, currentUserEmployeeData, isCurrentUserCustomer]);
 
   const tabs: Record<TabName, ReactNode> = useMemo(() => ({
@@ -375,6 +382,10 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   currentUser={currentUser}
                   isCurrentUserCustomer={isCurrentUserCustomer}
                 />,
+    'Lịch sử mua hàng': <HistoryTab
+                          invoices={invoicesData}
+                          currentUser={currentUser}
+                         />,
     'Bảng xếp hạng': <LeaderboardTab
                       customers={customersData}
                       invoices={invoicesData}
@@ -1769,8 +1780,8 @@ export default function FleurManagerPage() {
           handleUpdateEmployeeInfo={handleUpdateEmployeeInfo} handleDeleteEmployee={handleDeleteEmployee}
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
-          onUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
-          onAddEmployee={handleAddEmployee}
+          onUpdateProductMaxDiscount={onUpdateProductMaxDiscount}
+          onAddEmployee={onAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
         />

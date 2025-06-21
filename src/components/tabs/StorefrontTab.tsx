@@ -17,6 +17,8 @@ interface StorefrontTabProps {
   onOpenEditProductDialog: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   hasFullAccessRights: boolean;
+  isCurrentUserCustomer: boolean;
+  onOrderProduct: (product: Product) => void;
 }
 
 interface ProductPerformance extends Product {
@@ -31,7 +33,9 @@ const RenderProductTable: React.FC<{
   onOpenEditProductDialog: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   hasFullAccessRights: boolean;
-}> = ({ products, title, description, isBestSellerTable = false, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights }) => {
+  isCurrentUserCustomer: boolean;
+  onOrderProduct: (product: Product) => void;
+}> = ({ products, title, description, isBestSellerTable = false, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights, isCurrentUserCustomer, onOrderProduct }) => {
   if (!products || products.length === 0) {
     return (
       <Card>
@@ -68,7 +72,7 @@ const RenderProductTable: React.FC<{
                 <TableHead>Đơn vị</TableHead>
                 <TableHead className="text-right">Tồn kho</TableHead>
                 {isBestSellerTable && <TableHead className="text-right">Đã bán</TableHead>}
-                {hasFullAccessRights && <TableHead className="text-right">Hành động</TableHead>}
+                <TableHead className="text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,16 +99,28 @@ const RenderProductTable: React.FC<{
                   {isBestSellerTable && 'sold' in product && (
                     <TableCell className="text-right">{(product as ProductPerformance).sold}</TableCell>
                   )}
-                  {hasFullAccessRights && (
-                    <TableCell className="text-right space-x-1">
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onOpenEditProductDialog(product)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDeleteProduct(product.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell className="text-right space-x-1">
+                    {hasFullAccessRights && (
+                      <>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onOpenEditProductDialog(product)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDeleteProduct(product.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {isCurrentUserCustomer && product.quantity > 0 && (
+                       <Button variant="default" size="sm" className="h-8" onClick={() => onOrderProduct(product)}>
+                          Đặt hàng
+                       </Button>
+                    )}
+                    {isCurrentUserCustomer && product.quantity <= 0 && (
+                       <Button variant="outline" size="sm" className="h-8" disabled>
+                          Hết hàng
+                       </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -116,7 +132,7 @@ const RenderProductTable: React.FC<{
 };
 
 
-export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights }: StorefrontTabProps) {
+export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights, isCurrentUserCustomer, onOrderProduct }: StorefrontTabProps) {
   const topSellingProducts = useMemo((): ProductPerformance[] => {
     const salesMap: Record<string, { product: Product; sold: number }> = {};
 
@@ -139,8 +155,9 @@ export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onO
   }, [invoices, inventory]);
 
   const inventoryToDisplay = useMemo(() => {
-    return inventory.filter(product => product.quantity > 0);
-  }, [inventory]);
+    // Customers only see in-stock items, admins see all
+    return hasFullAccessRights ? inventory : inventory.filter(product => product.quantity > 0);
+  }, [inventory, hasFullAccessRights]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -169,6 +186,8 @@ export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onO
         onOpenEditProductDialog={onOpenEditProductDialog}
         onDeleteProduct={onDeleteProduct}
         hasFullAccessRights={hasFullAccessRights}
+        isCurrentUserCustomer={isCurrentUserCustomer}
+        onOrderProduct={onOrderProduct}
       />
 
       <RenderProductTable
@@ -178,6 +197,8 @@ export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onO
         onOpenEditProductDialog={onOpenEditProductDialog}
         onDeleteProduct={onDeleteProduct}
         hasFullAccessRights={hasFullAccessRights}
+        isCurrentUserCustomer={isCurrentUserCustomer}
+        onOrderProduct={onOrderProduct}
       />
     </div>
   );

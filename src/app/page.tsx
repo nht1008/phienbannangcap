@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry, UserAccessRequest, UserAccessRequestStatus, ProductFormData, Order, OrderStatus, PaymentStatus } from '@/types';
+import type { Product, Invoice, Debt, CartItem, ProductOptionType, Customer, Employee, ShopInfo, EmployeePosition, DisposalLogEntry, UserAccessRequest, UserAccessRequestStatus, ProductFormData, Order, OrderStatus, PaymentStatus, OrderItem } from '@/types';
 import { initialProductFormData as defaultProductFormData } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth, type AuthContextType } from '@/contexts/AuthContext';
@@ -36,6 +36,7 @@ import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
+import { OrderDialog } from '@/components/orders/OrderDialog';
 import { cn } from '@/lib/utils';
 import { UserX, HelpCircle, Trophy } from 'lucide-react';
 
@@ -265,6 +266,7 @@ interface FleurManagerLayoutContentProps {
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
+  onOrderProduct: (product: Product) => void;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -281,7 +283,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee, onOrderProduct
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -335,6 +337,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onOpenEditProductDialog={openEditProductDialog}
                     onDeleteProduct={handleDeleteProductFromAnywhere}
                     hasFullAccessRights={hasFullAccessRights}
+                    isCurrentUserCustomer={isCurrentUserCustomer}
+                    onOrderProduct={onOrderProduct}
                   />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
@@ -423,7 +427,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
       filteredDebtsForDebtTab, debtFilter, filteredOrdersForOrderTab, orderFilter,
-      isCurrentUserAdmin, hasFullAccessRights,
+      isCurrentUserAdmin, hasFullAccessRights, isCurrentUserCustomer, onOrderProduct,
       handleCreateInvoice, handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
@@ -676,6 +680,9 @@ export default function FleurManagerPage() {
 
   const [isCurrentUserCustomer, setIsCurrentUserCustomer] = useState(false);
   const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
+
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [productToOrder, setProductToOrder] = useState<Product | null>(null);
 
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
@@ -1376,6 +1383,73 @@ export default function FleurManagerPage() {
     }
   }, [toast, hasFullAccessRights]);
 
+  const handleOpenOrderDialog = (product: Product) => {
+    if (product.quantity > 0) {
+      setProductToOrder(product);
+      setIsOrderDialogOpen(true);
+    } else {
+      toast({ title: "Hết hàng", description: "Sản phẩm này đã hết hàng.", variant: "destructive" });
+    }
+  };
+
+  const handlePlaceOrder = async (product: Product, quantity: number, notes: string) => {
+    if (!currentUser || !isCurrentUserCustomer) {
+      toast({ title: "Lỗi", description: "Chỉ khách hàng mới có thể đặt hàng.", variant: "destructive" });
+      return;
+    }
+
+    const customerData = customersData.find(c => c.id === currentUser.uid);
+    if (!customerData) {
+        toast({ title: "Lỗi", description: "Không tìm thấy thông tin khách hàng của bạn.", variant: "destructive" });
+        return;
+    }
+
+    const orderItem: OrderItem = {
+        id: product.id,
+        name: product.name,
+        quality: product.quality,
+        price: product.price,
+        costPrice: product.costPrice,
+        image: product.image,
+        color: product.color,
+        size: product.size,
+        unit: product.unit,
+        quantityInCart: quantity,
+        itemDiscount: 0,
+    };
+
+    const subTotal = orderItem.price * orderItem.quantityInCart;
+
+    const newOrderData: Omit<Order, 'id'> = {
+        orderNumber: `DH-${Date.now().toString().slice(-8)}`,
+        customerId: currentUser.uid,
+        customerName: customerData.name,
+        customerPhone: customerData.phone,
+        customerAddress: customerData.address || '',
+        customerZaloName: customerData.zaloName || '',
+        items: [orderItem],
+        subTotal: subTotal,
+        shippingFee: 0,
+        totalAmount: subTotal,
+        paymentMethod: 'Chưa xác định',
+        paymentStatus: 'Chưa thanh toán',
+        orderStatus: 'Chờ xác nhận',
+        notes: notes.trim(),
+        orderDate: new Date().toISOString(),
+    };
+
+    try {
+        const newOrderRef = push(ref(db, 'orders'));
+        await set(newOrderRef, newOrderData);
+        toast({ title: "Thành công!", description: "Đơn hàng của bạn đã được đặt. Vui lòng chờ nhân viên cửa hàng xác nhận." });
+        setIsOrderDialogOpen(false);
+        setProductToOrder(null);
+    } catch (error) {
+        console.error("Error placing order:", error);
+        toast({ title: "Lỗi", description: "Không thể đặt hàng. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
+
   useEffect(() => {
     if (isCurrentUserCustomer) {
       setActiveTab('Gian hàng');
@@ -1391,8 +1465,11 @@ export default function FleurManagerPage() {
     }
   }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
+
   const noAccessToastShown = React.useRef(false);
   useEffect(() => {
+    if (noAccessToastShown.current) return;
+    
     const shouldShowNoAccess = !authLoading && 
       !isLoadingAccessRequest &&
       !isCurrentUserAdmin && 
@@ -1402,7 +1479,7 @@ export default function FleurManagerPage() {
       currentUser && 
       !isSettingName;
 
-    if (shouldShowNoAccess && !noAccessToastShown.current) {
+    if (shouldShowNoAccess) {
       noAccessToastShown.current = true;
       toast({
         title: "Không có quyền truy cập",
@@ -1492,8 +1569,10 @@ export default function FleurManagerPage() {
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           onAddEmployee={handleAddEmployee}
+          onOrderProduct={handleOpenOrderDialog}
         />
         <ProductFormDialog isOpen={isProductFormOpen} onClose={handleCloseProductFormDialog} onSubmit={handleProductFormSubmit} initialData={currentEditingProduct} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions} sizeOptions={sizeOptions} unitOptions={unitOptions} isEditMode={isProductFormEditMode} defaultFormState={productFormDefaultState} />
+        <OrderDialog isOpen={isOrderDialogOpen} onClose={() => setIsOrderDialogOpen(false)} product={productToOrder} onConfirmOrder={handlePlaceOrder} />
         {productToDeleteId && (<AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>)}
         {debtToDelete && (<AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?{debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa công nợ</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> )}
       </SidebarProvider>
@@ -1546,10 +1625,3 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
-
-
-
-
-
-
-

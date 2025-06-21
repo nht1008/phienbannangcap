@@ -459,7 +459,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     )}
                   >
                     <span className="w-6 h-6">{item.icon}</span>
-                    <span>{item.name}</span>
+                    <span>{isCurrentUserCustomer && item.name === 'Đơn hàng' ? 'Đơn hàng của tôi' : item.name}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -504,7 +504,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
               <SidebarTrigger className="md:hidden mr-4">
                 <PanelLeft />
               </SidebarTrigger>
-              <h2 className="text-3xl font-bold text-foreground font-headline">{activeTab}</h2>
+              <h2 className="text-3xl font-bold text-foreground font-headline">{isCurrentUserCustomer && activeTab === 'Đơn hàng' ? 'Đơn hàng của tôi' : activeTab}</h2>
             </div>
             <div className="min-h-[calc(100vh-8rem)] px-0 pb-0 lg:px-0 lg:pb-0">
                {tabs[activeTab]}
@@ -914,7 +914,13 @@ export default function FleurManagerPage() {
   const filteredInvoicesForRevenue = useMemo(() => filterActivityByDateTimeRange(invoicesData, revenueFilter), [invoicesData, revenueFilter]);
   const filteredInvoicesForInvoiceTab = useMemo(() => filterActivityByDateTimeRange(invoicesData, invoiceFilter), [invoicesData, invoiceFilter]);
   const filteredDebtsForDebtTab = useMemo(() => filterActivityByDateTimeRange(debtsData, debtFilter).filter(debt => debt.status === 'Chưa thanh toán'), [debtsData, debtFilter]);
-  const filteredOrdersForOrderTab = useMemo(() => filterActivityByDateTimeRange(ordersData.map(o => ({...o, date: o.orderDate })), orderFilter), [ordersData, orderFilter]);
+  
+  const filteredOrdersForOrderTab = useMemo(() => {
+    const userFilteredOrders = isCurrentUserCustomer
+      ? ordersData.filter(o => o.customerId === currentUser?.uid)
+      : ordersData;
+    return filterActivityByDateTimeRange(userFilteredOrders.map(o => ({...o, date: o.orderDate })), orderFilter);
+  }, [ordersData, orderFilter, isCurrentUserCustomer, currentUser]);
 
 
   const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => { try { const newCustomerRef = push(ref(db, 'customers')); await set(newCustomerRef, newCustomerData); toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" }); } catch (error) { console.error("Error adding customer:", error); toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
@@ -1385,7 +1391,7 @@ export default function FleurManagerPage() {
       !isSettingName && 
       !noAccessToastShown.current
     ) {
-      noAccessToastShown.current = true;
+      noAccessToastShown.current = true; // Set flag to true
       toast({
         title: "Không có quyền truy cập",
         description: "Không tìm thấy thông tin hợp lệ. Vui lòng đăng ký hoặc liên hệ quản trị viên.",
@@ -1497,6 +1503,7 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
 
 
 

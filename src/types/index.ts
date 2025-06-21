@@ -200,4 +200,3 @@ export const initialProductFormData: ProductFormData = {
   image: '',
   maxDiscountPerUnitVND: '0',
 };
-

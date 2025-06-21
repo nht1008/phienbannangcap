@@ -1780,7 +1780,7 @@ export default function FleurManagerPage() {
           handleUpdateEmployeeInfo={handleUpdateEmployeeInfo} handleDeleteEmployee={handleDeleteEmployee}
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
-          onUpdateProductMaxDiscount={onUpdateProductMaxDiscount}
+          onUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
           onAddEmployee={onAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
@@ -1893,5 +1893,3 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
-
-    

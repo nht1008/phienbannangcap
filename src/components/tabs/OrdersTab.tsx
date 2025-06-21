@@ -201,7 +201,6 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                       <TableHead>Ngày đặt</TableHead>
                       <TableHead className="text-right">Tổng tiền</TableHead>
                       <TableHead>Trạng thái</TableHead>
-                      <TableHead>TT Thanh toán</TableHead>
                       <TableHead className="text-center">Hành động</TableHead>
                       <TableHead className="text-center">Chi tiết</TableHead>
                     </TableRow>
@@ -218,11 +217,6 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                              {order.orderStatus}
                            </span>
                         </TableCell>
-                         <TableCell>
-                            <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", order.paymentStatus === 'Đã thanh toán' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800')}>
-                               {order.paymentStatus}
-                            </span>
-                         </TableCell>
                         <TableCell className="text-center">
                           {isCurrentUserCustomer ? (
                              (() => {

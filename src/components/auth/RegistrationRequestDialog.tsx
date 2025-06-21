@@ -53,7 +53,7 @@ export function RegistrationRequestDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim()) {
+    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim() || !address.trim()) {
       toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc (*).", variant: "destructive" });
       return;
     }
@@ -74,7 +74,7 @@ export function RegistrationRequestDialog({
       phone: phone.trim(),
       address: address.trim(),
       zaloName: zaloName.trim(),
-      requestedRole: 'customer', // Hardcode to customer
+      requestedRole: 'customer', 
     });
     setIsLoading(false);
     if (success) {
@@ -122,8 +122,8 @@ export function RegistrationRequestDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="reg-address">Địa chỉ (Tùy chọn)</Label>
-            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" />
+            <Label htmlFor="reg-address">Địa chỉ (*)</Label>
+            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" required/>
           </div>
           
           <DialogFooter className="pt-4">

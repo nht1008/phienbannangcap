@@ -1270,59 +1270,88 @@ export default function FleurManagerPage() {
 
   const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: OrderStatus, currentEmployeeId: string, currentEmployeeName: string) => {
     try {
-      const updates: Record<string, any> = {};
-
-      if (newStatus === 'Hoàn thành') {
         const orderToUpdate = ordersData.find(o => o.id === orderId);
         if (!orderToUpdate) {
             toast({ title: "Lỗi", description: "Không tìm thấy đơn hàng để cập nhật.", variant: "destructive" });
             return;
         }
-        if (orderToUpdate.orderStatus === 'Hoàn thành') {
-            toast({ title: "Thông báo", description: "Đơn hàng đã được hoàn thành trước đó.", variant: "default" });
-            return;
-        }
 
-        for (const item of orderToUpdate.items) {
-          const productRef = ref(db, `inventory/${item.id}`);
-          const productSnapshot = await get(productRef);
-          if (productSnapshot.exists()) {
-            const currentQuantity = productSnapshot.val().quantity;
-            const newQuantity = currentQuantity - item.quantityInCart;
-            if (newQuantity < 0) {
-              toast({
-                title: "Lỗi tồn kho",
-                description: `Không đủ số lượng cho sản phẩm "${item.name}". Chỉ còn ${currentQuantity} trong kho.`,
-                variant: "destructive",
-                duration: 5000
-              });
-              return;
+        const updates: Record<string, any> = {};
+
+        if (newStatus === 'Hoàn thành') {
+            if (orderToUpdate.orderStatus === 'Hoàn thành') {
+                toast({ title: "Thông báo", description: "Đơn hàng đã được hoàn thành trước đó.", variant: "default" });
+                return;
             }
-            updates[`inventory/${item.id}/quantity`] = newQuantity;
-          } else {
-            toast({
-              title: "Lỗi sản phẩm",
-              description: `Sản phẩm "${item.name}" (ID: ${item.id}) không còn tồn tại trong kho.`,
-              variant: "destructive",
-              duration: 5000
-            });
-            return;
-          }
+
+            // 1. Check inventory and prepare updates
+            for (const item of orderToUpdate.items) {
+                const productRef = ref(db, `inventory/${item.id}`);
+                const productSnapshot = await get(productRef);
+                if (productSnapshot.exists()) {
+                    const currentQuantity = productSnapshot.val().quantity;
+                    const newQuantity = currentQuantity - item.quantityInCart;
+                    if (newQuantity < 0) {
+                        toast({
+                            title: "Lỗi tồn kho",
+                            description: `Không đủ số lượng cho sản phẩm "${item.name}". Chỉ còn ${currentQuantity} trong kho.`,
+                            variant: "destructive",
+                            duration: 5000
+                        });
+                        return; // Stop the process
+                    }
+                    updates[`inventory/${item.id}/quantity`] = newQuantity;
+                } else {
+                    toast({
+                        title: "Lỗi sản phẩm",
+                        description: `Sản phẩm "${item.name}" (ID: ${item.id}) không còn tồn tại trong kho.`,
+                        variant: "destructive",
+                        duration: 5000
+                    });
+                    return; // Stop the process
+                }
+            }
+            
+            // 2. Create Invoice data
+            const newInvoiceRef = push(ref(db, 'invoices'));
+            const newInvoiceId = newInvoiceRef.key;
+            if (!newInvoiceId) throw new Error("Could not generate new invoice ID.");
+            
+            const invoiceData: Omit<Invoice, 'id'> = {
+                customerName: orderToUpdate.customerName,
+                items: orderToUpdate.items.map(item => ({...item, itemDiscount: item.itemDiscount || 0})),
+                total: orderToUpdate.totalAmount,
+                date: new Date().toISOString(),
+                paymentMethod: 'Tiền mặt', // Defaulting since order doesn't specify payment yet
+                discount: orderToUpdate.overallDiscount || 0,
+                amountPaid: orderToUpdate.totalAmount, // Assuming fully paid on completion
+                debtAmount: 0,
+                employeeId: currentEmployeeId,
+                employeeName: currentEmployeeName,
+            };
+
+            // Add invoice creation to updates
+            updates[`invoices/${newInvoiceId}`] = invoiceData;
+
+            // 3. Mark order for deletion
+            updates[`orders/${orderId}`] = null;
+            
+            // 4. Atomically execute all updates
+            await update(ref(db), updates);
+            toast({ title: "Thành công", description: `Đơn hàng #${orderId.substring(0,6)}... đã được hoàn tất và chuyển thành hóa đơn.` });
+
+        } else { // Handle other statuses: 'Chờ xác nhận', 'Yêu cầu hủy', 'Đã hủy'
+            updates[`orders/${orderId}/orderStatus`] = newStatus;
+            updates[`orders/${orderId}/updatedBy`] = currentEmployeeId;
+            updates[`orders/${orderId}/updatedAt`] = new Date().toISOString();
+            
+            await update(ref(db), updates);
+            toast({ title: "Thành công", description: `Trạng thái đơn hàng #${orderId.substring(0,6)}... đã được cập nhật thành "${newStatus}".` });
         }
-        
-        updates[`orders/${orderId}/completionDate`] = new Date().toISOString();
-        updates[`orders/${orderId}/paymentStatus`] = 'Đã thanh toán' as PaymentStatus;
-      }
 
-      updates[`orders/${orderId}/orderStatus`] = newStatus;
-      updates[`orders/${orderId}/updatedBy`] = currentEmployeeId;
-      updates[`orders/${orderId}/updatedAt`] = new Date().toISOString();
-
-      await update(ref(db), updates);
-      toast({ title: "Thành công", description: `Trạng thái đơn hàng #${orderId.substring(0,6)}... đã được cập nhật thành "${newStatus}".` });
     } catch (error) {
-      console.error("Error updating order status:", error);
-      toast({ title: "Lỗi", description: `Không thể cập nhật trạng thái đơn hàng: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+        console.error("Error updating order status:", error);
+        toast({ title: "Lỗi", description: `Không thể cập nhật trạng thái đơn hàng: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
     }
   }, [toast, ordersData]);
 

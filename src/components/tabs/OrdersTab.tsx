@@ -202,6 +202,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                       <TableHead className="text-right">Tổng tiền</TableHead>
                       <TableHead>Trạng thái</TableHead>
                       <TableHead>TT Thanh toán</TableHead>
+                      <TableHead className="text-center">Hành động</TableHead>
                       <TableHead className="text-center">Chi tiết</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -213,6 +214,16 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                         <TableCell>{new Date(order.orderDate).toLocaleDateString('vi-VN')}</TableCell>
                         <TableCell className="text-right">{order.totalAmount.toLocaleString('vi-VN')} VNĐ</TableCell>
                         <TableCell>
+                           <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", getStatusColorClass(order.orderStatus))}>
+                             {order.orderStatus}
+                           </span>
+                        </TableCell>
+                         <TableCell>
+                            <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", order.paymentStatus === 'Đã thanh toán' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800')}>
+                               {order.paymentStatus}
+                            </span>
+                         </TableCell>
+                        <TableCell className="text-center">
                           {isCurrentUserCustomer ? (
                              (() => {
                                 if (order.orderStatus === 'Chờ xác nhận') {
@@ -241,18 +252,14 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                                   );
                                 }
 
-                                return (
-                                  <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", getStatusColorClass(order.orderStatus))}>
-                                    {order.orderStatus}
-                                  </span>
-                                );
+                                return <span className="text-xs text-muted-foreground">-</span>;
                               })()
                           ) : (
                             <Select
                               value={order.orderStatus}
                               onValueChange={(newStatus: OrderStatus) => handleStatusChange(order.id, newStatus)}
                             >
-                              <SelectTrigger className={cn("h-8 text-xs", getStatusColorClass(order.orderStatus))}>
+                              <SelectTrigger className={cn("h-8 text-xs w-[130px] mx-auto")}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -263,11 +270,6 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                             </Select>
                           )}
                         </TableCell>
-                         <TableCell>
-                            <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", order.paymentStatus === 'Đã thanh toán' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800')}>
-                               {order.paymentStatus}
-                            </span>
-                         </TableCell>
                         <TableCell className="text-center">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedOrderDetails(order)}>
                             <Eye className="h-4 w-4 text-primary" />

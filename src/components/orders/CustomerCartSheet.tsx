@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Separator } from '@/components/ui/separator';
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface CustomerCartSheetProps {
   isOpen: boolean;
@@ -35,8 +36,8 @@ export function CustomerCartSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg">
-        <SheetHeader className="px-6 pt-6">
+      <SheetContent className="flex w-full flex-col pr-0 sm:max-w-2xl">
+        <SheetHeader className="px-4 sm:px-6 pt-6">
           <SheetTitle className="flex items-center gap-2 text-2xl">
             <ShoppingCart className="h-6 w-6" />
             Giỏ hàng của bạn
@@ -48,77 +49,94 @@ export function CustomerCartSheet({
               <p className="text-muted-foreground">Giỏ hàng của bạn đang trống.</p>
             </div>
           ) : (
-            <ScrollArea className="h-full px-6">
-              <div className="flex flex-col gap-6 py-4">
-                {cart.map(item => {
-                   const stockItem = inventory.find(p => p.id === item.id);
-                   const maxQuantity = stockItem?.quantity ?? 0;
-                  return (
-                    <div key={item.id} className="flex items-start gap-4">
-                      <Image
-                        src={item.image || 'https://placehold.co/64x64.png'}
-                        alt={item.name}
-                        width={64}
-                        height={64}
-                        className="rounded-md object-cover aspect-square border"
-                        data-ai-hint={`${item.name.split(' ')[0]} flower`}
-                      />
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                            <p className="font-semibold leading-tight">{item.name}</p>
-                             <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive shrink-0"
-                                onClick={() => onRemoveItem(item.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{item.color}, {item.quality}, {item.size}</p>
-                        <div className="flex items-center justify-between mt-2">
-                           <p className="text-sm font-medium text-primary">{item.price.toLocaleString('vi-VN')} VNĐ</p>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7 shrink-0"
-                              onClick={() => onUpdateQuantity(item.id, (item.quantityInCart - 1).toString())}
-                              disabled={item.quantityInCart <= 1}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              type="number"
-                              value={item.quantityInCart}
-                              readOnly
-                              className="h-7 w-12 text-center hide-number-spinners bg-background"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7 shrink-0"
-                              onClick={() => onUpdateQuantity(item.id, (item.quantityInCart + 1).toString())}
-                              disabled={item.quantityInCart >= maxQuantity}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+            <ScrollArea className="h-full">
+                <Table className="w-full">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="pl-4 sm:pl-6">Sản phẩm</TableHead>
+                            <TableHead>Đơn giá</TableHead>
+                            <TableHead className="text-center w-[130px]">Số lượng</TableHead>
+                            <TableHead className="text-right pr-4 sm:pr-6">Thành tiền</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {cart.map(item => {
+                            const stockItem = inventory.find(p => p.id === item.id);
+                            const maxQuantity = stockItem?.quantity ?? 0;
+                            return (
+                                <TableRow key={item.id} className="align-top">
+                                    <TableCell className="pl-4 sm:pl-6 font-medium py-3">
+                                        <div className="flex items-start gap-3">
+                                            <Image
+                                                src={item.image || 'https://placehold.co/64x64.png'}
+                                                alt={item.name}
+                                                width={64}
+                                                height={64}
+                                                className="rounded-md object-cover aspect-square border"
+                                                data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                                            />
+                                            <div>
+                                                <p className="font-semibold leading-tight">{item.name}</p>
+                                                <p className="text-xs text-muted-foreground">{item.color}, {item.quality}, {item.size}</p>
+                                                <Button
+                                                    variant="link"
+                                                    className="h-auto p-0 text-xs text-destructive hover:text-destructive/80 mt-1"
+                                                    onClick={() => onRemoveItem(item.id)}
+                                                >
+                                                    <Trash2 className="h-3 w-3 mr-1" />
+                                                    Xóa
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="align-middle">
+                                        {item.price.toLocaleString('vi-VN')} VNĐ
+                                    </TableCell>
+                                    <TableCell className="align-middle">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7 shrink-0"
+                                            onClick={() => onUpdateQuantity(item.id, (item.quantityInCart - 1).toString())}
+                                            disabled={item.quantityInCart <= 1}
+                                            >
+                                            <Minus className="h-4 w-4" />
+                                            </Button>
+                                            <Input
+                                            type="number"
+                                            value={item.quantityInCart}
+                                            readOnly
+                                            className="h-7 w-12 text-center hide-number-spinners bg-background"
+                                            />
+                                            <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7 shrink-0"
+                                            onClick={() => onUpdateQuantity(item.id, (item.quantityInCart + 1).toString())}
+                                            disabled={item.quantityInCart >= maxQuantity}
+                                            >
+                                            <Plus className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="align-middle text-right pr-4 sm:pr-6 font-semibold text-primary">
+                                        {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
             </ScrollArea>
           )}
         </div>
         {cart.length > 0 && (
           <>
             <Separator className="mt-auto" />
-            <SheetFooter className="px-6 py-4 space-y-4">
+            <SheetFooter className="px-4 sm:px-6 py-4 space-y-4">
               <div className="flex justify-between w-full text-lg font-semibold">
                 <p>Tổng cộng:</p>
                 <p>{totalAmount.toLocaleString('vi-VN')} VNĐ</p>

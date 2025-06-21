@@ -2,30 +2,27 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Employee, Invoice, Debt, EmployeePosition, UserAccessRequest } from '@/types';
+import type { Employee, Invoice, Debt, EmployeePosition } from '@/types';
 import type { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
+import { formatPhoneNumber, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
-import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil, Users, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
-import { ref, onValue, update, set } from "firebase/database";
 
 
 interface ActivityDateTimeFilter {
@@ -133,88 +130,8 @@ export function EmployeeTab({
   const [editFormData, setEditFormData] = useState<{ name: string; phone: string; zaloName: string }>({ name: '', phone: '', zaloName: '' });
   const { toast } = useToast();
 
-  const [employeeAccessRequests, setEmployeeAccessRequests] = useState<UserAccessRequest[]>([]);
-  const [isLoadingEmployeeRequests, setIsLoadingEmployeeRequests] = useState(false);
-  const [isReviewEmployeeRequestsDialogOpen, setIsReviewEmployeeRequestsDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [requestToReject, setRequestToReject] = useState<UserAccessRequest | null>(null);
-
   const [isConfirmDeleteEmployeeOpen, setIsConfirmDeleteEmployeeOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
-
-
-  useEffect(() => {
-    if (isCurrentUserAdmin) {
-      setIsLoadingEmployeeRequests(true);
-      const requestsRef = ref(db, 'userAccessRequests');
-      const unsubscribe = onValue(requestsRef, (snapshot) => {
-        const data = snapshot.val();
-        const loadedRequests: UserAccessRequest[] = [];
-        if (data) {
-          Object.keys(data).forEach(key => {
-            if (data[key].status === 'pending' && data[key].requestedRole === 'employee') {
-              loadedRequests.push({ id: key, ...data[key] });
-            }
-          });
-        }
-        setEmployeeAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
-        setIsLoadingEmployeeRequests(false);
-      }, (error) => {
-        console.error("Error fetching employee access requests:", error);
-        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu nhân viên.", variant: "destructive" });
-        setIsLoadingEmployeeRequests(false);
-      });
-      return () => unsubscribe();
-    }
-  }, [isCurrentUserAdmin, toast]);
-
-  const handleApproveEmployeeRequest = async (request: UserAccessRequest) => {
-    if (!isCurrentUserAdmin || !currentUser || request.requestedRole !== 'employee') return;
-    try {
-      const updates: Record<string, any> = {};
-      updates[`userAccessRequests/${request.id}/status`] = 'approved';
-      updates[`userAccessRequests/${request.id}/reviewedBy`] = currentUser.uid;
-      updates[`userAccessRequests/${request.id}/reviewDate`] = new Date().toISOString();
-      updates[`employees/${request.id}`] = {
-        name: request.fullName, // Use fullName
-        email: request.email,
-        phone: request.phone || '',
-        address: request.address || '', 
-        zaloName: request.zaloName || '', // Added Zalo Name
-        position: 'Nhân viên' as EmployeePosition, 
-      };
-      
-      await update(ref(db), updates);
-      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của nhân viên ${request.fullName}.`, variant: "default" });
-    } catch (error) {
-      console.error("Error approving employee request:", error);
-      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu nhân viên.", variant: "destructive" });
-    }
-  };
-
-  const openRejectEmployeeDialog = (request: UserAccessRequest) => {
-    setRequestToReject(request);
-    setRejectionReason("");
-  };
-
-  const handleConfirmRejectEmployeeRequest = async () => {
-    if (!isCurrentUserAdmin || !currentUser || !requestToReject) return;
-    try {
-      await update(ref(db, `userAccessRequests/${requestToReject.id}`), {
-        status: 'rejected',
-        reviewedBy: currentUser.uid,
-        reviewDate: new Date().toISOString(),
-        rejectionReason: rejectionReason.trim() || "Không có lý do cụ thể.",
-      });
-      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${requestToReject.fullName}.`, variant: "default" });
-      setRequestToReject(null);
-      setRejectionReason("");
-    } catch (error) {
-      console.error("Error rejecting request:", error);
-      toast({ title: "Lỗi", description: "Không thể từ chối yêu cầu.", variant: "destructive" });
-    }
-  };
-
 
   const displayEmployees = useMemo(() => {
     if (isCurrentUserAdmin) {
@@ -368,15 +285,6 @@ export function EmployeeTab({
       <CardHeader>
         <div className="flex justify-between items-center">
             <CardTitle className="text-2xl font-bold">Danh sách Nhân sự</CardTitle>
-            {isCurrentUserAdmin && (
-              <Button
-                onClick={() => setIsReviewEmployeeRequestsDialogOpen(true)}
-                variant="outline"
-                className="border-primary text-primary hover:bg-primary/10"
-              >
-                <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên ({employeeAccessRequests.length})
-              </Button>
-            )}
         </div>
       </CardHeader>
       <CardContent className="flex flex-col space-y-6">
@@ -856,88 +764,6 @@ export function EmployeeTab({
           </AlertDialogContent>
         </AlertDialog>
     )}
-
-      {isCurrentUserAdmin && (
-        <Dialog open={isReviewEmployeeRequestsDialogOpen} onOpenChange={setIsReviewEmployeeRequestsDialogOpen}>
-            <DialogContent className="sm:max-w-5xl"> 
-                <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu nhân viên ({employeeAccessRequests.length})</DialogTitle>
-                    <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu truy cập với vai trò nhân viên.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="mt-4">
-                    {isLoadingEmployeeRequests ? (
-                        <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : employeeAccessRequests.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nhân viên nào đang chờ xử lý.</p>
-                    ) : (
-                        <ScrollArea className="max-h-[60vh]">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Họ và tên</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>SĐT</TableHead>
-                                        <TableHead>Tên Zalo</TableHead>
-                                        <TableHead>Địa chỉ</TableHead>
-                                        <TableHead>Ngày YC</TableHead>
-                                        <TableHead className="text-center">Hành động</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {employeeAccessRequests.map(req => (
-                                        <TableRow key={req.id}>
-                                            <TableCell>{req.fullName}</TableCell>
-                                            <TableCell>{req.email}</TableCell>
-                                            <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
-                                            <TableCell>{req.zaloName || 'N/A'}</TableCell>
-                                            <TableCell className="text-xs max-w-[150px] truncate" title={req.address || 'N/A'}>{req.address || 'N/A'}</TableCell>
-                                            <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
-                                            <TableCell className="text-center space-x-1">
-                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveEmployeeRequest(req)}>
-                                                    <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
-                                                </Button>
-                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => openRejectEmployeeDialog(req)}>
-                                                    <XCircle className="h-4 w-4 mr-1"/>Từ chối
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    )}
-                </div>
-                <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setIsReviewEmployeeRequestsDialogOpen(false)}>Đóng</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-      )}
-
-      {requestToReject && (
-        <Dialog open={!!requestToReject} onOpenChange={() => setRequestToReject(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Từ chối yêu cầu của {requestToReject.fullName}?</DialogTitle>
-              <DialogDescription>
-                Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Nhập lý do từ chối (tùy chọn)..."
-              className="min-h-[100px]"
-            />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRequestToReject(null)}>Hủy</Button>
-              <Button variant="destructive" onClick={handleConfirmRejectEmployeeRequest}>Xác nhận từ chối</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }

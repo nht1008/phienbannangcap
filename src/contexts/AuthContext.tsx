@@ -22,7 +22,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateUserProfileName: (name: string) => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
-  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & {password: string}) => Promise<void>;
+  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => Promise<void>;
   error: AuthError | null;
   setError: React.Dispatch<React.SetStateAction<AuthError | null>>;
 }
@@ -40,6 +40,8 @@ export function useAuth() {
 interface AuthProviderProps {
   children: ReactNode;
 }
+
+const ADMIN_EMAIL = "nthe1008@gmail.com";
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -64,32 +66,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
+
+      // 1. Admin always has access
+      if (user.email === ADMIN_EMAIL) {
+        setCurrentUser(user);
+        return user;
+      }
       
+      // 2. Check if user is an existing employee
       const employeeSnapshot = await get(child(ref(db), `employees/${user.uid}`));
-      if (user.email === "nthe1008@gmail.com" || employeeSnapshot.exists()) {
+      if (employeeSnapshot.exists()) {
         setCurrentUser(user);
         return user;
       }
 
-      const employeeAccessRequestSnapshot = await get(child(ref(db), `userAccessRequests/${user.uid}`));
-      if (employeeAccessRequestSnapshot.exists()) {
-        const requestData = employeeAccessRequestSnapshot.val() as UserAccessRequest;
-        if (requestData.status === 'approved') {
-            setCurrentUser(user);
-            return user;
-        } else if (requestData.status === 'pending') {
-            await firebaseSignOut(auth);
-            setError({ code: "auth/account-not-approved", message: "Yêu cầu nhân viên của bạn đang chờ phê duyệt." } as AuthError);
-            return null;
-        } else if (requestData.status === 'rejected') {
-            await firebaseSignOut(auth);
-            setError({ code: "auth/account-rejected", message: `Yêu cầu nhân viên đã bị từ chối. Lý do: ${requestData.rejectionReason || 'Không có'}` } as AuthError);
-            return null;
-        }
+      // 3. Check for customer access request status
+      const customerRequestSnapshot = await get(child(ref(db), `khach_hang_cho_duyet/${user.uid}`));
+      if (customerRequestSnapshot.exists()) {
+          await firebaseSignOut(auth);
+          setError({ code: "auth/account-not-approved", message: "Yêu cầu khách hàng của bạn đang chờ phê duyệt." } as AuthError);
+          return null;
       }
-      
-      setCurrentUser(user); 
-      return user;
+
+      // If not an employee and no pending request, they must be a customer. Check if approved.
+      const customerRecordSnapshot = await get(child(ref(db), `customers/${user.uid}`));
+       if (customerRecordSnapshot.exists()) {
+           // They are an approved customer
+           setCurrentUser(user);
+           return user;
+       }
+
+      // If user exists in auth but none of the above, they don't have access.
+      await firebaseSignOut(auth);
+      setError({ code: "auth/no-access-rights", message: "Tài khoản của bạn không có quyền truy cập. Vui lòng đăng ký hoặc liên hệ quản trị viên." } as AuthError);
+      return null;
 
     } catch (err) {
       setError(err as AuthError);
@@ -138,10 +148,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & {password: string}) => {
+  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => {
     setLoading(true);
     setError(null);
-    const { email, password, fullName, phone, address, zaloName } = details;
+    const { email, password, fullName, phone, address, zaloName, requestedRole } = details;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -154,12 +164,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         phone,
         address,
         zaloName,
-        requestedRole: 'employee', 
+        requestedRole,
         status: 'pending',
         requestDate: new Date().toISOString(),
       };
       
-      await set(ref(db, `userAccessRequests/${user.uid}`), accessRequestData);
+      // Always write to customer approval queue
+      await set(ref(db, `khach_hang_cho_duyet/${user.uid}`), accessRequestData);
       
       await firebaseSignOut(auth);
       setCurrentUser(null);

@@ -22,7 +22,7 @@ import type { UserAccessRequest } from '@/types';
 interface RegistrationRequestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmitRegistration: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & { password: string }) => Promise<boolean>;
+  onSubmitRegistration: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & { password: string }) => Promise<boolean>;
 }
 
 export function RegistrationRequestDialog({
@@ -74,6 +74,7 @@ export function RegistrationRequestDialog({
       phone: phone.trim(),
       address: address.trim(),
       zaloName: zaloName.trim(),
+      requestedRole: 'customer', // Hardcode to customer
     });
     setIsLoading(false);
     if (success) {
@@ -86,9 +87,9 @@ export function RegistrationRequestDialog({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { resetForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Đăng ký tài khoản Nhân viên</DialogTitle>
+          <DialogTitle className="text-2xl">Đăng ký tài khoản Khách hàng</DialogTitle>
           <DialogDescription>
-            Vui lòng điền thông tin bên dưới để tạo tài khoản và gửi yêu cầu truy cập vai trò Nhân viên.
+            Vui lòng điền thông tin bên dưới để tạo tài khoản. Yêu cầu của bạn sẽ được gửi đến quản trị viên để xét duyệt.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-2">

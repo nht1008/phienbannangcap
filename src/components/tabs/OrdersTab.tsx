@@ -283,7 +283,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
       
       {selectedOrderDetails && (
         <Dialog open={!!selectedOrderDetails} onOpenChange={(open) => !open && setSelectedOrderDetails(null)}>
-          <DialogContent className="sm:max-w-3xl">
+          <DialogContent className="sm:max-w-4xl">
             <DialogHeader>
               <DialogTitle>Chi tiết Đơn hàng #{selectedOrderDetails.orderNumber}</DialogTitle>
               <DialogDescription asChild>
@@ -302,7 +302,9 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                 <TableHeader>
                   <TableRow>
                     <TableHead>Sản phẩm</TableHead>
-                    <TableHead>Chi tiết</TableHead>
+                    <TableHead>Màu</TableHead>
+                    <TableHead>Chất lượng</TableHead>
+                    <TableHead>Kích thước</TableHead>
                     <TableHead className="text-right">SL</TableHead>
                     <TableHead className="text-right">Đơn giá</TableHead>
                     <TableHead className="text-right">Thành tiền</TableHead>
@@ -322,7 +324,9 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                          />
                          {item.name}
                        </TableCell>
-                       <TableCell className="text-xs">{`${item.color}, ${item.quality || 'N/A'}, ${item.size}`}</TableCell>
+                       <TableCell className="text-xs">{item.color}</TableCell>
+                       <TableCell className="text-xs">{item.quality || 'N/A'}</TableCell>
+                       <TableCell className="text-xs">{item.size}</TableCell>
                       <TableCell className="text-right">{item.quantityInCart}</TableCell>
                       <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell className="text-right font-semibold text-primary">

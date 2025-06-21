@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -519,6 +518,7 @@ export function EmployeeTab({
                           mode="single"
                           selected={activityFilter.startDate ?? undefined}
                           onSelect={(date) => setActivityFilter(prev => ({ ...prev, startDate: date ? startOfDay(date) : null }))}
+                          disabled={(date) => activityFilter.endDate ? date > activityFilter.endDate : false}
                           initialFocus
                           locale={vi}
                         />

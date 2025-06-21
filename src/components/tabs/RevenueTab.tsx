@@ -269,6 +269,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
                     mode="single"
                     selected={filterProp.startDate ?? undefined}
                     onSelect={(date) => onFilterChange({ ...filterProp, startDate: date ? startOfDay(date) : null })}
+                    disabled={(date) => filterProp.endDate ? date > filterProp.endDate : false}
                     initialFocus
                     locale={vi}
                 />

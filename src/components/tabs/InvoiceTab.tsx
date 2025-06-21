@@ -195,6 +195,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                         mode="single"
                         selected={filterProp.startDate ?? undefined}
                         onSelect={(date) => onFilterChange({ ...filterProp, startDate: date ? startOfDay(date) : null })}
+                        disabled={(date) => filterProp.endDate ? date > filterProp.endDate : false}
                         initialFocus
                         locale={vi}
                     />
@@ -547,4 +548,3 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     </>
   );
 }
-

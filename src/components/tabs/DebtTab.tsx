@@ -112,6 +112,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
                         mode="single"
                         selected={filterProp.startDate ?? undefined}
                         onSelect={(date) => onFilterChange({ ...filterProp, startDate: date ? startOfDay(date) : null })}
+                        disabled={(date) => filterProp.endDate ? date > filterProp.endDate : false}
                         initialFocus
                         locale={vi}
                     />
@@ -240,4 +241,3 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
     </Card>
   );
 }
-

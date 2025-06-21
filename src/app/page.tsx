@@ -626,7 +626,6 @@ export default function FleurManagerPage() {
 
   const [isSettingName, setIsSettingName] = useState(false);
   const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
-  const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
 
   const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
@@ -667,6 +666,7 @@ export default function FleurManagerPage() {
   const [isConfirmingProductDelete, setIsConfirmingProductDelete] = useState(false);
 
   const [isCurrentUserCustomer, setIsCurrentUserCustomer] = useState(false);
+  const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
 
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
@@ -762,18 +762,71 @@ export default function FleurManagerPage() {
     }
   }, [currentUser, authLoading, router]);
 
- useEffect(() => {
-    if (authLoading || !currentUser) return;
+  // Main access control and role determination effect
+  useEffect(() => {
+    if (authLoading || !currentUser) {
+      return;
+    }
+  
+    const checkUserAccess = async () => {
+      setIsLoadingAccessRequest(true);
+      setIsCurrentUserCustomer(false);
+      setUserAccessRequest(null);
 
-    setIsLoadingAccessRequest(true);
-    setIsCurrentUserCustomer(false); // Reset on change
-
-    let unsubscribeEmployees = () => {};
-    let unsubscribeShopInfo = () => {};
-    let unsubscribeDisposalLog = () => {};
+      // Path 1: User is Admin (fastest check)
+      if (currentUser.email === ADMIN_EMAIL) {
+        if (!currentUser.displayName) setIsSettingName(true);
+        setIsLoadingAccessRequest(false);
+        return;
+      }
+  
+      // Path 2: Check if user is an approved Employee
+      const employeeSnapshot = await get(ref(db, `employees/${currentUser.uid}`));
+      if (employeeSnapshot.exists()) {
+        // We don't set employeesData here, another effect will do that.
+        // The existence of currentUserEmployeeData will grant access.
+        if (!currentUser.displayName) setIsSettingName(true);
+        setIsLoadingAccessRequest(false);
+        return;
+      }
+  
+      // Path 3: Check if user is an approved Customer
+      const customerSnapshot = await get(ref(db, `customers/${currentUser.uid}`));
+      if (customerSnapshot.exists()) {
+        setIsCurrentUserCustomer(true);
+        if (!currentUser.displayName) setIsSettingName(true);
+        setIsLoadingAccessRequest(false);
+        return;
+      }
+  
+      // Path 4: Check for a pending/rejected request
+      // We check the customer queue as it's the primary registration method now
+      const requestSnapshot = await get(ref(db, `khach_hang_cho_duyet/${currentUser.uid}`));
+      if (requestSnapshot.exists()) {
+        setUserAccessRequest({ id: currentUser.uid, ...requestSnapshot.val() });
+        if (!currentUser.displayName) setIsSettingName(true);
+        setIsLoadingAccessRequest(false);
+        return;
+      }
+      
+      // Path 5: No access rights found
+      setIsLoadingAccessRequest(false);
+      if (!currentUser.displayName) setIsSettingName(true);
+    };
+  
+    checkUserAccess();
+  
+  }, [currentUser, authLoading]);
+  
+  // Data loading effect for Employees (only for admins/employees)
+  useEffect(() => {
+    if (!currentUser || (!isCurrentUserAdmin && !currentUserEmployeeData)) {
+        setEmployeesData([]); // Clear data if not authorized
+        return;
+    }
 
     const employeesRef = ref(db, 'employees');
-    unsubscribeEmployees = onValue(employeesRef, async (snapshot) => {
+    const unsubscribe = onValue(employeesRef, (snapshot) => {
         const data = snapshot.val();
         const loadedEmployees: Employee[] = [];
         if (data) {
@@ -782,107 +835,13 @@ export default function FleurManagerPage() {
             });
         }
         setEmployeesData(loadedEmployees.sort((a, b) => a.name.localeCompare(b.name)));
-
-        const currentLoadedEmployee = loadedEmployees.find(emp => emp.id === currentUser.uid);
-
-        if (currentUser.email === ADMIN_EMAIL) {
-            if (!currentUser.displayName || !currentLoadedEmployee || (currentLoadedEmployee && currentLoadedEmployee.position !== 'ADMIN')) {
-                setIsSettingName(true);
-            } else {
-                setIsSettingName(false);
-            }
-            setUserAccessRequest(null);
-            setIsLoadingAccessRequest(false);
-        } else if (currentLoadedEmployee) {
-             if (!currentUser.displayName) {
-                setIsSettingName(true);
-            } else {
-                setIsSettingName(false);
-            }
-            setUserAccessRequest({
-                id: currentUser.uid, status: 'approved', email: currentUser.email || '',
-                fullName: currentUser.displayName || '', phone: currentLoadedEmployee.phone || '',
-                address: '', zaloName: currentLoadedEmployee.zaloName || '',
-                requestedRole: 'employee', requestDate: new Date().toISOString()
-            });
-            setIsLoadingAccessRequest(false);
-        } else {
-            const customerRef = ref(db, `customers/${currentUser.uid}`);
-            const customerSnapshot = await get(customerRef);
-            if(customerSnapshot.exists()){
-                setIsCurrentUserCustomer(true);
-                setUserAccessRequest(null);
-                setIsLoadingAccessRequest(false);
-                setIsSettingName(!currentUser.displayName);
-            } else {
-                const customerRequestRef = ref(db, `khach_hang_cho_duyet/${currentUser.uid}`);
-                try {
-                    const requestSnapshot = await get(customerRequestRef);
-                    if (requestSnapshot.exists()) {
-                        setUserAccessRequest({ id: currentUser.uid, ...requestSnapshot.val() });
-                    } else {
-                        setUserAccessRequest(null);
-                    }
-                } catch (error) {
-                    console.error("Error fetching customer access request:", error);
-                    toast({ title: "Lỗi tải yêu cầu", description: (error as Error).message, variant: "destructive" });
-                    setUserAccessRequest(null);
-                }
-                setIsLoadingAccessRequest(false);
-                setIsSettingName(!currentUser.displayName);
-            }
-        }
+    }, (error) => {
+        console.error("Error fetching employees data:", error);
+        toast({ title: "Lỗi tải dữ liệu", description: "Không thể tải danh sách nhân viên.", variant: "destructive" });
     });
 
-    if (hasFullAccessRights) {
-        setIsLoadingShopInfo(true);
-        const shopInfoRef = ref(db, 'shopInfo');
-        unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
-            const defaultInvoiceSettings = {
-                showShopLogoOnInvoice: true,
-                showShopAddressOnInvoice: true,
-                showShopPhoneOnInvoice: true,
-                showShopBankDetailsOnInvoice: true,
-                showEmployeeNameOnInvoice: true,
-                invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
-            };
-            if (snapshot.exists()) {
-                 const dbShopInfo = snapshot.val() as ShopInfo;
-                 setShopInfo({ ...defaultInvoiceSettings, ...dbShopInfo });
-            } else {
-                setShopInfo({ name: '', address: '', phone: '', logoUrl: '', bankAccountName: '', bankAccountNumber: '', bankName: '', ...defaultInvoiceSettings });
-            }
-            setIsLoadingShopInfo(false);
-        }, (error) => {
-            console.error("Error fetching shop info:", error);
-            toast({ title: "Lỗi tải thông tin cửa hàng", description: error.message, variant: "destructive" });
-            setIsLoadingShopInfo(false);
-        });
-    } else {
-        setShopInfo(null);
-        setIsLoadingShopInfo(false);
-    }
-    
-    if(!isCurrentUserCustomer) {
-        const disposalLogRef = ref(db, 'disposalLog');
-        unsubscribeDisposalLog = onValue(disposalLogRef, (snapshot) => {
-          const data = snapshot.val();
-          const loadedEntries: DisposalLogEntry[] = [];
-          if (data) {
-            Object.keys(data).forEach(key => {
-              loadedEntries.push({ id: key, ...data[key] });
-            });
-          }
-          setDisposalLogEntries(loadedEntries.sort((a,b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
-        });
-    }
-
-    return () => {
-        unsubscribeEmployees();
-        unsubscribeShopInfo();
-        unsubscribeDisposalLog();
-    };
-  }, [currentUser, authLoading, hasFullAccessRights, toast, isCurrentUserCustomer]);
+    return () => unsubscribe();
+  }, [currentUser, isCurrentUserAdmin, currentUserEmployeeData, toast]); // Reruns when role changes
 
 
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
@@ -892,6 +851,59 @@ export default function FleurManagerPage() {
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const invoicesRef = ref(db, 'invoices'); const unsubscribe = onValue(invoicesRef, (snapshot) => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser, isCurrentUserCustomer]);
+  
+  // Effect for ShopInfo (depends on hasFullAccessRights)
+  useEffect(() => {
+    if (!hasFullAccessRights) {
+        setShopInfo(null);
+        setIsLoadingShopInfo(false);
+        return;
+    }
+    setIsLoadingShopInfo(true);
+    const shopInfoRef = ref(db, 'shopInfo');
+    const unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
+        const defaultInvoiceSettings = {
+            showShopLogoOnInvoice: true,
+            showShopAddressOnInvoice: true,
+            showShopPhoneOnInvoice: true,
+            showShopBankDetailsOnInvoice: true,
+            showEmployeeNameOnInvoice: true,
+            invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
+        };
+        if (snapshot.exists()) {
+             const dbShopInfo = snapshot.val() as ShopInfo;
+             setShopInfo({ ...defaultInvoiceSettings, ...dbShopInfo });
+        } else {
+            setShopInfo({ name: '', address: '', phone: '', logoUrl: '', bankAccountName: '', bankAccountNumber: '', bankName: '', ...defaultInvoiceSettings });
+        }
+        setIsLoadingShopInfo(false);
+    }, (error) => {
+        console.error("Error fetching shop info:", error);
+        toast({ title: "Lỗi tải thông tin cửa hàng", description: error.message, variant: "destructive" });
+        setIsLoadingShopInfo(false);
+    });
+    return () => unsubscribeShopInfo();
+  }, [hasFullAccessRights, toast]);
+
+  // Effect for Disposal Log (only for employees/admins)
+  useEffect(() => {
+    if (isCurrentUserCustomer || !currentUser) {
+        setDisposalLogEntries([]);
+        return;
+    }
+    const disposalLogRef = ref(db, 'disposalLog');
+    const unsubscribeDisposalLog = onValue(disposalLogRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedEntries: DisposalLogEntry[] = [];
+      if (data) {
+        Object.keys(data).forEach(key => {
+          loadedEntries.push({ id: key, ...data[key] });
+        });
+      }
+      setDisposalLogEntries(loadedEntries.sort((a,b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
+    });
+    return () => unsubscribeDisposalLog();
+  }, [isCurrentUserCustomer, currentUser]);
 
   const handleRevenueFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setRevenueFilter(newFilter), []);
   const handleInvoiceFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setInvoiceFilter(newFilter), []);
@@ -1362,7 +1374,17 @@ export default function FleurManagerPage() {
 
   const noAccessToastShown = React.useRef(false);
   useEffect(() => {
-    if (!isCurrentUserAdmin && !currentUserEmployeeData && !isCurrentUserCustomer && !userAccessRequest && !isLoadingAccessRequest && !authLoading && currentUser && !isSettingName && !noAccessToastShown.current) {
+    if (
+      !authLoading && 
+      !isLoadingAccessRequest &&
+      !isCurrentUserAdmin && 
+      !currentUserEmployeeData && 
+      !isCurrentUserCustomer && 
+      !userAccessRequest && 
+      currentUser && 
+      !isSettingName && 
+      !noAccessToastShown.current
+    ) {
       noAccessToastShown.current = true;
       toast({
         title: "Không có quyền truy cập",
@@ -1370,7 +1392,17 @@ export default function FleurManagerPage() {
         variant: "destructive"
       });
     }
-  }, [isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, userAccessRequest, isLoadingAccessRequest, toast, authLoading, currentUser, isSettingName]);
+  }, [
+    authLoading,
+    isLoadingAccessRequest,
+    isCurrentUserAdmin, 
+    currentUserEmployeeData, 
+    isCurrentUserCustomer, 
+    userAccessRequest, 
+    toast, 
+    currentUser, 
+    isSettingName
+  ]);
 
 
   // --- Conditional Rendering Logic ---
@@ -1378,7 +1410,7 @@ export default function FleurManagerPage() {
   if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
   if (isSettingName) return <SetNameDialog onNameSet={handleNameSet} />;
   
-  if (isLoadingAccessRequest && !isCurrentUserAdmin && !currentUserEmployeeData && !isCurrentUserCustomer) {
+  if (isLoadingAccessRequest) {
       return <LoadingScreen message="Đang kiểm tra quyền truy cập..." />;
   }
 
@@ -1422,24 +1454,14 @@ export default function FleurManagerPage() {
   }
 
   if (userAccessRequest) {
-    if (userAccessRequest.status === 'pending') {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
-          <HelpCircle className="w-16 h-16 text-primary mb-4" />
-          <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
-          <p className="text-muted-foreground">Yêu cầu đăng ký khách hàng của bạn đã được gửi.</p>
-          <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
-          <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Đăng xuất</Button>
-        </div>
-      );
-    }
-     if (userAccessRequest.status === 'rejected') {
+    const isRejected = 'status' in userAccessRequest && userAccessRequest.status === 'rejected';
+     if (isRejected) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
                 <UserX className="w-16 h-16 text-destructive mb-4" />
                 <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đã bị từ chối</h1>
                 <p className="text-muted-foreground">
-                    Yêu cầu đăng ký khách hàng của bạn đã bị từ chối.
+                    Yêu cầu đăng ký của bạn đã bị từ chối.
                     {userAccessRequest.rejectionReason && ` Lý do: ${userAccessRequest.rejectionReason}.`}
                 </p>
                 <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên hoặc đăng ký lại với thông tin chính xác.</p>
@@ -1447,6 +1469,16 @@ export default function FleurManagerPage() {
             </div>
         );
     }
+    // Otherwise, assume pending
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+        <HelpCircle className="w-16 h-16 text-primary mb-4" />
+        <h1 className="text-2xl font-bold mb-2 text-foreground">Yêu cầu đang chờ duyệt</h1>
+        <p className="text-muted-foreground">Yêu cầu đăng ký của bạn đã được gửi.</p>
+        <p className="text-muted-foreground">Vui lòng chờ quản trị viên phê duyệt. Bạn có thể cần phải đăng nhập lại sau khi yêu cầu được duyệt.</p>
+        <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Đăng xuất</Button>
+      </div>
+    );
   }
 
   if (!isLoadingAccessRequest) {
@@ -1457,7 +1489,7 @@ export default function FleurManagerPage() {
             <p className="text-muted-foreground">
                 Bạn không có quyền truy cập vào ứng dụng này.
             </p>
-            <p className="text-muted-foreground">Vui lòng đăng ký tài khoản khách hàng từ trang đăng nhập hoặc liên hệ quản trị viên.</p>
+            <p className="text-muted-foreground">Vui lòng đăng ký tài khoản từ trang đăng nhập hoặc liên hệ quản trị viên.</p>
             <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Về trang đăng nhập</Button>
         </div>
     );
@@ -1465,6 +1497,7 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
 
 
 

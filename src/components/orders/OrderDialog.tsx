@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Plus, Minus } from 'lucide-react';
 
 interface OrderDialogProps {
   isOpen: boolean;
@@ -34,6 +35,24 @@ export function OrderDialog({ isOpen, onClose, product, onConfirmOrder }: OrderD
   }, [isOpen]);
 
   if (!product) return null;
+
+  const handleQuantityChange = (value: string) => {
+    if (value === '') {
+        setQuantity('');
+        return;
+    }
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue) && product) {
+      if (numValue > product.quantity) {
+        setQuantity(product.quantity.toString());
+        toast({ title: "Số lượng vượt tồn kho", description: `Chỉ còn ${product.quantity} sản phẩm.`, variant: "destructive" });
+      } else if (numValue < 1) {
+        setQuantity('1');
+      } else {
+        setQuantity(numValue.toString());
+      }
+    }
+  };
 
   const handleConfirm = async () => {
     const numQuantity = parseInt(quantity, 10);
@@ -79,15 +98,38 @@ export function OrderDialog({ isOpen, onClose, product, onConfirmOrder }: OrderD
           </div>
           <div className="space-y-1">
             <Label htmlFor="quantity">Số lượng</Label>
-            <Input
-              id="quantity"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              min="1"
-              max={product.quantity.toString()}
-              required
-            />
+            <div className="flex items-center gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => handleQuantityChange((parseInt(quantity, 10) - 1).toString())}
+                    disabled={parseInt(quantity, 10) <= 1}
+                >
+                    <Minus className="h-4 w-4" />
+                </Button>
+                <Input
+                    id="quantity"
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
+                    min="1"
+                    max={product.quantity.toString()}
+                    required
+                    className="w-16 text-center hide-number-spinners"
+                />
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => handleQuantityChange((parseInt(quantity, 10) + 1).toString())}
+                    disabled={parseInt(quantity, 10) >= product.quantity}
+                >
+                    <Plus className="h-4 w-4" />
+                </Button>
+            </div>
           </div>
           <div className="space-y-1">
             <Label htmlFor="notes">Ghi chú</Label>

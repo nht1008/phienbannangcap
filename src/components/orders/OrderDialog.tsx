@@ -72,92 +72,105 @@ export function OrderDialog({ isOpen, onClose, product, onConfirmOrder }: OrderD
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Đặt hàng: {product.name}</DialogTitle>
           <DialogDescription>
-            Nhập số lượng và ghi chú (nếu có) cho đơn hàng của bạn.
+            Kiểm tra thông tin sản phẩm, nhập số lượng và ghi chú (nếu có) cho đơn hàng.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          <div className="flex items-start gap-4">
-            <Image
-              src={product.image || `https://placehold.co/100x100.png`}
-              alt={product.name}
-              width={100}
-              height={100}
-              className="rounded-md object-cover aspect-square border"
-              data-ai-hint={`${product.name.split(' ')[0]} flower`}
-              onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
-            />
-            <div className="flex-1 space-y-2 text-sm">
-                <div className="grid grid-cols-[80px_1fr] items-center">
-                    <span className="font-semibold text-muted-foreground">Tên:</span>
-                    <span className="font-bold text-base">{product.name}</span>
-                </div>
-                 <div className="grid grid-cols-[80px_1fr] items-center">
-                    <span className="font-semibold text-muted-foreground">Chi tiết:</span>
-                    <span>{`${product.color}, ${product.quality || 'N/A'}, ${product.size}`}</span>
-                </div>
-                 <div className="grid grid-cols-[80px_1fr] items-center">
-                    <span className="font-semibold text-muted-foreground">Đơn giá:</span>
-                    <span className="font-bold text-primary">{`${product.price.toLocaleString('vi-VN')} VNĐ / ${product.unit}`}</span>
-                </div>
-                 <div className="grid grid-cols-[80px_1fr] items-center">
-                    <span className="font-semibold text-muted-foreground">Tồn kho:</span>
-                    <span>{product.quantity}</span>
-                </div>
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-1">
-            <Label htmlFor="quantity">Số lượng đặt (*)</Label>
-            <div className="flex items-center gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => handleQuantityChange((parseInt(quantity, 10) - 1).toString())}
-                    disabled={parseInt(quantity, 10) <= 1}
-                >
-                    <Minus className="h-4 w-4" />
-                </Button>
-                <Input
-                    id="quantity"
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => handleQuantityChange(e.target.value)}
-                    min="1"
-                    max={product.quantity.toString()}
-                    required
-                    className="w-16 text-center hide-number-spinners"
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 py-4">
+            <div className="flex justify-center items-center row-span-2">
+                 <Image
+                    src={product.image || `https://placehold.co/400x400.png`}
+                    alt={product.name}
+                    width={400}
+                    height={400}
+                    className="rounded-lg object-cover aspect-square border shadow-lg"
+                    data-ai-hint={`${product.name.split(' ')[0]} flower`}
+                    onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/400x400.png')}
                 />
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => handleQuantityChange((parseInt(quantity, 10) + 1).toString())}
-                    disabled={parseInt(quantity, 10) >= product.quantity}
-                >
-                    <Plus className="h-4 w-4" />
-                </Button>
             </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="notes">Ghi chú (tùy chọn)</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ví dụ: Giao hàng sau 5 giờ chiều, gói quà cẩn thận..."
-            />
-          </div>
+
+            <div className="space-y-4">
+                 <div className="space-y-2">
+                    <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-muted-foreground">Màu sắc:</span>
+                        <span className="font-medium text-lg">{product.color}</span>
+                    </div>
+                     <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-muted-foreground">Chất lượng:</span>
+                        <span className="font-medium text-lg">{product.quality || 'N/A'}</span>
+                    </div>
+                     <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-muted-foreground">Kích thước:</span>
+                        <span className="font-medium text-lg">{product.size}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-muted-foreground">Tồn kho:</span>
+                        <span className="font-medium text-lg">{product.quantity} {product.unit}</span>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <p className="text-sm text-muted-foreground">Đơn giá</p>
+                    <p className="text-4xl font-bold text-primary">{`${product.price.toLocaleString('vi-VN')} VNĐ`}</p>
+                </div>
+            </div>
+
+             <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="quantity" className="font-semibold text-lg">Số lượng đặt (*)</Label>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => handleQuantityChange((parseInt(quantity, 10) - 1).toString())}
+                            disabled={parseInt(quantity, 10) <= 1}
+                        >
+                            <Minus className="h-5 w-5" />
+                        </Button>
+                        <Input
+                            id="quantity"
+                            type="number"
+                            value={quantity}
+                            onChange={(e) => handleQuantityChange(e.target.value)}
+                            min="1"
+                            max={product.quantity.toString()}
+                            required
+                            className="w-20 text-center hide-number-spinners text-xl h-10"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => handleQuantityChange((parseInt(quantity, 10) + 1).toString())}
+                            disabled={parseInt(quantity, 10) >= product.quantity}
+                        >
+                            <Plus className="h-5 w-5" />
+                        </Button>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="notes" className="font-semibold text-lg">Ghi chú</Label>
+                    <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ví dụ: Giao hàng sau 5 giờ chiều, gói quà cẩn thận..."
+                    className="min-h-[80px]"
+                    />
+                </div>
+            </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Hủy</Button>
-          <Button onClick={handleConfirm} className="bg-primary text-primary-foreground" disabled={isSubmitting}>
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting} size="lg">Hủy</Button>
+          <Button onClick={handleConfirm} className="bg-primary text-primary-foreground" disabled={isSubmitting} size="lg">
              {isSubmitting ? <><LoadingSpinner className="mr-2" /> Đang xử lý...</> : 'Xác nhận đặt hàng'}
           </Button>
         </DialogFooter>

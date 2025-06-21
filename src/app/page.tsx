@@ -292,6 +292,11 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
 
+  const pendingOrdersCount = useMemo(() => {
+    if (isCurrentUserCustomer) return 0; // Customers don't need to see this badge.
+    return ordersData.filter(o => o.orderStatus === 'Chờ xác nhận' || o.orderStatus === 'Yêu cầu hủy').length;
+  }, [ordersData, isCurrentUserCustomer]);
+
   const baseNavItems = useMemo(() => [
     { name: 'Bán hàng' as TabName, icon: <SellIcon /> },
     { name: 'Gian hàng' as TabName, icon: <Store /> },
@@ -470,7 +475,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     isActive={activeTab === item.name}
                     tooltip={{ children: item.name, side: "right", align: "center" }}
                     className={cn(
-                      'rounded-lg',
+                      'relative rounded-lg',
                       activeTab === item.name
                         ? 'bg-primary text-primary-foreground shadow-lg'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -478,6 +483,12 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   >
                     <span className="w-6 h-6">{item.icon}</span>
                     <span>{isCurrentUserCustomer && item.name === 'Đơn hàng' ? 'Đơn hàng của tôi' : item.name}</span>
+                    {item.name === 'Đơn hàng' && pendingOrdersCount > 0 && (
+                        <span className="absolute top-2 right-2 flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
+                        </span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

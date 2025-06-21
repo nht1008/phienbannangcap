@@ -269,6 +269,7 @@ interface FleurManagerLayoutContentProps {
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
+  setIsCartSheetOpen: (isOpen: boolean) => void;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -679,8 +680,6 @@ export default function FleurManagerPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerCart, setCustomerCart] = useState<CartItem[]>([]);
   const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
-  const [isOrderNotesDialogOpen, setIsOrderNotesDialogOpen] = useState(false);
-  const [orderNotes, setOrderNotes] = useState('');
   
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
@@ -1462,7 +1461,7 @@ export default function FleurManagerPage() {
       setCustomerCart(prev => prev.filter(item => item.id !== itemId));
   }, []);
 
-  const handlePlaceOrderFromCart = () => {
+  const handleConfirmOrderFromCart = async (notes: string) => {
     if (customerCart.length === 0) {
         toast({ title: "Lỗi", description: "Giỏ hàng của bạn đang trống.", variant: "destructive" });
         return;
@@ -1474,11 +1473,8 @@ export default function FleurManagerPage() {
             return;
         }
     }
-    setIsOrderNotesDialogOpen(true);
-  };
 
-  const handleConfirmOrderFromCartWithNotes = async () => {
-    if (!currentUser || !isCurrentUserCustomer || customerCart.length === 0) return;
+    if (!currentUser || !isCurrentUserCustomer) return;
 
     const customerData = customersData.find(c => c.id === currentUser.uid);
     if (!customerData) {
@@ -1516,7 +1512,7 @@ export default function FleurManagerPage() {
         paymentMethod: 'Chưa xác định',
         paymentStatus: 'Chưa thanh toán',
         orderStatus: 'Chờ xác nhận',
-        notes: orderNotes.trim(),
+        notes: notes.trim(),
         orderDate: new Date().toISOString(),
     };
     
@@ -1526,10 +1522,7 @@ export default function FleurManagerPage() {
 
         toast({ title: "Thành công!", description: "Đơn hàng của bạn đã được đặt. Vui lòng chờ nhân viên cửa hàng xác nhận." });
         setIsCartSheetOpen(false);
-        setIsOrderNotesDialogOpen(false);
         setCustomerCart([]);
-        setOrderNotes('');
-
     } catch (error) {
         console.error("Error placing order:", error);
         toast({ title: "Lỗi", description: "Không thể đặt hàng. Vui lòng thử lại.", variant: "destructive" });
@@ -1663,29 +1656,9 @@ export default function FleurManagerPage() {
             cart={customerCart}
             onUpdateQuantity={onUpdateCustomerCartQuantity}
             onRemoveItem={onRemoveFromCustomerCart}
-            onPlaceOrder={handlePlaceOrderFromCart}
+            onPlaceOrder={handleConfirmOrderFromCart}
             inventory={inventory}
         />
-        <Dialog open={isOrderNotesDialogOpen} onOpenChange={setIsOrderNotesDialogOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Thêm ghi chú cho đơn hàng</DialogTitle>
-                    <DialogDescription>
-                        Bạn có yêu cầu đặc biệt nào cho đơn hàng này không? (Ví dụ: thời gian giao, cách gói hàng,...)
-                    </DialogDescription>
-                </DialogHeader>
-                <Textarea 
-                    value={orderNotes}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="Nhập ghi chú của bạn tại đây..."
-                    className="min-h-[100px]"
-                />
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOrderNotesDialogOpen(false)}>Hủy</Button>
-                    <Button onClick={handleConfirmOrderFromCartWithNotes}>Xác nhận & Đặt hàng</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
         <ProductFormDialog isOpen={isProductFormOpen} onClose={handleCloseProductFormDialog} onSubmit={handleProductFormSubmit} initialData={currentEditingProduct} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions} sizeOptions={sizeOptions} unitOptions={unitOptions} isEditMode={isProductFormEditMode} defaultFormState={productFormDefaultState} />
         {productToDeleteId && (<AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>)}
         {debtToDelete && (<AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?{debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa công nợ</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> )}

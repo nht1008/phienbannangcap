@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { CartItem, Product } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Separator } from '@/components/ui/separator';
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface CustomerCartSheetProps {
   isOpen: boolean;
@@ -18,7 +20,7 @@ interface CustomerCartSheetProps {
   cart: CartItem[];
   onUpdateQuantity: (itemId: string, newQuantity: string) => void;
   onRemoveItem: (itemId: string) => void;
-  onPlaceOrder: () => void;
+  onPlaceOrder: (notes: string) => void;
   inventory: Product[];
 }
 
@@ -31,8 +33,19 @@ export function CustomerCartSheet({
   onPlaceOrder,
   inventory,
 }: CustomerCartSheetProps) {
+  const [notes, setNotes] = useState('');
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0);
+
+  const handlePlaceOrder = () => {
+    onPlaceOrder(notes);
+  };
+  
+  React.useEffect(() => {
+    if (!isOpen) {
+      setNotes('');
+    }
+  }, [isOpen]);
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -144,12 +157,21 @@ export function CustomerCartSheet({
         {cart.length > 0 && (
           <>
             <Separator className="mt-auto" />
-            <SheetFooter className="px-4 sm:px-6 py-4 space-y-4">
+            <SheetFooter className="px-4 sm:px-6 py-4 flex-col space-y-4 items-start">
+               <div className="w-full space-y-2">
+                 <Label htmlFor="cart-notes">Ghi chú đơn hàng</Label>
+                 <Textarea 
+                    id="cart-notes" 
+                    placeholder="Yêu cầu đặc biệt về đơn hàng (ví dụ: thời gian giao, cách gói hàng,...)" 
+                    value={notes} 
+                    onChange={(e) => setNotes(e.target.value)} 
+                  />
+              </div>
               <div className="flex justify-between w-full text-lg font-semibold">
                 <p>Tổng cộng:</p>
                 <p>{totalAmount.toLocaleString('vi-VN')} VNĐ</p>
               </div>
-              <Button onClick={onPlaceOrder} className="w-full bg-primary text-primary-foreground" size="lg">
+              <Button onClick={handlePlaceOrder} className="w-full bg-primary text-primary-foreground" size="lg">
                 Tiến hành đặt hàng
               </Button>
             </SheetFooter>

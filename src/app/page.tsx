@@ -366,6 +366,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   filter={orderFilter}
                   onFilterChange={handleOrderFilterChange}
                   currentUser={currentUser}
+                  isCurrentUserCustomer={isCurrentUserCustomer}
                 />,
     'Bảng xếp hạng': <LeaderboardTab
                       customers={customersData}

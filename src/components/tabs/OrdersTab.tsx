@@ -28,10 +28,10 @@ interface OrdersTabProps {
   filter: ActivityDateTimeFilter;
   onFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   currentUser: User | null;
+  isCurrentUserCustomer: boolean;
 }
 
-export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilterChange, currentUser }: OrdersTabProps) {
-  const isCustomer = !currentUser?.email?.includes('@'); // Heuristic to check if it's not staff/admin
+export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilterChange, currentUser, isCurrentUserCustomer }: OrdersTabProps) {
   
   const handleSetTodayFilter = () => {
     const today = new Date();
@@ -58,7 +58,8 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     if (!currentUser) return;
-    onUpdateStatus(orderId, newStatus, currentUser.uid, currentUser.displayName || "Unknown");
+    const updaterName = currentUser.displayName || (isCurrentUserCustomer ? "Khách hàng" : "Không rõ");
+    onUpdateStatus(orderId, newStatus, currentUser.uid, updaterName);
   };
 
   const getStatusColorClass = (status: OrderStatus) => {
@@ -67,6 +68,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
       case 'Đã hủy': return 'bg-red-500 text-white';
       case 'Đang giao hàng': return 'bg-blue-500 text-white';
       case 'Đã xác nhận': return 'bg-yellow-500 text-black';
+      case 'Yêu cầu hủy': return 'bg-orange-500 text-white';
       default: return 'bg-gray-400 text-white';
     }
   };
@@ -77,7 +79,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Danh sách Đơn hàng</CardTitle>
         <CardDescription>
-          {isCustomer ? 'Xem lại lịch sử và trạng thái các đơn hàng của bạn.' : 'Quản lý và cập nhật trạng thái các đơn hàng của khách.'}
+          {isCurrentUserCustomer ? 'Xem lại lịch sử và trạng thái các đơn hàng của bạn.' : 'Quản lý và cập nhật trạng thái các đơn hàng của khách.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col">
@@ -185,7 +187,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                 <TableHeader>
                   <TableRow>
                     <TableHead>Mã ĐH</TableHead>
-                    {!isCustomer && <TableHead>Tên khách hàng</TableHead>}
+                    {!isCurrentUserCustomer && <TableHead>Tên khách hàng</TableHead>}
                     <TableHead>Ngày đặt</TableHead>
                     <TableHead className="text-right">Tổng tiền</TableHead>
                     <TableHead>Trạng thái</TableHead>
@@ -197,14 +199,42 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                   {orders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium text-xs">{order.orderNumber || order.id.slice(-6)}</TableCell>
-                      {!isCustomer && <TableCell>{order.customerName}</TableCell>}
+                      {!isCurrentUserCustomer && <TableCell>{order.customerName}</TableCell>}
                       <TableCell>{new Date(order.orderDate).toLocaleDateString('vi-VN')}</TableCell>
                       <TableCell className="text-right">{order.totalAmount.toLocaleString('vi-VN')} VNĐ</TableCell>
                       <TableCell>
-                        {isCustomer ? (
-                          <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", getStatusColorClass(order.orderStatus))}>
-                            {order.orderStatus}
-                          </span>
+                        {isCurrentUserCustomer ? (
+                           (() => {
+                              const canCancel = order.orderStatus === 'Chờ xác nhận' || order.orderStatus === 'Đã xác nhận';
+                              const isCancellationRequested = order.orderStatus === 'Yêu cầu hủy';
+
+                              if (isCancellationRequested) {
+                                return (
+                                  <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", getStatusColorClass(order.orderStatus))}>
+                                    Đã yêu cầu hủy
+                                  </span>
+                                );
+                              }
+                              
+                              if (canCancel) {
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 text-xs"
+                                    onClick={() => handleStatusChange(order.id, 'Yêu cầu hủy')}
+                                  >
+                                    Yêu cầu hủy
+                                  </Button>
+                                );
+                              }
+
+                              return (
+                                <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", getStatusColorClass(order.orderStatus))}>
+                                  {order.orderStatus}
+                                </span>
+                              );
+                            })()
                         ) : (
                           <Select
                             value={order.orderStatus}
@@ -242,4 +272,3 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
     </Card>
   );
 }
-

@@ -270,6 +270,7 @@ interface FleurManagerLayoutContentProps {
   handleDeleteProductFromAnywhere: (productId: string) => void;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
   setIsCartSheetOpen: (isOpen: boolean) => void;
+  onOpenNoteEditor: (itemId: string) => void;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -286,7 +287,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee, onOpenNoteEditor
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -712,6 +713,10 @@ export default function FleurManagerPage() {
 
   const [isCurrentUserCustomer, setIsCurrentUserCustomer] = useState(false);
   const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
+
+  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
+  const [editingNoteItemId, setEditingNoteItemId] = useState<string | null>(null);
+  const [itemNoteContent, setItemNoteContent] = useState('');
 
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
@@ -1431,7 +1436,7 @@ export default function FleurManagerPage() {
                    return prevCart;
               }
           }
-          return [...prevCart, { ...product, quantityInCart: 1, itemDiscount: 0 }];
+          return [...prevCart, { ...product, quantityInCart: 1, itemDiscount: 0, notes: '' }];
       });
       toast({
           title: "Đã thêm vào giỏ",
@@ -1461,7 +1466,7 @@ export default function FleurManagerPage() {
       setCustomerCart(prev => prev.filter(item => item.id !== itemId));
   }, []);
 
-  const handleConfirmOrderFromCart = async (notes: string) => {
+  const handleConfirmOrderFromCart = async () => {
     if (customerCart.length === 0) {
         toast({ title: "Lỗi", description: "Giỏ hàng của bạn đang trống.", variant: "destructive" });
         return;
@@ -1494,6 +1499,7 @@ export default function FleurManagerPage() {
         unit: item.unit,
         quantityInCart: item.quantityInCart,
         itemDiscount: 0,
+        notes: item.notes,
     }));
 
     const subTotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantityInCart), 0);
@@ -1512,7 +1518,6 @@ export default function FleurManagerPage() {
         paymentMethod: 'Chưa xác định',
         paymentStatus: 'Chưa thanh toán',
         orderStatus: 'Chờ xác nhận',
-        notes: notes.trim(),
         orderDate: new Date().toISOString(),
     };
     
@@ -1528,6 +1533,28 @@ export default function FleurManagerPage() {
         toast({ title: "Lỗi", description: "Không thể đặt hàng. Vui lòng thử lại.", variant: "destructive" });
     }
   };
+
+  const handleOpenNoteEditor = (itemId: string) => {
+    const item = customerCart.find(i => i.id === itemId);
+    if (item) {
+        setEditingNoteItemId(itemId);
+        setItemNoteContent(item.notes || '');
+        setIsNoteEditorOpen(true);
+    }
+  };
+
+  const handleSaveItemNote = () => {
+    if (!editingNoteItemId) return;
+    setCustomerCart(prevCart => 
+        prevCart.map(item => 
+            item.id === editingNoteItemId ? { ...item, notes: itemNoteContent.trim() } : item
+        )
+    );
+    setIsNoteEditorOpen(false);
+    setEditingNoteItemId(null);
+    setItemNoteContent('');
+  };
+
 
   useEffect(() => {
     if (isCurrentUserCustomer) {
@@ -1649,6 +1676,7 @@ export default function FleurManagerPage() {
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           onAddEmployee={handleAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
+          onOpenNoteEditor={handleOpenNoteEditor}
         />
         <CustomerCartSheet
             isOpen={isCartSheetOpen}
@@ -1658,7 +1686,29 @@ export default function FleurManagerPage() {
             onRemoveItem={onRemoveFromCustomerCart}
             onPlaceOrder={handleConfirmOrderFromCart}
             inventory={inventory}
+            onOpenNoteEditor={handleOpenNoteEditor}
         />
+        <Dialog open={isNoteEditorOpen} onOpenChange={setIsNoteEditorOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Thêm ghi chú cho sản phẩm</DialogTitle>
+              <DialogDescription>
+                  Thêm ghi chú riêng cho sản phẩm này. Ghi chú sẽ được gửi kèm trong đơn hàng.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea 
+                value={itemNoteContent} 
+                onChange={(e) => setItemNoteContent(e.target.value)}
+                placeholder="Ví dụ: Cắm hoa cao, gói giấy màu hồng..."
+                className="min-h-[100px]"
+            />
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsNoteEditorOpen(false)}>Hủy</Button>
+                <Button onClick={handleSaveItemNote} className="bg-primary text-primary-foreground">Lưu ghi chú</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <ProductFormDialog isOpen={isProductFormOpen} onClose={handleCloseProductFormDialog} onSubmit={handleProductFormSubmit} initialData={currentEditingProduct} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions} sizeOptions={sizeOptions} unitOptions={unitOptions} isEditMode={isProductFormEditMode} defaultFormState={productFormDefaultState} />
         {productToDeleteId && (<AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>)}
         {debtToDelete && (<AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?{debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa công nợ</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> )}

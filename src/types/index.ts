@@ -15,7 +15,8 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantityInCart: number;
-  itemDiscount?: number; 
+  itemDiscount?: number;
+  notes?: string;
 }
 
 export interface Customer {
@@ -44,7 +45,8 @@ export interface InvoiceCartItem {
   color: string;
   size: string;
   unit: string;
-  itemDiscount?: number; 
+  itemDiscount?: number;
+  notes?: string;
 }
 
 export interface Invoice {
@@ -85,7 +87,6 @@ export interface Order {
   paymentMethod: string; // e.g., 'COD', 'Bank Transfer', 'Online'
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
-  notes?: string; // Customer notes
   internalNotes?: string; // Shop notes
   orderDate: string; // ISO string
   shipDate?: string; // ISO string

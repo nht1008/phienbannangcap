@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Separator } from '@/components/ui/separator';
-import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, Pencil, MessageSquare } from 'lucide-react';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
@@ -20,8 +20,9 @@ interface CustomerCartSheetProps {
   cart: CartItem[];
   onUpdateQuantity: (itemId: string, newQuantity: string) => void;
   onRemoveItem: (itemId: string) => void;
-  onPlaceOrder: (notes: string) => void;
+  onPlaceOrder: () => void;
   inventory: Product[];
+  onOpenNoteEditor: (itemId: string) => void;
 }
 
 export function CustomerCartSheet({
@@ -32,21 +33,15 @@ export function CustomerCartSheet({
   onRemoveItem,
   onPlaceOrder,
   inventory,
+  onOpenNoteEditor,
 }: CustomerCartSheetProps) {
-  const [notes, setNotes] = useState('');
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantityInCart, 0);
 
   const handlePlaceOrder = () => {
-    onPlaceOrder(notes);
+    onPlaceOrder();
   };
   
-  React.useEffect(() => {
-    if (!isOpen) {
-      setNotes('');
-    }
-  }, [isOpen]);
-
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col pr-0 sm:max-w-4xl">
@@ -74,7 +69,8 @@ export function CustomerCartSheet({
                             <TableHead className="text-right">Đơn giá</TableHead>
                             <TableHead className="text-center w-[130px]">Số lượng</TableHead>
                             <TableHead className="text-right">Thành tiền</TableHead>
-                            <TableHead className="text-center">Xóa</TableHead>
+                            <TableHead className="min-w-[120px]">Ghi chú</TableHead>
+                            <TableHead className="text-center">Hành động</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -136,15 +132,28 @@ export function CustomerCartSheet({
                                     <TableCell className="text-right font-semibold text-primary">
                                         {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-destructive hover:text-destructive/80"
-                                            onClick={() => onRemoveItem(item.id)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                    <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]" title={item.notes}>
+                                      {item.notes || "Không có"}
+                                    </TableCell>
+                                    <TableCell className="text-center space-x-1">
+                                      <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                                          onClick={() => onOpenNoteEditor(item.id)}
+                                          title="Thêm ghi chú"
+                                      >
+                                          <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-destructive hover:text-destructive/80"
+                                          onClick={() => onRemoveItem(item.id)}
+                                          title="Xóa sản phẩm"
+                                      >
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
                                     </TableCell>
                                 </TableRow>
                             );
@@ -158,15 +167,6 @@ export function CustomerCartSheet({
           <>
             <Separator className="mt-auto" />
             <SheetFooter className="px-4 sm:px-6 py-4 flex-col space-y-4 items-start">
-               <div className="w-full space-y-2">
-                 <Label htmlFor="cart-notes">Ghi chú đơn hàng</Label>
-                 <Textarea 
-                    id="cart-notes" 
-                    placeholder="Yêu cầu đặc biệt về đơn hàng (ví dụ: thời gian giao, cách gói hàng,...)" 
-                    value={notes} 
-                    onChange={(e) => setNotes(e.target.value)} 
-                  />
-              </div>
               <div className="flex justify-between w-full text-lg font-semibold">
                 <p>Tổng cộng:</p>
                 <p>{totalAmount.toLocaleString('vi-VN')} VNĐ</p>

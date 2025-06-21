@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest } from '@/types';
+import type { Customer, Invoice, InvoiceCartItem } from '@/types';
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,10 @@ import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users, CheckCircle, XCircle } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Eye, ListChecks } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { db } from '@/lib/firebase'; 
-import { ref, onValue, update, set, remove as firebaseRemove, get } from "firebase/database";
 
 interface CustomerTabProps {
   customers: Customer[];
@@ -33,7 +31,7 @@ interface CustomerTabProps {
 const initialFormState: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string } = { name: '', phone: '', address: '', zaloName: '' };
 
 
-export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights, currentUser }: CustomerTabProps) {
+export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights }: CustomerTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }>(initialFormState);
 
@@ -51,91 +49,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const [invoiceForDetailedView, setInvoiceForDetailedView] = useState<Invoice | null>(null);
   const [isInvoiceDetailModalOpen, setIsInvoiceDetailModalOpen] = useState(false);
-
-  const [customerAccessRequests, setCustomerAccessRequests] = useState<UserAccessRequest[]>([]);
-  const [isLoadingCustomerRequests, setIsLoadingCustomerRequests] = useState(false);
-  const [isReviewCustomerDialogOpen, setIsReviewCustomerDialogOpen] = useState(false);
-  const [customerRejectionReason, setCustomerRejectionReason] = useState("");
-  const [customerRequestToReject, setCustomerRequestToReject] = useState<UserAccessRequest | null>(null);
-
-
-  useEffect(() => {
-    if (hasFullAccessRights) {
-      setIsLoadingCustomerRequests(true);
-      const requestsRef = ref(db, 'khach_hang_cho_duyet');
-      const unsubscribe = onValue(requestsRef, (snapshot) => {
-        const data = snapshot.val();
-        const loadedRequests: UserAccessRequest[] = [];
-        if (data) {
-          Object.keys(data).forEach(key => {
-            // Only load pending requests, assuming 'customer' role is implicit for this path
-            if (data[key].status === 'pending') { 
-              loadedRequests.push({ id: key, ...data[key] });
-            }
-          });
-        }
-        setCustomerAccessRequests(loadedRequests.sort((a,b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
-        setIsLoadingCustomerRequests(false);
-      }, (error) => {
-        console.error("Error fetching customer access requests:", error);
-        toast({ title: "Lỗi tải yêu cầu KH", description: "Không thể tải danh sách yêu cầu khách hàng.", variant: "destructive" });
-        setIsLoadingCustomerRequests(false);
-      });
-      return () => unsubscribe();
-    }
-  }, [hasFullAccessRights, toast]);
-
-
-  const handleApproveCustomerRequest = async (request: UserAccessRequest) => {
-    if (!hasFullAccessRights || !currentUser) return;
-    try {
-      // 1. Create customer record in /customers
-      const newCustomerData: Omit<Customer, 'id'> = {
-        name: request.fullName,
-        phone: request.phone,
-        address: request.address || '',
-        email: request.email,
-        zaloName: request.zaloName || '',
-      };
-      await set(ref(db, `customers/${request.id}`), newCustomerData);
-
-      // 2. Update user's approval status in /users (important for OrderEase app if it exists)
-      await update(ref(db, `users/${request.id}`), {
-        approvalStatus: 'approved',
-        email: request.email,
-        fullName: request.fullName,
-        // Add any other fields OrderEase might need from the request
-      });
-      
-      // 3. Remove from khach_hang_cho_duyet
-      await firebaseRemove(ref(db, `khach_hang_cho_duyet/${request.id}`));
-      
-      toast({ title: "Thành công", description: `Đã duyệt khách hàng ${request.fullName}.`, variant: "default" });
-    } catch (error) {
-      console.error("Error approving customer request:", error);
-      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu khách hàng.", variant: "destructive" });
-    }
-  };
-
-  const openRejectCustomerDialog = (request: UserAccessRequest) => {
-    setCustomerRequestToReject(request);
-    setCustomerRejectionReason(""); // Reset reason
-    // No dialog for direct rejection, just action.
-  };
-
-  const handleConfirmRejectCustomerRequest = async (request: UserAccessRequest, reason?: string) => {
-    if (!hasFullAccessRights || !currentUser) return;
-    try {
-      // For customers, we just remove the request. 
-      // If OrderEase were to show rejection reasons, we'd update /users/{UID}/approvalStatus too.
-      // For now, just remove from the pending queue.
-      await firebaseRemove(ref(db, `khach_hang_cho_duyet/${request.id}`));
-      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${request.fullName}.`, variant: "default" });
-    } catch (error) {
-      console.error("Error rejecting customer request:", error);
-      toast({ title: "Lỗi", description: "Không thể từ chối yêu cầu.", variant: "destructive" });
-    }
-  };
 
 
   useEffect(() => {
@@ -300,14 +213,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
           <div className="flex justify-between items-center">
               <CardTitle className="text-2xl font-bold">Danh sách khách hàng</CardTitle>
               {hasFullAccessRights && (
-                <div className="flex gap-2">
-                   <Button
-                    onClick={() => setIsReviewCustomerDialogOpen(true)}
-                    variant="outline"
-                    className="border-primary text-primary hover:bg-primary/10"
-                  >
-                    <Users className="mr-2 h-4 w-4" /> Xét duyệt khách hàng ({customerAccessRequests.length})
-                  </Button>
                   <Button
                     onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
                     variant="default"
@@ -315,7 +220,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   >
                       <PlusCircle className="mr-2 h-4 w-4" /> {isAdding ? 'Hủy thêm mới' : 'Thêm khách hàng'}
                   </Button>
-                </div>
               )}
           </div>
         </CardHeader>
@@ -549,65 +453,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               <Button variant="outline" onClick={closeInvoiceItemDetailsDialog}>Đóng</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
-      )}
-      
-      {hasFullAccessRights && (
-        <Dialog open={isReviewCustomerDialogOpen} onOpenChange={setIsReviewCustomerDialogOpen}>
-            <DialogContent className="sm:max-w-5xl"> 
-                <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu Khách hàng ({customerAccessRequests.length})</DialogTitle>
-                    <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu truy cập với vai trò khách hàng.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="mt-4">
-                    {isLoadingCustomerRequests ? (
-                        <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : customerAccessRequests.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu khách hàng nào đang chờ xử lý.</p>
-                    ) : (
-                        <ScrollArea className="max-h-[60vh]">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Họ và tên</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>SĐT</TableHead>
-                                        <TableHead>Tên Zalo</TableHead>
-                                        <TableHead>Địa chỉ</TableHead>
-                                        <TableHead>Ngày YC</TableHead>
-                                        <TableHead className="text-center">Hành động</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {customerAccessRequests.map(req => (
-                                        <TableRow key={req.id}>
-                                            <TableCell>{req.fullName}</TableCell>
-                                            <TableCell>{req.email}</TableCell>
-                                            <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
-                                            <TableCell>{req.zaloName || 'N/A'}</TableCell>
-                                            <TableCell className="text-xs max-w-[150px] truncate" title={req.address || 'N/A'}>{req.address || 'N/A'}</TableCell>
-                                            <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
-                                            <TableCell className="text-center space-x-1">
-                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveCustomerRequest(req)}>
-                                                    <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
-                                                </Button>
-                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => handleConfirmRejectCustomerRequest(req)}>
-                                                    <XCircle className="h-4 w-4 mr-1"/>Từ chối
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    )}
-                </div>
-                <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setIsReviewCustomerDialogOpen(false)}>Đóng</Button>
-                </DialogFooter>
-            </DialogContent>
         </Dialog>
       )}
     </>

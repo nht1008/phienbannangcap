@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Re-added
 import {
   Dialog,
   DialogContent,
@@ -16,15 +15,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
-import type { UserAccessRequest } from '@/types';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import type { UserAccessRequest } from '@/types';
 
-type RequestedRole = UserAccessRequest['requestedRole']; // Re-added
 
 interface RegistrationRequestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmitRegistration: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & { password: string }) => Promise<boolean>;
+  onSubmitRegistration: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & { password: string }) => Promise<boolean>;
 }
 
 export function RegistrationRequestDialog({
@@ -39,7 +37,6 @@ export function RegistrationRequestDialog({
   const [phone, setPhone] = useState('');
   const [zaloName, setZaloName] = useState('');
   const [address, setAddress] = useState('');
-  const [requestedRole, setRequestedRole] = useState<RequestedRole>('employee'); // Default to employee
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -51,14 +48,13 @@ export function RegistrationRequestDialog({
     setPhone('');
     setZaloName('');
     setAddress('');
-    setRequestedRole('employee'); // Reset role
     setIsLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim() || !requestedRole) {
-      toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc (*), bao gồm cả vai trò.", variant: "destructive" });
+    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim()) {
+      toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc (*).", variant: "destructive" });
       return;
     }
     if (password !== confirmPassword) {
@@ -67,10 +63,6 @@ export function RegistrationRequestDialog({
     }
     if (password.length < 6) {
       toast({ title: "Lỗi mật khẩu", description: "Mật khẩu phải có ít nhất 6 ký tự.", variant: "destructive" });
-      return;
-    }
-    if (requestedRole === 'customer' && !address.trim()) {
-      toast({ title: "Thiếu thông tin", description: "Vui lòng nhập địa chỉ cho khách hàng.", variant: "destructive" });
       return;
     }
 
@@ -82,7 +74,6 @@ export function RegistrationRequestDialog({
       phone: phone.trim(),
       address: address.trim(),
       zaloName: zaloName.trim(),
-      requestedRole, // Pass the selected role
     });
     setIsLoading(false);
     if (success) {
@@ -95,9 +86,9 @@ export function RegistrationRequestDialog({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { resetForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Đăng ký tài khoản</DialogTitle>
+          <DialogTitle className="text-2xl">Đăng ký tài khoản Nhân viên</DialogTitle>
           <DialogDescription>
-            Vui lòng điền thông tin bên dưới để tạo tài khoản và gửi yêu cầu truy cập.
+            Vui lòng điền thông tin bên dưới để tạo tài khoản và gửi yêu cầu truy cập vai trò Nhân viên.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-2">
@@ -130,26 +121,8 @@ export function RegistrationRequestDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="reg-address">Địa chỉ {requestedRole === 'customer' ? '(*)' : '(Tùy chọn cho nhân viên)'}</Label>
-            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} required={requestedRole === 'customer'} className="text-base min-h-[70px]" />
-          </div>
-          
-          <div className="mt-4 pt-3 border-t border-border">
-            <Label className="mb-3 block text-lg font-semibold text-primary">Đăng ký với vai trò? (*)</Label>
-            <RadioGroup 
-              value={requestedRole} 
-              onValueChange={(value: string) => setRequestedRole(value as RequestedRole)} 
-              className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6 p-3 bg-primary/5 rounded-md"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="customer" id="role-customer-reg" />
-                <Label htmlFor="role-customer-reg" className="font-normal text-base">Khách hàng</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="employee" id="role-employee-reg" />
-                <Label htmlFor="role-employee-reg" className="font-normal text-base">Nhân viên</Label>
-              </div>
-            </RadioGroup>
+            <Label htmlFor="reg-address">Địa chỉ (Tùy chọn)</Label>
+            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" />
           </div>
           
           <DialogFooter className="pt-4">

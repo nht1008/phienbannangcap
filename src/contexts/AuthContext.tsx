@@ -22,7 +22,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateUserProfileName: (name: string) => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
-  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => Promise<void>;
+  signUpAndRequestAccess: (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & {password: string}) => Promise<void>;
   error: AuthError | null;
   setError: React.Dispatch<React.SetStateAction<AuthError | null>>;
 }
@@ -65,47 +65,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
       
-      // Check if the user is an admin or an approved employee
       const employeeSnapshot = await get(child(ref(db), `employees/${user.uid}`));
       if (user.email === "nthe1008@gmail.com" || employeeSnapshot.exists()) {
         setCurrentUser(user);
         return user;
       }
 
-      // If not admin/employee, check userAccessRequests for 'employee' role
       const employeeAccessRequestSnapshot = await get(child(ref(db), `userAccessRequests/${user.uid}`));
       if (employeeAccessRequestSnapshot.exists()) {
         const requestData = employeeAccessRequestSnapshot.val() as UserAccessRequest;
-        if (requestData.requestedRole === 'employee') {
-          if (requestData.status === 'approved') {
-            // This case should ideally be caught by the `employees/${user.uid}` check if data is consistent
-            // but as a fallback:
+        if (requestData.status === 'approved') {
             setCurrentUser(user);
             return user;
-          } else if (requestData.status === 'pending') {
+        } else if (requestData.status === 'pending') {
             await firebaseSignOut(auth);
             setError({ code: "auth/account-not-approved", message: "Yêu cầu nhân viên của bạn đang chờ phê duyệt." } as AuthError);
             return null;
-          } else if (requestData.status === 'rejected') {
+        } else if (requestData.status === 'rejected') {
             await firebaseSignOut(auth);
             setError({ code: "auth/account-rejected", message: `Yêu cầu nhân viên đã bị từ chối. Lý do: ${requestData.rejectionReason || 'Không có'}` } as AuthError);
             return null;
-          }
         }
       }
       
-      // If it's not an employee context, then it must be for "OrderEase" (customer app) context which is removed.
-      // For "Fleur Manager", if not admin or employee, they should not log in here directly.
-      // The login page itself will handle showing the "pending/rejected" status for employees *before* calling signIn.
-      // This signIn in AuthContext primarily validates credentials.
-      // The logic in page.tsx is what actually determines access for employees.
-      // So, if it's not admin and not found in employees, it is an unauthorized attempt for Fleur Manager.
-      // However, to prevent errors if a customer from the (now removed) OrderEase somehow tries to log in,
-      // we can keep a generic check.
-      // Given the app is now standalone Fleur Manager, only employees/admin should pass.
-      // The most robust check is already done in page.tsx. If signIn is called, it implies credential check.
-
-      setCurrentUser(user); // Temporarily set user to allow page.tsx to evaluate access
+      setCurrentUser(user); 
       return user;
 
     } catch (err) {
@@ -155,10 +138,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason'> & {password: string}) => {
+  const signUpAndRequestAccess = async (details: Omit<UserAccessRequest, 'id' | 'status' | 'requestDate' | 'reviewedBy' | 'reviewDate' | 'rejectionReason' | 'requestedRole'> & {password: string}) => {
     setLoading(true);
     setError(null);
-    const { email, password, fullName, phone, address, zaloName, requestedRole } = details;
+    const { email, password, fullName, phone, address, zaloName } = details;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -171,20 +154,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         phone,
         address,
         zaloName,
-        requestedRole, 
+        requestedRole: 'employee', 
         status: 'pending',
         requestDate: new Date().toISOString(),
       };
       
-      if (requestedRole === 'employee') {
-        await set(ref(db, `userAccessRequests/${user.uid}`), accessRequestData);
-      } else if (requestedRole === 'customer') {
-        await set(ref(db, `khach_hang_cho_duyet/${user.uid}`), accessRequestData);
-      } else {
-        throw new Error("Vai trò yêu cầu không hợp lệ.");
-      }
+      await set(ref(db, `userAccessRequests/${user.uid}`), accessRequestData);
       
-      await firebaseSignOut(auth); // Sign out immediately after registration
+      await firebaseSignOut(auth);
       setCurrentUser(null);
 
     } catch (err) {

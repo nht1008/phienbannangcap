@@ -215,18 +215,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                         <TableCell>
                           {isCurrentUserCustomer ? (
                              (() => {
-                                const canCancel = order.orderStatus === 'Chờ xác nhận';
-                                const isCancellationRequested = order.orderStatus === 'Yêu cầu hủy';
-
-                                if (isCancellationRequested) {
-                                  return (
-                                    <span className={cn("px-2 py-1 text-xs font-semibold rounded-full", getStatusColorClass(order.orderStatus))}>
-                                      Đã yêu cầu hủy
-                                    </span>
-                                  );
-                                }
-                                
-                                if (canCancel) {
+                                if (order.orderStatus === 'Chờ xác nhận') {
                                   return (
                                     <Button
                                       size="sm"
@@ -235,6 +224,19 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                                       onClick={() => handleStatusChange(order.id, 'Yêu cầu hủy')}
                                     >
                                       Yêu cầu hủy
+                                    </Button>
+                                  );
+                                }
+                                
+                                if (order.orderStatus === 'Yêu cầu hủy') {
+                                  return (
+                                     <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 text-xs"
+                                        onClick={() => handleStatusChange(order.id, 'Chờ xác nhận')}
+                                    >
+                                        Hủy yêu cầu hủy
                                     </Button>
                                   );
                                 }

@@ -271,7 +271,7 @@ interface FleurManagerLayoutContentProps {
   handleDeleteProductFromAnywhere: (productId: string) => void;
   onUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
-  setIsCartSheetOpen: (isOpen: boolean) => setIsCartSheetOpen;
+  setIsCartSheetOpen: (isOpen: boolean) => void;
   onOpenNoteEditor: (itemId: string) => void;
 }
 
@@ -1781,7 +1781,7 @@ export default function FleurManagerPage() {
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           onUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
-          onAddEmployee={onAddEmployee}
+          onAddEmployee={handleAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
         />

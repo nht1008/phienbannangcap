@@ -18,7 +18,7 @@ interface StorefrontTabProps {
   onDeleteProduct: (productId: string) => void;
   hasFullAccessRights: boolean;
   isCurrentUserCustomer: boolean;
-  onOrderProduct: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
 }
 
 interface ProductPerformance extends Product {
@@ -34,8 +34,8 @@ const RenderProductTable: React.FC<{
   onDeleteProduct: (productId: string) => void;
   hasFullAccessRights: boolean;
   isCurrentUserCustomer: boolean;
-  onOrderProduct: (product: Product) => void;
-}> = ({ products, title, description, isBestSellerTable = false, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights, isCurrentUserCustomer, onOrderProduct }) => {
+  onAddToCart: (product: Product) => void;
+}> = ({ products, title, description, isBestSellerTable = false, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights, isCurrentUserCustomer, onAddToCart }) => {
   if (!products || products.length === 0) {
     return (
       <Card>
@@ -111,8 +111,8 @@ const RenderProductTable: React.FC<{
                       </>
                     )}
                     {isCurrentUserCustomer && product.quantity > 0 && (
-                       <Button variant="default" size="sm" className="h-8" onClick={() => onOrderProduct(product)}>
-                          Đặt hàng
+                       <Button variant="default" size="sm" className="h-8" onClick={() => onAddToCart(product)}>
+                          Thêm vào giỏ
                        </Button>
                     )}
                     {isCurrentUserCustomer && product.quantity <= 0 && (
@@ -132,7 +132,7 @@ const RenderProductTable: React.FC<{
 };
 
 
-export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights, isCurrentUserCustomer, onOrderProduct }: StorefrontTabProps) {
+export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onOpenEditProductDialog, onDeleteProduct, hasFullAccessRights, isCurrentUserCustomer, onAddToCart }: StorefrontTabProps) {
   const topSellingProducts = useMemo((): ProductPerformance[] => {
     const salesMap: Record<string, { product: Product; sold: number }> = {};
 
@@ -187,7 +187,7 @@ export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onO
         onDeleteProduct={onDeleteProduct}
         hasFullAccessRights={hasFullAccessRights}
         isCurrentUserCustomer={isCurrentUserCustomer}
-        onOrderProduct={onOrderProduct}
+        onAddToCart={onAddToCart}
       />
 
       <RenderProductTable
@@ -198,7 +198,7 @@ export function StorefrontTab({ inventory, invoices, onOpenAddProductDialog, onO
         onDeleteProduct={onDeleteProduct}
         hasFullAccessRights={hasFullAccessRights}
         isCurrentUserCustomer={isCurrentUserCustomer}
-        onOrderProduct={onOrderProduct}
+        onAddToCart={onAddToCart}
       />
     </div>
   );

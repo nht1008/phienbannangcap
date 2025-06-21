@@ -36,9 +36,10 @@ import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
-import { OrderDialog } from '@/components/orders/OrderDialog';
+import { CustomerCartSheet } from '@/components/orders/CustomerCartSheet';
 import { cn } from '@/lib/utils';
 import { UserX, HelpCircle, Trophy } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 import {
   Dialog,
@@ -202,6 +203,7 @@ interface FleurManagerLayoutContentProps {
   shopInfo: ShopInfo | null;
   isLoadingShopInfo: boolean;
   cart: CartItem[];
+  customerCart: CartItem[];
   productNameOptions: string[];
   colorOptions: string[];
   productQualityOptions: string[];
@@ -246,6 +248,7 @@ interface FleurManagerLayoutContentProps {
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
   onClearCart: () => void;
+  onAddToCartForCustomer: (product: Product) => void;
   handleRevenueFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleInvoiceFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleDebtFilterChange: (newFilter: ActivityDateTimeFilter) => void;
@@ -266,13 +269,12 @@ interface FleurManagerLayoutContentProps {
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
-  onOrderProduct: (product: Product) => void;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const {
     currentUser, activeTab, setActiveTab, inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries,
-    shopInfo, isLoadingShopInfo, cart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
+    shopInfo, isLoadingShopInfo, cart, customerCart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, orderFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
     setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, hasFullAccessRights,
@@ -280,10 +282,10 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleCreateInvoice, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
-    handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
+    handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee, onOrderProduct
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -338,7 +340,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onDeleteProduct={handleDeleteProductFromAnywhere}
                     hasFullAccessRights={hasFullAccessRights}
                     isCurrentUserCustomer={isCurrentUserCustomer}
-                    onOrderProduct={onOrderProduct}
+                    onAddToCart={onAddToCartForCustomer}
                   />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
@@ -427,11 +429,11 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
       filteredDebtsForDebtTab, debtFilter, filteredOrdersForOrderTab, orderFilter,
-      isCurrentUserAdmin, hasFullAccessRights, isCurrentUserCustomer, onOrderProduct,
+      isCurrentUserAdmin, hasFullAccessRights, isCurrentUserCustomer,
       handleCreateInvoice, handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
-      onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart,
+      onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
       openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee
@@ -602,24 +604,50 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
           </Tooltip>
         </TooltipProvider>
       )}
+      
+      {isCurrentUserCustomer ? (
+        <TooltipProvider delayDuration={0}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        onClick={() => props.setIsCartSheetOpen(true)}
+                        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:bg-primary/80 transition-transform duration-150 ease-in-out hover:scale-105 print:hidden"
+                        size="icon"
+                        aria-label="Xem giỏ hàng"
+                    >
+                        <ShoppingCart className="h-7 w-7" />
+                        {customerCart.length > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground">
+                                {customerCart.reduce((acc, item) => acc + item.quantityInCart, 0)}
+                            </span>
+                        )}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="bg-card text-card-foreground">
+                    <p>Xem giỏ hàng</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <TooltipProvider delayDuration={0}>
+            <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                onClick={() => setIsScreenLocked(true)}
+                className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:bg-primary/80 transition-transform duration-150 ease-in-out hover:scale-105 print:hidden"
+                size="icon"
+                aria-label="Khóa màn hình"
+                >
+                <Lock className="h-7 w-7" />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="bg-card text-card-foreground">
+                <p>Khóa màn hình</p>
+            </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+      )}
 
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={() => setIsScreenLocked(true)}
-              className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:bg-primary/80 transition-transform duration-150 ease-in-out hover:scale-105 print:hidden"
-              size="icon"
-              aria-label="Khóa màn hình"
-            >
-              <Lock className="h-7 w-7" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="bg-card text-card-foreground">
-            <p>Khóa màn hình</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
       <LockScreen
         isOpen={isScreenLocked}
         onUnlock={() => setIsScreenLocked(false)}
@@ -649,6 +677,11 @@ export default function FleurManagerPage() {
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [disposalLogEntries, setDisposalLogEntries] = useState<DisposalLogEntry[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [customerCart, setCustomerCart] = useState<CartItem[]>([]);
+  const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
+  const [isOrderNotesDialogOpen, setIsOrderNotesDialogOpen] = useState(false);
+  const [orderNotes, setOrderNotes] = useState('');
+  
   const [productNameOptions, setProductNameOptions] = useState<string[]>([]);
   const [colorOptions, setColorOptions] = useState<string[]>([]);
   const [productQualityOptions, setProductQualityOptions] = useState<string[]>([]);
@@ -680,9 +713,6 @@ export default function FleurManagerPage() {
 
   const [isCurrentUserCustomer, setIsCurrentUserCustomer] = useState(false);
   const [isLoadingAccessRequest, setIsLoadingAccessRequest] = useState(true);
-
-  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
-  const [productToOrder, setProductToOrder] = useState<Product | null>(null);
 
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
@@ -1383,20 +1413,72 @@ export default function FleurManagerPage() {
     }
   }, [toast, hasFullAccessRights]);
 
-  const handleOpenOrderDialog = (product: Product) => {
-    if (product.quantity > 0) {
-      setProductToOrder(product);
-      setIsOrderDialogOpen(true);
+  const onAddToCartForCustomer = useCallback((product: Product) => {
+      if (product.quantity <= 0) {
+          toast({ title: "Hết hàng", description: `Sản phẩm "${product.name}" đã hết hàng!`, variant: "destructive" });
+          return;
+      }
+      setCustomerCart(prevCart => {
+          const existingItem = prevCart.find(cartItem => cartItem.id === product.id);
+          if (existingItem) {
+              if (existingItem.quantityInCart < product.quantity) {
+                   return prevCart.map(cartItem => 
+                      cartItem.id === product.id 
+                          ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 }
+                          : cartItem
+                  );
+              } else {
+                   toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${product.name}" trong kho (Còn: ${product.quantity}).`, variant: "destructive" });
+                   return prevCart;
+              }
+          }
+          return [...prevCart, { ...product, quantityInCart: 1, itemDiscount: 0 }];
+      });
+      toast({
+          title: "Đã thêm vào giỏ",
+          description: `Đã thêm "${product.name}" vào giỏ hàng.`,
+          variant: 'default',
+      });
+  }, [toast]);
+
+  const onUpdateCustomerCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
+    const newQuantity = parseInt(newQuantityStr, 10);
+    if (isNaN(newQuantity) || newQuantity < 0) return;
+
+    const stockItem = inventory.find(i => i.id === itemId);
+    const stockQuantity = stockItem?.quantity ?? 0;
+
+    if (newQuantity === 0) {
+        setCustomerCart(prev => prev.filter(item => item.id !== itemId));
+    } else if (newQuantity > stockQuantity) {
+        toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockQuantity} sản phẩm trong kho.`, variant: "destructive" });
+        setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: stockQuantity } : item));
     } else {
-      toast({ title: "Hết hàng", description: "Sản phẩm này đã hết hàng.", variant: "destructive" });
+        setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
+  }, [inventory, toast]);
+
+  const onRemoveFromCustomerCart = useCallback((itemId: string) => {
+      setCustomerCart(prev => prev.filter(item => item.id !== itemId));
+  }, []);
+
+  const handlePlaceOrderFromCart = () => {
+    if (customerCart.length === 0) {
+        toast({ title: "Lỗi", description: "Giỏ hàng của bạn đang trống.", variant: "destructive" });
+        return;
+    }
+    for (const item of customerCart) {
+        const stockItem = inventory.find(i => i.id === item.id);
+        if (!stockItem || item.quantityInCart > stockItem.quantity) {
+            toast({ title: "Lỗi tồn kho", description: `Sản phẩm "${item.name}" không đủ số lượng. Vui lòng kiểm tra lại giỏ hàng.`, variant: "destructive" });
+            return;
+        }
+    }
+    setIsOrderNotesDialogOpen(true);
   };
 
-  const handlePlaceOrder = async (product: Product, quantity: number, notes: string) => {
-    if (!currentUser || !isCurrentUserCustomer) {
-      toast({ title: "Lỗi", description: "Chỉ khách hàng mới có thể đặt hàng.", variant: "destructive" });
-      return;
-    }
+  const handleConfirmOrderFromCartWithNotes = async () => {
+    if (!currentUser || !isCurrentUserCustomer || customerCart.length === 0) return;
 
     const customerData = customersData.find(c => c.id === currentUser.uid);
     if (!customerData) {
@@ -1404,21 +1486,21 @@ export default function FleurManagerPage() {
         return;
     }
 
-    const orderItem: OrderItem = {
-        id: product.id,
-        name: product.name,
-        quality: product.quality,
-        price: product.price,
-        costPrice: product.costPrice,
-        image: product.image,
-        color: product.color,
-        size: product.size,
-        unit: product.unit,
-        quantityInCart: quantity,
+    const orderItems: OrderItem[] = customerCart.map(item => ({
+        id: item.id,
+        name: item.name,
+        quality: item.quality,
+        price: item.price,
+        costPrice: item.costPrice,
+        image: item.image,
+        color: item.color,
+        size: item.size,
+        unit: item.unit,
+        quantityInCart: item.quantityInCart,
         itemDiscount: 0,
-    };
+    }));
 
-    const subTotal = orderItem.price * orderItem.quantityInCart;
+    const subTotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantityInCart), 0);
 
     const newOrderData: Omit<Order, 'id'> = {
         orderNumber: `DH-${Date.now().toString().slice(-8)}`,
@@ -1427,23 +1509,27 @@ export default function FleurManagerPage() {
         customerPhone: customerData.phone,
         customerAddress: customerData.address || '',
         customerZaloName: customerData.zaloName || '',
-        items: [orderItem],
+        items: orderItems,
         subTotal: subTotal,
         shippingFee: 0,
         totalAmount: subTotal,
         paymentMethod: 'Chưa xác định',
         paymentStatus: 'Chưa thanh toán',
         orderStatus: 'Chờ xác nhận',
-        notes: notes.trim(),
+        notes: orderNotes.trim(),
         orderDate: new Date().toISOString(),
     };
-
+    
     try {
         const newOrderRef = push(ref(db, 'orders'));
         await set(newOrderRef, newOrderData);
+
         toast({ title: "Thành công!", description: "Đơn hàng của bạn đã được đặt. Vui lòng chờ nhân viên cửa hàng xác nhận." });
-        setIsOrderDialogOpen(false);
-        setProductToOrder(null);
+        setIsCartSheetOpen(false);
+        setIsOrderNotesDialogOpen(false);
+        setCustomerCart([]);
+        setOrderNotes('');
+
     } catch (error) {
         console.error("Error placing order:", error);
         toast({ title: "Lỗi", description: "Không thể đặt hàng. Vui lòng thử lại.", variant: "destructive" });
@@ -1544,7 +1630,7 @@ export default function FleurManagerPage() {
           currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} inventory={inventory}
           customersData={customersData} ordersData={ordersData} invoicesData={invoicesData} debtsData={debtsData}
           employeesData={employeesData} disposalLogEntries={disposalLogEntries} shopInfo={shopInfo} isLoadingShopInfo={isLoadingShopInfo}
-          cart={cart} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions}
+          cart={cart} customerCart={customerCart} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions}
           sizeOptions={sizeOptions} unitOptions={unitOptions} revenueFilter={revenueFilter} invoiceFilter={invoiceFilter}
           debtFilter={debtFilter} orderFilter={orderFilter} isUserInfoDialogOpen={isUserInfoDialogOpen}
           setIsUserInfoDialogOpen={setIsUserInfoDialogOpen} isScreenLocked={isScreenLocked} setIsScreenLocked={setIsScreenLocked}
@@ -1561,7 +1647,7 @@ export default function FleurManagerPage() {
           handleUpdateCustomer={handleUpdateCustomer} handleDeleteCustomer={handleDeleteCustomer}
           handleDeleteDebt={handleDeleteDebt} handleSaveShopInfo={handleSaveShopInfo} handleSignOut={handleSignOut}
           signIn={signIn} onAddToCart={onAddToCart} onUpdateCartQuantity={onUpdateCartQuantity}
-          onItemDiscountChange={onItemDiscountChange} onClearCart={onClearCart}
+          onItemDiscountChange={onItemDiscountChange} onClearCart={onClearCart} onAddToCartForCustomer={onAddToCartForCustomer}
           handleRevenueFilterChange={handleRevenueFilterChange} handleInvoiceFilterChange={handleInvoiceFilterChange}
           handleDebtFilterChange={handleDebtFilterChange} handleOrderFilterChange={handleOrderFilterChange}
           handleUpdateOrderStatus={handleUpdateOrderStatus} handleToggleEmployeeRole={handleToggleEmployeeRole}
@@ -1569,10 +1655,38 @@ export default function FleurManagerPage() {
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           onAddEmployee={handleAddEmployee}
-          onOrderProduct={handleOpenOrderDialog}
+          setIsCartSheetOpen={setIsCartSheetOpen}
         />
+        <CustomerCartSheet
+            isOpen={isCartSheetOpen}
+            onOpenChange={setIsCartSheetOpen}
+            cart={customerCart}
+            onUpdateQuantity={onUpdateCustomerCartQuantity}
+            onRemoveItem={onRemoveFromCustomerCart}
+            onPlaceOrder={handlePlaceOrderFromCart}
+            inventory={inventory}
+        />
+        <Dialog open={isOrderNotesDialogOpen} onOpenChange={setIsOrderNotesDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Thêm ghi chú cho đơn hàng</DialogTitle>
+                    <DialogDescription>
+                        Bạn có yêu cầu đặc biệt nào cho đơn hàng này không? (Ví dụ: thời gian giao, cách gói hàng,...)
+                    </DialogDescription>
+                </DialogHeader>
+                <Textarea 
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="Nhập ghi chú của bạn tại đây..."
+                    className="min-h-[100px]"
+                />
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOrderNotesDialogOpen(false)}>Hủy</Button>
+                    <Button onClick={handleConfirmOrderFromCartWithNotes}>Xác nhận & Đặt hàng</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
         <ProductFormDialog isOpen={isProductFormOpen} onClose={handleCloseProductFormDialog} onSubmit={handleProductFormSubmit} initialData={currentEditingProduct} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions} sizeOptions={sizeOptions} unitOptions={unitOptions} isEditMode={isProductFormEditMode} defaultFormState={productFormDefaultState} />
-        <OrderDialog isOpen={isOrderDialogOpen} onClose={() => setIsOrderDialogOpen(false)} product={productToOrder} onConfirmOrder={handlePlaceOrder} />
         {productToDeleteId && (<AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>)}
         {debtToDelete && (<AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?{debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa công nợ</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> )}
       </SidebarProvider>
@@ -1608,6 +1722,30 @@ export default function FleurManagerPage() {
       </div>
     );
   }
+
+  const noAccessToastShownRef = React.useRef(false);
+  useEffect(() => {
+    if (noAccessToastShownRef.current) return;
+    
+    const shouldShowNoAccess = !authLoading && 
+      !isLoadingAccessRequest &&
+      !isCurrentUserAdmin && 
+      !currentUserEmployeeData && 
+      !isCurrentUserCustomer && 
+      !userAccessRequest && 
+      currentUser && 
+      !isSettingName;
+
+    if (shouldShowNoAccess) {
+      noAccessToastShownRef.current = true;
+      toast({
+        title: "Không có quyền truy cập",
+        description: "Không tìm thấy thông tin hợp lệ. Vui lòng liên hệ quản trị viên.",
+        variant: "destructive"
+      });
+    }
+  }, [authLoading, isLoadingAccessRequest, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, userAccessRequest, toast, currentUser, isSettingName]);
+
 
   if (!isLoadingAccessRequest) {
       return (

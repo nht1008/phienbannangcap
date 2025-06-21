@@ -67,7 +67,7 @@ export interface OrderItem extends InvoiceCartItem { // Similar to InvoiceCartIt
   // Any order-specific item properties can be added here
 }
 
-export type OrderStatus = 'Chờ xác nhận' | 'Đã xác nhận' | 'Đang chuẩn bị' | 'Đang giao hàng' | 'Hoàn thành' | 'Đã hủy' | 'Yêu cầu hủy';
+export type OrderStatus = 'Chờ xác nhận' | 'Hoàn thành' | 'Đã hủy' | 'Yêu cầu hủy';
 export type PaymentStatus = 'Chưa thanh toán' | 'Đã thanh toán' | 'Thanh toán một phần' | 'Đã hoàn tiền';
 
 

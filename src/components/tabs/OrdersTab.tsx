@@ -20,7 +20,7 @@ import { Calendar as CalendarIcon, Eye } from 'lucide-react';
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const minuteOptionsStart = ['00', '15', '30', '45'];
 const minuteOptionsEnd = ['00', '15', '30', '45', '59'];
-const orderStatusOptions: OrderStatus[] = ['Chờ xác nhận', 'Đã xác nhận', 'Đang chuẩn bị', 'Đang giao hàng', 'Hoàn thành', 'Đã hủy', 'Yêu cầu hủy'];
+const orderStatusOptions: OrderStatus[] = ['Chờ xác nhận', 'Hoàn thành', 'Đã hủy', 'Yêu cầu hủy'];
 
 interface OrdersTabProps {
   orders: Order[];
@@ -66,8 +66,6 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
     switch (status) {
       case 'Hoàn thành': return 'bg-green-500 text-white';
       case 'Đã hủy': return 'bg-red-500 text-white';
-      case 'Đang giao hàng': return 'bg-blue-500 text-white';
-      case 'Đã xác nhận': return 'bg-yellow-500 text-black';
       case 'Yêu cầu hủy': return 'bg-orange-500 text-white';
       default: return 'bg-gray-400 text-white';
     }
@@ -205,7 +203,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                       <TableCell>
                         {isCurrentUserCustomer ? (
                            (() => {
-                              const canCancel = order.orderStatus === 'Chờ xác nhận' || order.orderStatus === 'Đã xác nhận';
+                              const canCancel = order.orderStatus === 'Chờ xác nhận';
                               const isCancellationRequested = order.orderStatus === 'Yêu cầu hủy';
 
                               if (isCancellationRequested) {

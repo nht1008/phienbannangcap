@@ -57,6 +57,7 @@ interface InventoryTabProps {
     employeeName: string
   ) => Promise<void>;
   currentUser: User | null;
+  onUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
 }
 
 
@@ -74,7 +75,8 @@ export function InventoryTab({
   onDeleteOption,
   hasFullAccessRights,
   onDisposeProductItems,
-  currentUser
+  currentUser,
+  onUpdateProductMaxDiscount
 }: InventoryTabProps) {
   
   const [isOptionsDialogOpen, setIsOptionsDialogOpen] = useState(false);
@@ -133,7 +135,7 @@ export function InventoryTab({
   };
 
   const handleSaveMaxDiscount = async () => {
-    if (!productToSetMaxDiscount || !currentUser) return; // Ensure currentUser is available if needed for onUpdateProduct logic in parent
+    if (!productToSetMaxDiscount) return;
     const newMaxDiscountNghin = parseFloat(currentMaxDiscountInput);
     if (isNaN(newMaxDiscountNghin) || newMaxDiscountNghin < 0) {
       toast({ title: "Lỗi", description: "Số tiền giảm giá tối đa không hợp lệ.", variant: "destructive" });
@@ -143,20 +145,9 @@ export function InventoryTab({
        toast({ title: "Lỗi", description: "Giảm giá tối đa không được vượt quá giá bán của sản phẩm.", variant: "destructive" });
       return;
     }
-    // This needs to call the updated handleUpdateProduct from FleurManagerPage
-    // Assuming handleUpdateProduct can take partial updates.
-    // This part of the logic is now handled in FleurManagerPage's submit handler for the ProductFormDialog
-    // For direct update here, it would be:
-    // await onUpdateProduct(productToSetMaxDiscount.id, { maxDiscountPerUnitVND: newMaxDiscountNghin * 1000 });
     
-    // For now, let's assume this is to trigger the edit dialog for max discount
-    onOpenEditProductDialog(productToSetMaxDiscount); 
-    // The ProductFormDialog should handle updating the maxDiscountPerUnitVND field.
-    // Or, a dedicated handler for only maxDiscountPerUnitVND could be passed if preferred.
-    // For simplicity, we'll rely on the main edit dialog.
-    // We can close this dialog and let the main edit dialog handle it.
-    toast({ title: "Thông báo", description: "Mở form sửa sản phẩm để cập nhật Giới hạn giảm giá." });
-
+    await onUpdateProductMaxDiscount(productToSetMaxDiscount.id, newMaxDiscountNghin * 1000);
+    
     setIsSetMaxDiscountDialogOpen(false);
     setProductToSetMaxDiscount(null);
   };
@@ -533,7 +524,7 @@ export function InventoryTab({
             <DialogHeader>
               <DialogTitle>Giới hạn giảm giá cho sản phẩm</DialogTitle>
               <DialogDescription>
-                Mở form chỉnh sửa sản phẩm để cập nhật Giới hạn giảm giá tối đa cho phép trên mỗi đơn vị sản phẩm.
+                Đặt giới hạn giảm giá tối đa cho phép trên mỗi đơn vị sản phẩm.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -544,20 +535,22 @@ export function InventoryTab({
                     <strong>Giá bán hiện tại / đơn vị:</strong> {(productToSetMaxDiscount.price / 1000).toLocaleString('vi-VN')} Nghìn VNĐ
                 </p>
               <div>
-                <Label htmlFor="maxDiscountInput">Giảm giá tối đa hiện tại / đơn vị (Nghìn VND)</Label>
+                <Label htmlFor="maxDiscountInput">Giảm giá tối đa / đơn vị (Nghìn VND)</Label>
                 <Input
                   id="maxDiscountInput"
-                  type="text" 
-                  readOnly
+                  type="number"
                   value={currentMaxDiscountInput}
-                  className="bg-muted/50"
+                  onChange={(e) => setCurrentMaxDiscountInput(e.target.value)}
+                  min="0"
+                  step="any"
+                  className="bg-card"
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => {setIsSetMaxDiscountDialogOpen(false); setProductToSetMaxDiscount(null);}}>Hủy</Button>
               {hasFullAccessRights && (
-                <Button onClick={handleSaveMaxDiscount} className="bg-primary text-primary-foreground">Sửa sản phẩm</Button>
+                <Button onClick={handleSaveMaxDiscount} className="bg-primary text-primary-foreground">Lưu giới hạn</Button>
               )}
             </DialogFooter>
           </DialogContent>

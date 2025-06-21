@@ -268,6 +268,7 @@ interface FleurManagerLayoutContentProps {
   openAddProductDialog: () => void;
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
+  onUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
   onAddEmployee: (employeeData: any) => Promise<boolean>;
   setIsCartSheetOpen: (isOpen: boolean) => setIsCartSheetOpen;
   onOpenNoteEditor: (itemId: string) => void;
@@ -287,7 +288,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee, onOpenNoteEditor, setIsCartSheetOpen
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onUpdateProductMaxDiscount, onAddEmployee, onOpenNoteEditor, setIsCartSheetOpen
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -354,6 +355,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onOpenAddProductDialog={openAddProductDialog}
                     onOpenEditProductDialog={openEditProductDialog}
                     onDeleteProduct={handleDeleteProductFromAnywhere}
+                    onUpdateProductMaxDiscount={onUpdateProductMaxDiscount}
                     productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
                     productQualityOptions={productQualityOptions}
@@ -444,7 +446,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onAddEmployee
+      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onUpdateProductMaxDiscount, onAddEmployee
   ]);
 
   return (
@@ -808,6 +810,20 @@ export default function FleurManagerPage() {
         setIsConfirmingProductDelete(false);
         setProductToDeleteId(null);
       }
+    }
+  };
+
+  const handleUpdateProductMaxDiscount = async (productId: string, newMaxDiscountVND: number) => {
+    if (!hasFullAccessRights) {
+        toast({ title: "Không có quyền", description: "Bạn không có quyền cập nhật thông tin sản phẩm.", variant: "destructive" });
+        return;
+    }
+    try {
+        await update(ref(db, `inventory/${productId}`), { maxDiscountPerUnitVND: newMaxDiscountVND });
+        toast({ title: "Thành công", description: "Giới hạn giảm giá đã được cập nhật." });
+    } catch (error) {
+        console.error("Error updating product max discount:", error);
+        toast({ title: "Lỗi", description: "Không thể cập nhật giới hạn giảm giá.", variant: "destructive" });
     }
   };
 
@@ -1753,6 +1769,7 @@ export default function FleurManagerPage() {
           handleUpdateEmployeeInfo={handleUpdateEmployeeInfo} handleDeleteEmployee={handleDeleteEmployee}
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
+          onUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
           onAddEmployee={handleAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}

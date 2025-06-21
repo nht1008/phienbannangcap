@@ -31,12 +31,13 @@ import { CustomerTab } from '@/components/tabs/CustomerTab';
 import { EmployeeTab } from '@/components/tabs/EmployeeTab';
 import { OrdersTab } from '@/components/tabs/OrdersTab';
 import { StorefrontTab } from '@/components/tabs/StorefrontTab';
+import { LeaderboardTab } from '@/components/tabs/LeaderboardTab';
 import { SetNameDialog } from '@/components/auth/SetNameDialog';
 import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { cn } from '@/lib/utils';
-import { UserX, HelpCircle } from 'lucide-react';
+import { UserX, HelpCircle, Trophy } from 'lucide-react';
 
 import {
   Dialog,
@@ -111,7 +112,7 @@ interface InvoiceCartItem {
 }
 
 
-type TabName = 'Bán hàng' | 'Gian hàng' | 'Kho hàng' | 'Đơn hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên';
+type TabName = 'Bán hàng' | 'Gian hàng' | 'Kho hàng' | 'Đơn hàng' | 'Nhập hàng' | 'Hóa đơn' | 'Công nợ' | 'Doanh thu' | 'Khách hàng' | 'Nhân viên' | 'Bảng xếp hạng';
 
 export interface ActivityDateTimeFilter {
   startDate: Date | null;
@@ -289,6 +290,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     { name: 'Gian hàng' as TabName, icon: <Store /> },
     { name: 'Kho hàng' as TabName, icon: <WarehouseIcon /> },
     { name: 'Đơn hàng' as TabName, icon: <ShoppingCart /> },
+    { name: 'Bảng xếp hạng' as TabName, icon: <Trophy /> },
     { name: 'Nhập hàng' as TabName, icon: <ImportIcon /> },
     { name: 'Hóa đơn' as TabName, icon: <InvoiceIconSvg /> },
     { name: 'Công nợ' as TabName, icon: <DebtIcon /> },
@@ -301,7 +303,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     if (isCurrentUserCustomer) {
       return baseNavItems.filter(item => 
         item.name === 'Gian hàng' || 
-        item.name === 'Đơn hàng'
+        item.name === 'Đơn hàng' ||
+        item.name === 'Bảng xếp hạng'
       );
     }
     if (currentUserEmployeeData?.position === 'Nhân viên') {
@@ -355,6 +358,10 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                   onFilterChange={handleOrderFilterChange}
                   currentUser={currentUser}
                 />,
+    'Bảng xếp hạng': <LeaderboardTab
+                      customers={customersData}
+                      invoices={invoicesData}
+                     />,
     'Nhập hàng': <ImportTab
                     inventory={inventory}
                     onImportProducts={handleImportProducts}
@@ -820,8 +827,8 @@ export default function FleurManagerPage() {
   
   // Data loading effect for Employees (only for admins/employees)
   useEffect(() => {
-    if (!currentUser || (!isCurrentUserAdmin && !currentUserEmployeeData)) {
-        setEmployeesData([]); // Clear data if not authorized
+    if (!currentUser || isCurrentUserCustomer) {
+        setEmployeesData([]);
         return;
     }
 
@@ -841,14 +848,14 @@ export default function FleurManagerPage() {
     });
 
     return () => unsubscribe();
-  }, [currentUser, isCurrentUserAdmin, currentUserEmployeeData, toast]); // Reruns when role changes
+  }, [currentUser, isCurrentUserCustomer, toast]); // Reruns when role changes
 
 
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const customersRef = ref(db, 'customers'); const unsubscribe = onValue(customersRef, (snapshot) => { const data = snapshot.val(); if (data) { const customersArray: Customer[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setCustomersData(customersArray.sort((a,b) => a.name.localeCompare(b.name))); } else { setCustomersData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const ordersRef = ref(db, 'orders'); const unsubscribe = onValue(ordersRef, (snapshot) => { const data = snapshot.val(); if (data) { const loadedOrders: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setOrdersData(loadedOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())); } else { setOrdersData([]); } }); return () => unsubscribe(); }, [currentUser]);
   
-  useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const invoicesRef = ref(db, 'invoices'); const unsubscribe = onValue(invoicesRef, (snapshot) => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
+  useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); const unsubscribe = onValue(invoicesRef, (snapshot) => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser, isCurrentUserCustomer]);
   
@@ -1368,15 +1375,19 @@ export default function FleurManagerPage() {
   }, [toast, hasFullAccessRights]);
 
   useEffect(() => {
+    if (isCurrentUserCustomer) {
+      setActiveTab('Gian hàng');
+    } else {
+      setActiveTab('Bán hàng');
+    }
+  }, [isCurrentUserCustomer]);
+
+  useEffect(() => {
     if (currentUserEmployeeData?.position === 'Nhân viên' && (activeTab === 'Nhân viên' || activeTab === 'Doanh thu')) {
         setActiveTab('Bán hàng');
         toast({ title: "Thông báo", description: "Bạn không có quyền truy cập vào tab này.", variant: "default" });
     }
-    if (isCurrentUserCustomer && activeTab !== 'Gian hàng' && activeTab !== 'Đơn hàng') {
-        setActiveTab('Gian hàng');
-        toast({ title: "Thông báo", description: "Bạn chỉ có quyền truy cập vào Gian hàng và Đơn hàng.", variant: "default" });
-    }
-  }, [activeTab, currentUserEmployeeData, isCurrentUserCustomer, setActiveTab, toast]);
+  }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
 
   const noAccessToastShown = React.useRef(false);
   useEffect(() => {
@@ -1471,7 +1482,9 @@ export default function FleurManagerPage() {
                     {userAccessRequest.rejectionReason && ` Lý do: ${userAccessRequest.rejectionReason}.`}
                 </p>
                 <p className="text-muted-foreground">Vui lòng liên hệ quản trị viên hoặc đăng ký lại với thông tin chính xác.</p>
-                <Button onClick={handleSignOut} className="mt-6 bg-destructive text-destructive-foreground hover:bg-destructive/90">Đăng xuất</Button>
+                <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">
+                  Đăng xuất và Đăng ký lại
+                </Button>
             </div>
         );
     }
@@ -1503,6 +1516,7 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
 
 
 

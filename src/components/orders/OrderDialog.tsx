@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Plus, Minus } from 'lucide-react';
+import { Separator } from '../ui/separator';
 
 interface OrderDialogProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export function OrderDialog({ isOpen, onClose, product, onConfirmOrder }: OrderD
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Đặt hàng: {product.name}</DialogTitle>
           <DialogDescription>
@@ -79,25 +80,38 @@ export function OrderDialog({ isOpen, onClose, product, onConfirmOrder }: OrderD
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-start gap-4">
             <Image
-              src={product.image || `https://placehold.co/80x80.png`}
+              src={product.image || `https://placehold.co/100x100.png`}
               alt={product.name}
-              width={80}
-              height={80}
+              width={100}
+              height={100}
               className="rounded-md object-cover aspect-square border"
               data-ai-hint={`${product.name.split(' ')[0]} flower`}
-              onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/80x80.png')}
+              onError={(e) => ((e.target as HTMLImageElement).src = 'https://placehold.co/100x100.png')}
             />
-            <div className="text-sm">
-              <p className="font-semibold">{product.name}</p>
-              <p className="text-muted-foreground">{product.color}, {product.size}, {product.quality}</p>
-              <p className="text-primary font-bold">{product.price.toLocaleString('vi-VN')} VNĐ / {product.unit}</p>
-              <p className="text-muted-foreground">Tồn kho: {product.quantity}</p>
+            <div className="flex-1 space-y-2 text-sm">
+                <div className="grid grid-cols-[80px_1fr] items-center">
+                    <span className="font-semibold text-muted-foreground">Tên:</span>
+                    <span className="font-bold text-base">{product.name}</span>
+                </div>
+                 <div className="grid grid-cols-[80px_1fr] items-center">
+                    <span className="font-semibold text-muted-foreground">Chi tiết:</span>
+                    <span>{`${product.color}, ${product.quality || 'N/A'}, ${product.size}`}</span>
+                </div>
+                 <div className="grid grid-cols-[80px_1fr] items-center">
+                    <span className="font-semibold text-muted-foreground">Đơn giá:</span>
+                    <span className="font-bold text-primary">{`${product.price.toLocaleString('vi-VN')} VNĐ / ${product.unit}`}</span>
+                </div>
+                 <div className="grid grid-cols-[80px_1fr] items-center">
+                    <span className="font-semibold text-muted-foreground">Tồn kho:</span>
+                    <span>{product.quantity}</span>
+                </div>
             </div>
           </div>
+          <Separator />
           <div className="space-y-1">
-            <Label htmlFor="quantity">Số lượng</Label>
+            <Label htmlFor="quantity">Số lượng đặt (*)</Label>
             <div className="flex items-center gap-2">
                 <Button
                     type="button"
@@ -132,7 +146,7 @@ export function OrderDialog({ isOpen, onClose, product, onConfirmOrder }: OrderD
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="notes">Ghi chú</Label>
+            <Label htmlFor="notes">Ghi chú (tùy chọn)</Label>
             <Textarea
               id="notes"
               value={notes}

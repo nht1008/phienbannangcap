@@ -354,7 +354,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                   </DialogDescription>
                 </DialogHeader>
                 <Separator className="my-4" />
-                <ScrollArea className="max-h-60">
+                <ScrollArea className="max-h-60 no-scrollbar">
                   <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
                   <Table>
                     <TableHeader>
@@ -463,7 +463,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
               <DialogTitle>Hoàn trả sản phẩm cho HĐ #{currentInvoiceForReturnDialog.id.substring(0,6)}</DialogTitle>
               <DialogDescription>Chọn sản phẩm và số lượng muốn hoàn trả. Các sản phẩm sẽ được cộng lại vào kho.</DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[60vh] mt-4">
+            <ScrollArea className="max-h-[60vh] mt-4 no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>

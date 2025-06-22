@@ -116,7 +116,7 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                 Chưa có dữ liệu chi tiêu của khách hàng để lập bảng xếp hạng.
               </p>
             ) : (
-              <ScrollArea className="h-[70vh]">
+              <ScrollArea className="h-[70vh] no-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>

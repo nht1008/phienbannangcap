@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -192,7 +193,7 @@ export function DebtTab({ debts, onUpdateDebtStatus, filter: filterProp, onFilte
           {debts.length === 0 ? (
               <p className="text-muted-foreground text-center py-6">Không có công nợ nào phù hợp với bộ lọc.</p>
           ) : (
-          <ScrollArea className="h-full"> 
+          <ScrollArea className="h-full no-scrollbar"> 
             <Table>
               <TableHeader>
                 <TableRow>

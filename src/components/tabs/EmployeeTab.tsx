@@ -666,7 +666,7 @@ export function EmployeeTab({
                 {filteredEmployeeInvoices.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Không có hóa đơn nào phù hợp với bộ lọc.</p>
                 ) : (
-                <ScrollArea className="h-60 border rounded-md p-2">
+                <ScrollArea className="h-60 border rounded-md p-2 no-scrollbar">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -707,7 +707,7 @@ export function EmployeeTab({
                  {filteredEmployeeDebts.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Không có công nợ nào phù hợp với bộ lọc.</p>
                 ) : (
-                <ScrollArea className="h-60 border rounded-md p-2">
+                <ScrollArea className="h-60 border rounded-md p-2 no-scrollbar">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -864,7 +864,7 @@ export function EmployeeTab({
                     ) : employeeRequests.length === 0 ? (
                         <p className="text-center text-muted-foreground py-4">Không có yêu cầu nhân viên nào đang chờ xử lý.</p>
                     ) : (
-                        <ScrollArea className="max-h-[60vh]">
+                        <ScrollArea className="max-h-[60vh] no-scrollbar">
                             <Table>
                                 <TableHeader>
                                     <TableRow>

@@ -199,7 +199,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
             {orders.length === 0 ? (
               <p className="text-center text-muted-foreground py-10">Không có đơn hàng nào phù hợp với bộ lọc.</p>
             ) : (
-              <ScrollArea className="h-full">
+              <ScrollArea className="h-full no-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -302,7 +302,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                 </DialogDescription>
               </DialogHeader>
               <Separator className="my-4" />
-              <ScrollArea className="max-h-60">
+              <ScrollArea className="max-h-60 no-scrollbar">
                 <h4 className="font-semibold mb-2 text-foreground">Sản phẩm trong đơn hàng:</h4>
                 <Table>
                   <TableHeader>

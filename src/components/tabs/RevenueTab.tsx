@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState } from 'react';
@@ -492,7 +493,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />
-            <ScrollArea className="max-h-60">
+            <ScrollArea className="max-h-60 no-scrollbar">
               <h4 className="font-semibold mb-2 text-foreground">Sản phẩm đã mua:</h4>
               <Table>
                 <TableHeader>
@@ -598,7 +599,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
           {topSellingProducts.length === 0 ? (
             <p className="text-muted-foreground text-center py-6">Không có dữ liệu sản phẩm bán chạy cho khoảng thời gian này.</p>
           ) : (
-            <ScrollArea className="max-h-96">
+            <ScrollArea className="max-h-96 no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -655,7 +656,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
           {filteredDisposedProducts.length === 0 ? (
             <p className="text-muted-foreground text-center py-6">Không có sản phẩm nào được loại bỏ trong kỳ này.</p>
           ) : (
-            <ScrollArea className="max-h-96">
+            <ScrollArea className="max-h-96 no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>

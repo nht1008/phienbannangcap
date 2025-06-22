@@ -58,7 +58,7 @@ export function CustomerCartSheet({
               <p className="text-muted-foreground">Giỏ hàng của bạn đang trống.</p>
             </div>
           ) : (
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-full no-scrollbar">
                 <Table className="w-full">
                     <TableHeader>
                         <TableRow>

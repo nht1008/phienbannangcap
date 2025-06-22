@@ -409,7 +409,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               .length === 0 ? (
               <p className="text-muted-foreground text-center py-4">Khách hàng này chưa có giao dịch nào.</p>
             ) : (
-              <ScrollArea className="max-h-[60vh]">
+              <ScrollArea className="max-h-[60vh] no-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -473,7 +473,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />
-            <ScrollArea className="max-h-[50vh]">
+            <ScrollArea className="max-h-[50vh] no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -558,7 +558,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     ) : customerRequests.length === 0 ? (
                         <p className="text-center text-muted-foreground py-4">Không có yêu cầu khách hàng nào đang chờ xử lý.</p>
                     ) : (
-                        <ScrollArea className="max-h-[60vh]">
+                        <ScrollArea className="max-h-[60vh] no-scrollbar">
                             <Table>
                                 <TableHeader>
                                     <TableRow>

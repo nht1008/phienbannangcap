@@ -346,7 +346,7 @@ export function SalesTab({
   return (
     <>
       <div className="p-4 md:p-6 h-full flex flex-col">
-        <div className="flex flex-col gap-6 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-6 flex-1 overflow-y-auto no-scrollbar">
             <div className="space-y-6">
               <div className="p-4 bg-muted/30 rounded-lg">
                 <h3 className="text-lg font-semibold mb-2 text-foreground">Bán hàng nhanh</h3>
@@ -469,7 +469,7 @@ export function SalesTab({
               {cart.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 px-3">Giỏ hàng trống</p>
               ) : (
-                <ScrollArea className="h-full"> {/* Adjusted for flex */}
+                <ScrollArea className="h-full no-scrollbar"> {/* Adjusted for flex */}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -878,4 +878,3 @@ export function SalesTab({
     </>
   );
 }
-

@@ -95,7 +95,7 @@ export function RegistrationRequestDialog({
             Vui lòng điền thông tin bên dưới để tạo tài khoản. Yêu cầu của bạn sẽ được gửi đến quản trị viên để xét duyệt.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-2">
+        <form onSubmit={handleSubmit} className="space-y-3 py-2 max-h-[70vh] overflow-y-auto pr-2 no-scrollbar">
           <div className="space-y-1">
             <Label htmlFor="reg-fullName">Họ và tên (*)</Label>
             <Input id="reg-fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="text-base" />

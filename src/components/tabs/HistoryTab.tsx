@@ -53,7 +53,7 @@ export function HistoryTab({ invoices, currentUser }: HistoryTabProps) {
           {myInvoices.length === 0 ? (
             <p className="text-muted-foreground text-center py-10">Bạn chưa có giao dịch nào.</p>
           ) : (
-            <ScrollArea className="h-[70vh]">
+            <ScrollArea className="h-[70vh] no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -110,7 +110,7 @@ export function HistoryTab({ invoices, currentUser }: HistoryTabProps) {
               </DialogDescription>
             </DialogHeader>
             <Separator className="my-3" />
-            <ScrollArea className="max-h-[50vh]">
+            <ScrollArea className="max-h-[50vh] no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>

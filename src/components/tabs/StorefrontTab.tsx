@@ -38,7 +38,7 @@ export function StorefrontTab({ products, onOpenEditProductDialog, onRemoveFromS
               Chưa có sản phẩm nào được trưng bày trên gian hàng.
             </p>
           ) : (
-            <ScrollArea className="max-h-[75vh] w-full overflow-x-auto">
+            <ScrollArea className="max-h-[75vh] w-full overflow-x-auto no-scrollbar">
               <Table>
                 <TableHeader>
                   <TableRow>

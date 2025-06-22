@@ -549,7 +549,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
         </Sidebar>
 
         <SidebarInset>
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto no-scrollbar">
             <div className="flex items-center mb-4 print:hidden px-4 pt-4 lg:px-6 lg:pt-6">
               <SidebarTrigger className="md:hidden mr-4">
                 <PanelLeft />
@@ -1863,5 +1863,6 @@ export default function FleurManagerPage() {
 
 
     
+
 
 

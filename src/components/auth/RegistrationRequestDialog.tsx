@@ -17,6 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import type { UserAccessRequest } from '@/types';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 
 interface RegistrationRequestDialogProps {
@@ -38,6 +39,7 @@ export function RegistrationRequestDialog({
   const [zaloName, setZaloName] = useState('');
   const [address, setAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [requestedRole, setRequestedRole] = useState<'employee' | 'customer'>('customer');
   const { toast } = useToast();
 
   const resetForm = () => {
@@ -49,11 +51,12 @@ export function RegistrationRequestDialog({
     setZaloName('');
     setAddress('');
     setIsLoading(false);
+    setRequestedRole('customer');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim() || !address.trim()) {
+    if (!email.trim() || !password.trim() || !fullName.trim() || !phone.trim() || !zaloName.trim() || (requestedRole === 'customer' && !address.trim())) {
       toast({ title: "Thiếu thông tin", description: "Vui lòng điền đầy đủ các trường bắt buộc (*).", variant: "destructive" });
       return;
     }
@@ -74,7 +77,7 @@ export function RegistrationRequestDialog({
       phone: phone.trim(),
       address: address.trim(),
       zaloName: zaloName.trim(),
-      requestedRole: 'customer', 
+      requestedRole,
     });
     setIsLoading(false);
     if (success) {
@@ -87,7 +90,7 @@ export function RegistrationRequestDialog({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { resetForm(); onClose(); } }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Đăng ký tài khoản Khách hàng</DialogTitle>
+          <DialogTitle className="text-2xl">Đăng ký tài khoản</DialogTitle>
           <DialogDescription>
             Vui lòng điền thông tin bên dưới để tạo tài khoản. Yêu cầu của bạn sẽ được gửi đến quản trị viên để xét duyệt.
           </DialogDescription>
@@ -111,6 +114,23 @@ export function RegistrationRequestDialog({
               <Input id="reg-confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="text-base" />
             </div>
           </div>
+          <div className="space-y-1">
+            <Label>Đăng ký với vai trò (*)</Label>
+            <RadioGroup
+              value={requestedRole}
+              onValueChange={(value) => setRequestedRole(value as 'employee' | 'customer')}
+              className="flex space-x-4 pt-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="customer" id="role-customer" />
+                <Label htmlFor="role-customer">Khách hàng</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="employee" id="role-employee" />
+                <Label htmlFor="role-employee">Nhân viên</Label>
+              </div>
+            </RadioGroup>
+          </div>
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="reg-phone">Số điện thoại (*)</Label>
@@ -122,8 +142,8 @@ export function RegistrationRequestDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="reg-address">Địa chỉ (*)</Label>
-            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" required/>
+            <Label htmlFor="reg-address">Địa chỉ {requestedRole === 'customer' ? '(*)' : ''}</Label>
+            <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" required={requestedRole === 'customer'}/>
           </div>
           
           <DialogFooter className="pt-4">

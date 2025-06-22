@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest } from '@/types';
+import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest, Employee } from '@/types';
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,20 +80,34 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const handleApproveRequest = async (request: UserAccessRequest) => {
     if (!currentUser) return;
-    const newCustomerData: Omit<Customer, 'id'> = {
-        name: request.fullName,
-        phone: request.phone,
-        address: request.address,
-        email: request.email,
-        zaloName: request.zaloName,
-    };
     try {
+      if (request.requestedRole === 'customer') {
+        const newCustomerData: Omit<Customer, 'id'> = {
+            name: request.fullName,
+            phone: request.phone,
+            address: request.address,
+            email: request.email,
+            zaloName: request.zaloName,
+        };
         await set(ref(db, `customers/${request.id}`), newCustomerData);
-        await remove(ref(db, `khach_hang_cho_duyet/${request.id}`));
         toast({ title: "Thành công", description: `Đã duyệt khách hàng ${request.fullName}.` });
-    } catch (error) {
-        console.error("Error approving customer:", error);
-        toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu.", variant: "destructive" });
+      } else if (request.requestedRole === 'employee') {
+        const newEmployeeData: Omit<Employee, 'id'> = {
+            name: request.fullName,
+            email: request.email,
+            position: 'Nhân viên',
+            phone: request.phone,
+            zaloName: request.zaloName,
+        };
+        await set(ref(db, `employees/${request.id}`), newEmployeeData);
+        toast({ title: "Thành công", description: `Đã duyệt nhân viên ${request.fullName}.` });
+      } else {
+        throw new Error('Vai trò yêu cầu không hợp lệ.');
+      }
+      await remove(ref(db, `khach_hang_cho_duyet/${request.id}`));
+    } catch (error: any) {
+        console.error("Error approving request:", error);
+        toast({ title: "Lỗi", description: `Không thể duyệt yêu cầu: ${error.message}`, variant: "destructive" });
     }
   };
 
@@ -274,7 +288,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               <div className="flex gap-2">
                 {hasFullAccessRights && (
                     <Button onClick={() => setIsReviewDialogOpen(true)} variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                        <Users className="mr-2 h-4 w-4" /> Xét duyệt khách hàng ({customerRequests.length})
+                        <Users className="mr-2 h-4 w-4" /> Xét duyệt yêu cầu ({customerRequests.length})
                     </Button>
                 )}
                 {hasFullAccessRights && (
@@ -371,9 +385,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
             <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu khách hàng ({customerRequests.length})</DialogTitle>
+                    <DialogTitle>Xét duyệt yêu cầu truy cập ({customerRequests.length})</DialogTitle>
                     <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản của khách hàng.
+                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản.
                     </DialogDescription>
                 </DialogHeader>
                  <div className="mt-4">
@@ -387,6 +401,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Họ và tên</TableHead>
+                                        <TableHead>Vai trò YC</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>SĐT</TableHead>
                                         <TableHead>Tên Zalo</TableHead>
@@ -399,6 +414,14 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                                     {customerRequests.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell>{req.fullName}</TableCell>
+                                            <TableCell>
+                                              <span className={cn(
+                                                'px-2 py-1 text-xs font-semibold rounded-full',
+                                                req.requestedRole === 'customer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
+                                              )}>
+                                                {req.requestedRole === 'customer' ? 'Khách hàng' : 'Nhân viên'}
+                                              </span>
+                                            </TableCell>
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
                                             <TableCell>{req.zaloName || 'N/A'}</TableCell>

@@ -32,13 +32,13 @@ html[data-overall-font-size="lg"] {
 @layer base {
   :root {
     --background: 336 82% 98%; /* Light Pink */
-    --foreground: 343 31% 41%; /* Dark Rose for text */
+    --foreground: 0 0% 10%; /* Dark Black for text */
 
     --card: 336 100% 99%; /* Very Light Pink, almost white for card backgrounds */
-    --card-foreground: 343 31% 41%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 336 100% 99%;
-    --popover-foreground: 343 31% 41%;
+    --popover-foreground: 0 0% 10%;
 
     --primary: 343 82% 63%; /* Rose */
     --primary-foreground: 343 100% 98%; /* Light Rose text on primary */
@@ -47,7 +47,7 @@ html[data-overall-font-size="lg"] {
     --secondary-foreground: 271 91% 65%; /* Darker Lavender text */
 
     --muted: 336 80% 95%; /* Light pink, slightly more saturated */
-    --muted-foreground: 343 30% 55%; /* Medium rose */
+    --muted-foreground: 0 0% 40%; /* Medium gray */
 
     --accent: 271 91% 87%; /* Lavender */
     --accent-foreground: 271 50% 25%; /* Dark Lavender text */

@@ -271,7 +271,6 @@ interface FleurManagerLayoutContentProps {
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
   handleUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
-  handleAddEmployee: (employeeData: any) => Promise<boolean>;
   setIsCartSheetOpen: (isOpen: boolean) => void;
   onOpenNoteEditor: (itemId: string) => void;
 }
@@ -290,7 +289,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, handleAddEmployee, onOpenNoteEditor, setIsCartSheetOpen
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, onOpenNoteEditor, setIsCartSheetOpen
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -444,7 +443,6 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     adminEmail={ADMIN_EMAIL}
                     isCurrentUserAdmin={isCurrentUserAdmin}
                     onDeleteEmployee={handleDeleteEmployee}
-                    onAddEmployee={handleAddEmployee}
                   />,
   }), [
       inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
@@ -458,7 +456,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, handleAddEmployee
+      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount
   ]);
 
   return (
@@ -1703,44 +1701,6 @@ export default function FleurManagerPage() {
   }, [authLoading, isLoadingAccessRequest, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, userAccessRequest, toast, currentUser, isSettingName]);
 
 
-  const handleAddEmployee = async (employeeData: any) => {
-    if (!currentUser || !isCurrentUserAdmin) {
-      toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
-      return false;
-    }
-    
-    try {
-      const token = await getIdToken();
-      if (!token) {
-          toast({ title: "Lỗi", description: "Không thể xác thực. Vui lòng đăng nhập lại.", variant: "destructive" });
-          return false;
-      }
-      
-      const response = await fetch('/api/create-employee', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(employeeData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Có lỗi xảy ra khi tạo nhân viên.');
-      }
-
-      toast({ title: "Thành công", description: `Nhân viên ${employeeData.name} đã được tạo.` });
-      return true;
-
-    } catch (error: any) {
-      toast({ title: "Lỗi tạo nhân viên", description: error.message, variant: "destructive" });
-      return false;
-    }
-  };
-
-
   // --- Conditional Rendering Logic ---
   if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
   if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
@@ -1782,7 +1742,6 @@ export default function FleurManagerPage() {
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           handleUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
-          handleAddEmployee={handleAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
         />
@@ -1894,7 +1853,9 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+    
 
     
+
 
     

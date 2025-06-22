@@ -51,9 +51,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating employee:', error);
     
-    // Catch the specific error from our new firebase-admin.ts
+    // Catch the specific error from our firebase-admin.ts to provide a better error message.
     if (error.message.includes('FIREBASE_SERVICE_ACCOUNT_KEY')) {
-        return NextResponse.json({ message: 'Lỗi cấu hình phía máy chủ: Không thể khởi tạo Firebase Admin. Vui lòng liên hệ quản trị viên để kiểm tra khóa dịch vụ.' }, { status: 503 });
+        console.error("CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set or is invalid.");
+        return NextResponse.json({ message: 'Lỗi cấu hình: Không tìm thấy hoặc khóa dịch vụ Firebase không hợp lệ. Vui lòng kiểm tra biến môi trường FIREBASE_SERVICE_ACCOUNT_KEY phía máy chủ.' }, { status: 503 });
     }
     
     if (error.code === 'auth/email-already-exists') {

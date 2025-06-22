@@ -1062,24 +1062,14 @@ export default function FleurManagerPage() {
   }, [cart, inventory, toast, setCart]);
 
   const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
-    if (newQuantityStr.trim() === '') {
-        setCart(prevCart => prevCart.map(item =>
-            item.id === itemId ? { ...item, quantityInCart: 0 } : item
-        ));
-        return;
-    }
+    const newQuantity = parseInt(newQuantityStr, 10);
     
-    const newQuantity = parseInt(newQuantityStr);
-
-    if (isNaN(newQuantity) || newQuantity < 0) {
-        return;
+    // If the input is cleared, or an invalid number is entered (like 'abc'), or the number is 0 or less, remove the item.
+    if (newQuantityStr.trim() === '' || isNaN(newQuantity) || newQuantity <= 0) {
+      setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+      return;
     }
 
-    if (newQuantity === 0) {
-        setCart(prevCart => prevCart.filter(item => item.id !== itemId));
-        return;
-    }
-    
     const stockItem = inventory.find(i => i.id === itemId);
 
     if (!stockItem) {
@@ -1898,3 +1888,4 @@ export default function FleurManagerPage() {
 
 
     
+

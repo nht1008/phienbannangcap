@@ -200,7 +200,7 @@ interface FleurManagerLayoutContentProps {
   invoicesData: Invoice[];
   debtsData: Debt[];
   employeesData: Employee[];
-  disposalLogEntries: DisposalLogEntries[];
+  disposalLogEntries: DisposalLogEntry[];
   shopInfo: ShopInfo | null;
   isLoadingShopInfo: boolean;
   cart: CartItem[];
@@ -1062,10 +1062,18 @@ export default function FleurManagerPage() {
   }, [cart, inventory, toast, setCart]);
 
   const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
+    if (newQuantityStr.trim() === '') {
+        setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: 0 } : item));
+        return;
+    }
+
     const newQuantity = parseInt(newQuantityStr, 10);
     
-    // If the input is cleared, or an invalid number is entered (like 'abc'), or the number is 0 or less, remove the item.
-    if (newQuantityStr.trim() === '' || isNaN(newQuantity) || newQuantity <= 0) {
+    if (isNaN(newQuantity)) {
+        return;
+    }
+
+    if (newQuantity <= 0) {
       setCart(prevCart => prevCart.filter(item => item.id !== itemId));
       return;
     }
@@ -1597,15 +1605,23 @@ export default function FleurManagerPage() {
   }, [toast]);
 
   const onUpdateCustomerCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
+    if (newQuantityStr.trim() === '') {
+      setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: 0 } : item));
+      return;
+    }
+    
     const newQuantity = parseInt(newQuantityStr, 10);
-    if (isNaN(newQuantity) || newQuantity < 0) return;
+    if (isNaN(newQuantity)) return; // Invalid text like 'abc'
+
+    if (newQuantity <= 0) {
+        setCustomerCart(prev => prev.filter(item => item.id !== itemId));
+        return;
+    }
 
     const stockItem = inventory.find(i => i.id === itemId);
     const stockQuantity = stockItem?.quantity ?? 0;
 
-    if (newQuantity === 0) {
-        setCustomerCart(prev => prev.filter(item => item.id !== itemId));
-    } else if (newQuantity > stockQuantity) {
+    if (newQuantity > stockQuantity) {
         toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockQuantity} sản phẩm trong kho.`, variant: "destructive" });
         setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: stockQuantity } : item));
     } else {
@@ -1764,7 +1780,7 @@ export default function FleurManagerPage() {
           overallFontSize={overallFontSize} setOverallFontSize={setOverallFontSize} numericDisplaySize={numericDisplaySize}
           setNumericDisplaySize={setNumericDisplaySize} isCurrentUserAdmin={isCurrentUserAdmin}
           currentUserEmployeeData={currentUserEmployeeData} isCurrentUserCustomer={isCurrentUserCustomer} hasFullAccessRights={hasFullAccessRights}
-          filteredInvoicesForRevenue={filteredInvoicesForRevenue} filteredInvoicesForInvoiceTab={filteredInvoicesForInvoiceTab}
+          filteredInvoicesForRevenue={filteredInvoicesForInvoiceTab}
           filteredDebtsForDebtTab={filteredDebtsForDebtTab} filteredOrdersForOrderTab={filteredOrdersForOrderTab}
           handleCreateInvoice={handleCreateInvoice} handleAddProductOption={handleAddProductOption}
           handleDeleteProductOption={handleDeleteProductOption} handleImportProducts={handleImportProducts}
@@ -1888,4 +1904,5 @@ export default function FleurManagerPage() {
 
 
     
+
 

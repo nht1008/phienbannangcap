@@ -28,12 +28,13 @@ interface CustomerTabProps {
   onDeleteCustomer: (customerId: string) => Promise<void>;
   hasFullAccessRights: boolean;
   currentUser: User | null;
+  isCurrentUserAdmin: boolean;
 }
 
 const initialFormState: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string } = { name: '', phone: '', address: '', zaloName: '' };
 
 
-export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights, currentUser }: CustomerTabProps) {
+export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights, currentUser, isCurrentUserAdmin }: CustomerTabProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }>(initialFormState);
 
@@ -291,7 +292,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                         <Users className="mr-2 h-4 w-4" /> Xét duyệt yêu cầu ({userRequests.length})
                     </Button>
                 )}
-                {hasFullAccessRights && (
+                {isCurrentUserAdmin && (
                   <Button
                     onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
                     variant="default"
@@ -304,7 +305,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
           </div>
         </CardHeader>
         <CardContent>
-          {isAdding && hasFullAccessRights && renderCustomerForm(newCustomer, setNewCustomer, handleAdd, false, () => setIsAdding(false))}
+          {isAdding && isCurrentUserAdmin && renderCustomerForm(newCustomer, setNewCustomer, handleAdd, false, () => setIsAdding(false))}
 
           <div className="overflow-x-auto mt-4">
             <Table>

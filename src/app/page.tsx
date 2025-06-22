@@ -430,6 +430,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                       onDeleteCustomer={handleDeleteCustomer}
                       hasFullAccessRights={hasFullAccessRights}
                       currentUser={currentUser}
+                      isCurrentUserAdmin={isCurrentUserAdmin}
                     />,
     'Nhân viên': <EmployeeTab
                     employees={employeesData}
@@ -1834,5 +1835,6 @@ export default function FleurManagerPage() {
 
 
     
+
 
 

@@ -1562,7 +1562,7 @@ export default function FleurManagerPage() {
         setCustomerCart(prev => prev.filter(item => item.id !== itemId));
     } else if (newQuantity > stockQuantity) {
         toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockQuantity} sản phẩm trong kho.`, variant: "destructive" });
-        setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: stockQuantity } : item));
+        setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     } else {
         setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
@@ -1893,5 +1893,7 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
+    
 
     

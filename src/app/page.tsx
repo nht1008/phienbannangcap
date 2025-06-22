@@ -952,13 +952,10 @@ export default function FleurManagerPage() {
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser, isCurrentUserCustomer]);
   
-  // Effect for ShopInfo (depends on hasFullAccessRights)
+  // Effect for ShopInfo (for all logged-in users)
   useEffect(() => {
-    if (!hasFullAccessRights) {
-        setShopInfo(null);
-        setIsLoadingShopInfo(false);
-        return;
-    }
+    if (!currentUser) return; // Fetch only for authenticated users
+
     setIsLoadingShopInfo(true);
     const shopInfoRef = ref(db, 'shopInfo');
     const unsubscribeShopInfo = onValue(shopInfoRef, (snapshot) => {
@@ -974,7 +971,16 @@ export default function FleurManagerPage() {
              const dbShopInfo = snapshot.val() as ShopInfo;
              setShopInfo({ ...defaultInvoiceSettings, ...dbShopInfo });
         } else {
-            setShopInfo({ name: '', address: '', phone: '', logoUrl: '', bankAccountName: '', bankAccountNumber: '', bankName: '', ...defaultInvoiceSettings });
+            setShopInfo({ 
+                name: 'Fleur Manager', 
+                address: '', 
+                phone: '', 
+                logoUrl: '', 
+                bankAccountName: '', 
+                bankAccountNumber: '', 
+                bankName: '', 
+                ...defaultInvoiceSettings 
+            });
         }
         setIsLoadingShopInfo(false);
     }, (error) => {
@@ -983,7 +989,7 @@ export default function FleurManagerPage() {
         setIsLoadingShopInfo(false);
     });
     return () => unsubscribeShopInfo();
-  }, [hasFullAccessRights, toast]);
+  }, [currentUser, toast]);
 
   // Effect for Disposal Log (only for employees/admins)
   useEffect(() => {
@@ -1870,6 +1876,7 @@ export default function FleurManagerPage() {
 
 
     
+
 
 
 

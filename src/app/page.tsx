@@ -269,8 +269,8 @@ interface FleurManagerLayoutContentProps {
   openAddProductDialog: () => void;
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
-  onUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
-  onAddEmployee: (employeeData: any) => Promise<boolean>;
+  handleUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
+  handleAddEmployee: (employeeData: any) => Promise<boolean>;
   setIsCartSheetOpen: (isOpen: boolean) => void;
   onOpenNoteEditor: (itemId: string) => void;
 }
@@ -289,7 +289,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onUpdateProductMaxDiscount, onAddEmployee, onOpenNoteEditor, setIsCartSheetOpen
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, handleAddEmployee, onOpenNoteEditor, setIsCartSheetOpen
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -362,7 +362,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onOpenAddProductDialog={openAddProductDialog}
                     onOpenEditProductDialog={openEditProductDialog}
                     onDeleteProduct={handleDeleteProductFromAnywhere}
-                    onUpdateProductMaxDiscount={onUpdateProductMaxDiscount}
+                    onUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
                     productNameOptions={productNameOptions}
                     colorOptions={colorOptions}
                     productQualityOptions={productQualityOptions}
@@ -443,7 +443,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     adminEmail={ADMIN_EMAIL}
                     isCurrentUserAdmin={isCurrentUserAdmin}
                     onDeleteEmployee={handleDeleteEmployee}
-                    onAddEmployee={onAddEmployee}
+                    onAddEmployee={handleAddEmployee}
                   />,
   }), [
       inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
@@ -457,7 +457,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, onUpdateProductMaxDiscount, onAddEmployee
+      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, handleAddEmployee
   ]);
 
   return (
@@ -824,7 +824,7 @@ export default function FleurManagerPage() {
     }
   };
 
-  const handleUpdateProductMaxDiscount = async (productId: string, newMaxDiscountVND: number) => {
+  const handleUpdateProductMaxDiscount = useCallback(async (productId: string, newMaxDiscountVND: number) => {
     if (!hasFullAccessRights) {
         toast({ title: "Không có quyền", description: "Bạn không có quyền cập nhật thông tin sản phẩm.", variant: "destructive" });
         return;
@@ -836,7 +836,7 @@ export default function FleurManagerPage() {
         console.error("Error updating product max discount:", error);
         toast({ title: "Lỗi", description: "Không thể cập nhật giới hạn giảm giá.", variant: "destructive" });
     }
-  };
+  }, [hasFullAccessRights, toast]);
 
 
   useEffect(() => {
@@ -1621,7 +1621,7 @@ export default function FleurManagerPage() {
         subTotal: subTotal,
         shippingFee: 0,
         totalAmount: subTotal,
-        paymentMethod: 'Chưa xác định',
+        paymentMethod: 'Chuyển khoản',
         paymentStatus: 'Chưa thanh toán',
         orderStatus: 'Chờ xác nhận',
         orderDate: new Date().toISOString(),
@@ -1780,8 +1780,8 @@ export default function FleurManagerPage() {
           handleUpdateEmployeeInfo={handleUpdateEmployeeInfo} handleDeleteEmployee={handleDeleteEmployee}
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
-          onUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
-          onAddEmployee={handleAddEmployee}
+          handleUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
+          handleAddEmployee={handleAddEmployee}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
         />
@@ -1893,3 +1893,5 @@ export default function FleurManagerPage() {
 
   return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
 }
+
+    

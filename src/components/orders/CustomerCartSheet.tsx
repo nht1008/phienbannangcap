@@ -178,6 +178,11 @@ export function CustomerCartSheet({
                 <p>Tổng cộng:</p>
                 <p>{totalAmount.toLocaleString('vi-VN')} VNĐ</p>
               </div>
+              <div className="w-full space-y-2 pt-2">
+                <Label htmlFor="payment-method" className="font-semibold">Phương thức thanh toán</Label>
+                <Input id="payment-method" value="Chuyển khoản ngân hàng" readOnly className="bg-muted/50" />
+                <p className="text-xs text-muted-foreground">Nhân viên sẽ liên hệ với bạn để xác nhận đơn hàng và cung cấp thông tin chuyển khoản.</p>
+              </div>
               <Button onClick={handlePlaceOrder} className="w-full bg-primary text-primary-foreground" size="lg">
                 Tiến hành đặt hàng
               </Button>
@@ -188,3 +193,5 @@ export function CustomerCartSheet({
     </Sheet>
   );
 }
+
+    

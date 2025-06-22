@@ -200,7 +200,7 @@ interface FleurManagerLayoutContentProps {
   invoicesData: Invoice[];
   debtsData: Debt[];
   employeesData: Employee[];
-  disposalLogEntries: DisposalLogEntry[];
+  disposalLogEntries: DisposalLogEntries[];
   shopInfo: ShopInfo | null;
   isLoadingShopInfo: boolean;
   cart: CartItem[];
@@ -549,7 +549,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
         </Sidebar>
 
         <SidebarInset>
-          <main className="flex-1 overflow-y-auto no-scrollbar">
+          <main className="flex-1 overflow-y-auto no-scrollbar overflow-x-hidden">
             <div className="flex items-center mb-4 print:hidden px-4 pt-4 lg:px-6 lg:pt-6">
               <SidebarTrigger className="md:hidden mr-4">
                 <PanelLeft />
@@ -1831,21 +1831,17 @@ export default function FleurManagerPage() {
     );
   }
 
-  if (!isLoadingAccessRequest) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
-            <UserX className="w-16 h-16 text-destructive mb-4" />
-            <h1 className="text-2xl font-bold mb-2 text-foreground">Không có quyền truy cập</h1>
-            <p className="text-muted-foreground">
-                Bạn không có quyền truy cập vào ứng dụng này.
-            </p>
-            <p className="text-muted-foreground">Vui lòng đăng ký tài khoản từ trang đăng nhập hoặc liên hệ quản trị viên.</p>
-            <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Về trang đăng nhập</Button>
-        </div>
-    );
-  }
-
-  return <LoadingScreen message="Đang hoàn tất tải ứng dụng..." />;
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+        <UserX className="w-16 h-16 text-destructive mb-4" />
+        <h1 className="text-2xl font-bold mb-2 text-foreground">Không có quyền truy cập</h1>
+        <p className="text-muted-foreground">
+            Tài khoản của bạn không có quyền truy cập vào ứng dụng này.
+        </p>
+        <p className="text-muted-foreground">Vui lòng đăng ký tài khoản từ trang đăng nhập hoặc liên hệ quản trị viên.</p>
+        <Button onClick={handleSignOut} className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90">Về trang đăng nhập</Button>
+    </div>
+);
 }
     
 
@@ -1866,3 +1862,6 @@ export default function FleurManagerPage() {
 
 
 
+
+
+    

@@ -425,7 +425,7 @@ export function SalesTab({
                 <h3 className="text-xl font-semibold mb-4 text-foreground">Hoặc chọn từ danh sách sản phẩm có sẵn</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {productsGroupedByName.map(group => (
-                    <Card key={group.name} className="text-center hover:shadow-lg transition-shadow flex flex-col">
+                    <Card key={group.name} className="text-center hover:shadow-xl transition-all duration-200 hover:scale-105 flex flex-col">
                       <CardContent className="p-4 flex-grow">
                         <Image
                           src={group.firstVariant.image || `https://placehold.co/100x100.png`}

@@ -496,14 +496,14 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     isActive={activeTab === item.name}
                     tooltip={{ children: item.name, side: "right", align: "center" }}
                     className={cn(
-                      'relative rounded-lg',
+                      'relative rounded-lg group',
                       activeTab === item.name
                         ? 'bg-primary text-primary-foreground shadow-lg'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
                   >
-                    <span className="w-6 h-6">{item.icon}</span>
-                    <span>{isCurrentUserCustomer && item.name === 'Đơn hàng' ? 'Đơn hàng của tôi' : item.name}</span>
+                    <span className="w-6 h-6 transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
+                    <span className="transition-transform duration-200 group-hover:translate-x-1">{isCurrentUserCustomer && item.name === 'Đơn hàng' ? 'Đơn hàng của tôi' : item.name}</span>
                     {item.name === 'Đơn hàng' && pendingOrdersCount > 0 && (
                         <span className="absolute top-2 right-2 flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
@@ -557,7 +557,9 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
               <h2 className="text-3xl font-bold text-foreground font-headline">{isCurrentUserCustomer && activeTab === 'Đơn hàng' ? 'Đơn hàng của tôi' : activeTab}</h2>
             </div>
             <div className="min-h-[calc(100vh-8rem)] px-0 pb-0 lg:px-0 lg:pb-0">
-               {tabs[activeTab]}
+              <div key={activeTab} className="animate-fadeInUp">
+                {tabs[activeTab]}
+              </div>
             </div>
           </main>
         </SidebarInset>

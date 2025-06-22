@@ -132,7 +132,7 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                         <TableRow 
                           key={customer.id} 
                           className={cn(
-                            "animate-fadeInUp",
+                            "animate-fadeInUp group",
                             getRankStyling(customer.rank)
                           )}
                           style={{ animationDelay: `${index * 100}ms`, opacity: 0 }}
@@ -140,10 +140,10 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                           <TableCell className="text-center">
                             <div className={cn("flex items-center justify-center gap-2", isTopThree && "text-2xl")}>
                               <Trophy className={cn(
-                                "h-6 w-6", 
-                                customer.rank === 1 && "text-yellow-600 h-8 w-8",
-                                customer.rank === 2 && "text-gray-600 h-8 w-8",
-                                customer.rank === 3 && "text-orange-700 h-8 w-8",
+                                "h-6 w-6 group-hover:animate-subtlePulse", 
+                                customer.rank === 1 && "text-yellow-600 h-8 w-8 animate-subtlePulse",
+                                customer.rank === 2 && "text-gray-600 h-8 w-8 animate-subtlePulse",
+                                customer.rank === 3 && "text-orange-700 h-8 w-8 animate-subtlePulse",
                               )} />
                               <span>{customer.rank}</span>
                             </div>

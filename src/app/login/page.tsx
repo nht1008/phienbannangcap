@@ -167,7 +167,7 @@ export default function LoginPage() {
   return (
     <>
       <div className="flex items-center justify-center min-h-screen bg-background p-4">
-        <Card className="w-full max-w-md shadow-2xl">
+        <Card className="w-full max-w-md shadow-2xl animate-fadeInUp">
           <CardHeader className="text-center">
             <div className="mx-auto mb-6 h-[200px] w-[200px] flex items-center justify-center">
               {isLoadingShopInfo ? (
@@ -178,7 +178,7 @@ export default function LoginPage() {
                   alt={shopInfo?.name || "Fleur Manager"}
                   width={200}
                   height={200}
-                  className="object-contain rounded-md"
+                  className="object-contain rounded-md animate-popIn"
                   data-ai-hint="shop logo"
                   priority
                   onError={(e) => {
@@ -220,7 +220,7 @@ export default function LoginPage() {
                 />
               </div>
               {error && (
-                <p className="text-sm text-destructive-foreground bg-destructive/80 p-3 rounded-md border border-destructive/50">
+                <p className="text-sm text-destructive-foreground bg-destructive/80 p-3 rounded-md border border-destructive/50 animate-shake">
                   {error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password'
                     ? 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.'
                     : error.code === 'auth/network-request-failed' 

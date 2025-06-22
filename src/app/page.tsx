@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
@@ -431,6 +430,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                       hasFullAccessRights={hasFullAccessRights}
                       currentUser={currentUser}
                       isCurrentUserAdmin={isCurrentUserAdmin}
+                      isCurrentUserCustomer={isCurrentUserCustomer}
                     />,
     'Nhân viên': <EmployeeTab
                     employees={employeesData}
@@ -1835,6 +1835,7 @@ export default function FleurManagerPage() {
 
 
     
+
 
 
 

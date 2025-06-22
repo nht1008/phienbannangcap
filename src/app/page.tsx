@@ -1674,7 +1674,7 @@ export default function FleurManagerPage() {
         setActiveTab('Bán hàng');
         toast({ title: "Thông báo", description: "Bạn không có quyền truy cập vào tab này.", variant: "default" });
     }
-  }, [activeTab, currentUserEmployeeData, setActiveTab, toast]);
+  }, [activeTab, currentUserEmployeeData, toast, setActiveTab]);
 
 
   const noAccessToastShown = React.useRef(false);
@@ -1835,6 +1835,7 @@ export default function FleurManagerPage() {
 
 
     
+
 
 
 

@@ -1812,30 +1812,6 @@ export default function FleurManagerPage() {
     );
   }
 
-  const noAccessToastShownRef = React.useRef(false);
-  useEffect(() => {
-    if (noAccessToastShownRef.current) return;
-    
-    const shouldShowNoAccess = !authLoading && 
-      !isLoadingAccessRequest &&
-      !isCurrentUserAdmin && 
-      !currentUserEmployeeData && 
-      !isCurrentUserCustomer && 
-      !userAccessRequest && 
-      currentUser && 
-      !isSettingName;
-
-    if (shouldShowNoAccess) {
-      noAccessToastShownRef.current = true;
-      toast({
-        title: "Không có quyền truy cập",
-        description: "Không tìm thấy thông tin hợp lệ. Vui lòng liên hệ quản trị viên.",
-        variant: "destructive"
-      });
-    }
-  }, [authLoading, isLoadingAccessRequest, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, userAccessRequest, toast, currentUser, isSettingName]);
-
-
   if (!isLoadingAccessRequest) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
@@ -1858,4 +1834,5 @@ export default function FleurManagerPage() {
 
 
     
+
 

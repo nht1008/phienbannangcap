@@ -113,9 +113,10 @@ export function CustomerCartSheet({
                                             </Button>
                                             <Input
                                             type="number"
-                                            value={item.quantityInCart}
-                                            readOnly
-                                            className="h-7 w-12 text-center hide-number-spinners bg-background"
+                                            value={item.quantityInCart.toString()}
+                                            onChange={(e) => onUpdateQuantity(item.id, e.target.value)}
+                                            className="h-7 w-12 text-center hide-number-spinners bg-card"
+                                            min="0"
                                             />
                                             <Button
                                             type="button"

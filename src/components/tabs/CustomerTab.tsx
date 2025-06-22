@@ -13,12 +13,12 @@ import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, Eye, ListChecks, CheckCircle, XCircle, Users } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Eye, ListChecks } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
-import { ref, onValue, set, remove } from "firebase/database";
+import { ref, set, remove } from "firebase/database";
 
 interface CustomerTabProps {
   customers: Customer[];
@@ -50,76 +50,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const [invoiceForDetailedView, setInvoiceForDetailedView] = useState<Invoice | null>(null);
   const [isInvoiceDetailModalOpen, setIsInvoiceDetailModalOpen] = useState(false);
-
-  const [customerRequests, setCustomerRequests] = useState<UserAccessRequest[]>([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-
-  useEffect(() => {
-    if (hasFullAccessRights) {
-      setIsLoadingRequests(true);
-      const requestsRef = ref(db, 'khach_hang_cho_duyet');
-      const unsubscribe = onValue(requestsRef, (snapshot) => {
-        const data = snapshot.val();
-        const loadedRequests: UserAccessRequest[] = [];
-        if (data) {
-          Object.keys(data).forEach(key => {
-            loadedRequests.push({ id: key, ...data[key] });
-          });
-        }
-        setCustomerRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
-        setIsLoadingRequests(false);
-      }, (error) => {
-        console.error("Error fetching customer requests:", error);
-        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu khách hàng.", variant: "destructive" });
-        setIsLoadingRequests(false);
-      });
-      return () => unsubscribe();
-    }
-  }, [hasFullAccessRights, toast]);
-
-  const handleApproveRequest = async (request: UserAccessRequest) => {
-    if (!currentUser) return;
-    try {
-      if (request.requestedRole === 'customer') {
-        const newCustomerData: Omit<Customer, 'id'> = {
-            name: request.fullName,
-            phone: request.phone,
-            address: request.address,
-            email: request.email,
-            zaloName: request.zaloName,
-        };
-        await set(ref(db, `customers/${request.id}`), newCustomerData);
-        toast({ title: "Thành công", description: `Đã duyệt khách hàng ${request.fullName}.` });
-      } else if (request.requestedRole === 'employee') {
-        const newEmployeeData: Omit<Employee, 'id'> = {
-            name: request.fullName,
-            email: request.email,
-            position: 'Nhân viên',
-            phone: request.phone,
-            zaloName: request.zaloName,
-        };
-        await set(ref(db, `employees/${request.id}`), newEmployeeData);
-        toast({ title: "Thành công", description: `Đã duyệt nhân viên ${request.fullName}.` });
-      } else {
-        throw new Error('Vai trò yêu cầu không hợp lệ.');
-      }
-      await remove(ref(db, `khach_hang_cho_duyet/${request.id}`));
-    } catch (error: any) {
-        console.error("Error approving request:", error);
-        toast({ title: "Lỗi", description: `Không thể duyệt yêu cầu: ${error.message}`, variant: "destructive" });
-    }
-  };
-
-  const handleRejectRequest = async (request: UserAccessRequest) => {
-     try {
-        await remove(ref(db, `khach_hang_cho_duyet/${request.id}`));
-        toast({ title: "Đã từ chối", description: `Đã từ chối yêu cầu của ${request.fullName}.` });
-    } catch (error) {
-        console.error("Error rejecting customer:", error);
-        toast({ title: "Lỗi", description: "Không thể từ chối yêu cầu.", variant: "destructive" });
-    }
-  };
 
   useEffect(() => {
     if (customerToEdit) {
@@ -287,11 +217,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               </div>
               <div className="flex gap-2">
                 {hasFullAccessRights && (
-                    <Button onClick={() => setIsReviewDialogOpen(true)} variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                        <Users className="mr-2 h-4 w-4" /> Xét duyệt yêu cầu ({customerRequests.length})
-                    </Button>
-                )}
-                {hasFullAccessRights && (
                   <Button
                     onClick={() => { setIsAdding(!isAdding); if (isEditing) setIsEditing(false); setNewCustomer(initialFormState); }}
                     variant="default"
@@ -379,74 +304,6 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-      )}
-
-       {hasFullAccessRights && (
-        <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-            <DialogContent className="sm:max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu truy cập ({customerRequests.length})</DialogTitle>
-                    <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản.
-                    </DialogDescription>
-                </DialogHeader>
-                 <div className="mt-4">
-                    {isLoadingRequests ? (
-                        <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : customerRequests.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
-                    ) : (
-                        <ScrollArea className="max-h-[60vh]">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Họ và tên</TableHead>
-                                        <TableHead>Vai trò YC</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>SĐT</TableHead>
-                                        <TableHead>Tên Zalo</TableHead>
-                                        <TableHead>Địa chỉ</TableHead>
-                                        <TableHead>Ngày YC</TableHead>
-                                        <TableHead className="text-center">Hành động</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {customerRequests.map(req => (
-                                        <TableRow key={req.id}>
-                                            <TableCell>{req.fullName}</TableCell>
-                                            <TableCell>
-                                              <span className={cn(
-                                                'px-2 py-1 text-xs font-semibold rounded-full',
-                                                req.requestedRole === 'customer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
-                                              )}>
-                                                {req.requestedRole === 'customer' ? 'Khách hàng' : 'Nhân viên'}
-                                              </span>
-                                            </TableCell>
-                                            <TableCell>{req.email}</TableCell>
-                                            <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
-                                            <TableCell>{req.zaloName || 'N/A'}</TableCell>
-                                            <TableCell className="text-xs max-w-[150px] truncate" title={req.address || 'N/A'}>{req.address || 'N/A'}</TableCell>
-                                            <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
-                                            <TableCell className="text-center space-x-1">
-                                                <Button size="sm" className="bg-success hover:bg-success/90 h-7 px-2" onClick={() => handleApproveRequest(req)}>
-                                                    <CheckCircle className="h-4 w-4 mr-1"/>Duyệt
-                                                </Button>
-                                                <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => handleRejectRequest(req)}>
-                                                    <XCircle className="h-4 w-4 mr-1"/>Từ chối
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    )}
-                </div>
-                <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Đóng</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
       )}
 
       {selectedCustomerForDetails && (

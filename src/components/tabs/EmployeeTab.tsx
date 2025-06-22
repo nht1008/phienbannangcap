@@ -162,6 +162,11 @@ export function EmployeeTab({
     }
   }, [isCurrentUserAdmin, toast]);
 
+  const employeeRequests = useMemo(() =>
+    userRequests.filter(req => req.requestedRole === 'employee'),
+    [userRequests]
+  );
+
   const handleApproveRequest = async (request: UserAccessRequest) => {
     if (!currentUser || !isCurrentUserAdmin) return;
     try {
@@ -360,7 +365,7 @@ export function EmployeeTab({
             <CardTitle className="text-2xl font-bold">Quản lý Nhân sự</CardTitle>
             {isCurrentUserAdmin && (
                 <Button onClick={() => setIsReviewDialogOpen(true)} variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                    <Users className="mr-2 h-4 w-4" /> Xét duyệt yêu cầu ({userRequests.length})
+                    <Users className="mr-2 h-4 w-4" /> Xét duyệt nhân viên ({employeeRequests.length})
                 </Button>
             )}
         </div>
@@ -848,23 +853,22 @@ export function EmployeeTab({
         <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
             <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu truy cập ({userRequests.length})</DialogTitle>
+                    <DialogTitle>Xét duyệt yêu cầu nhân viên ({employeeRequests.length})</DialogTitle>
                     <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản.
+                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản nhân viên.
                     </DialogDescription>
                 </DialogHeader>
                  <div className="mt-4">
                     {isLoadingRequests ? (
                         <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : userRequests.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
+                    ) : employeeRequests.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nhân viên nào đang chờ xử lý.</p>
                     ) : (
                         <ScrollArea className="max-h-[60vh]">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Họ và tên</TableHead>
-                                        <TableHead>Vai trò YC</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>SĐT</TableHead>
                                         <TableHead>Tên Zalo</TableHead>
@@ -874,17 +878,9 @@ export function EmployeeTab({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {userRequests.map(req => (
+                                    {employeeRequests.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell>{req.fullName}</TableCell>
-                                            <TableCell>
-                                              <span className={cn(
-                                                'px-2 py-1 text-xs font-semibold rounded-full',
-                                                req.requestedRole === 'customer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
-                                              )}>
-                                                {req.requestedRole === 'customer' ? 'Khách hàng' : 'Nhân viên'}
-                                              </span>
-                                            </TableCell>
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
                                             <TableCell>{req.zaloName || 'N/A'}</TableCell>
@@ -914,5 +910,3 @@ export function EmployeeTab({
     </>
   );
 }
-
-    

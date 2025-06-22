@@ -79,6 +79,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
     });
     return () => unsubscribe();
   }, [hasFullAccessRights, toast]);
+
+  const customerRequests = useMemo(() =>
+    userRequests.filter(req => req.requestedRole === 'customer'),
+    [userRequests]
+  );
   
   const handleApproveRequest = async (request: UserAccessRequest) => {
     if (!currentUser || !hasFullAccessRights) return;
@@ -290,7 +295,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               <div className="flex gap-2">
                 {hasFullAccessRights && (
                     <Button onClick={() => setIsReviewDialogOpen(true)} variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                        <Users className="mr-2 h-4 w-4" /> Xét duyệt yêu cầu ({userRequests.length})
+                        <Users className="mr-2 h-4 w-4" /> Xét duyệt khách hàng ({customerRequests.length})
                     </Button>
                 )}
                 {!isCurrentUserCustomer && (
@@ -542,23 +547,22 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
             <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle>Xét duyệt yêu cầu truy cập ({userRequests.length})</DialogTitle>
+                    <DialogTitle>Xét duyệt yêu cầu khách hàng ({customerRequests.length})</DialogTitle>
                     <DialogDescription>
-                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản.
+                        Duyệt hoặc từ chối các yêu cầu đăng ký tài khoản khách hàng.
                     </DialogDescription>
                 </DialogHeader>
                  <div className="mt-4">
                     {isLoadingRequests ? (
                         <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
-                    ) : userRequests.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
+                    ) : customerRequests.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">Không có yêu cầu khách hàng nào đang chờ xử lý.</p>
                     ) : (
                         <ScrollArea className="max-h-[60vh]">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Họ và tên</TableHead>
-                                        <TableHead>Vai trò YC</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>SĐT</TableHead>
                                         <TableHead>Tên Zalo</TableHead>
@@ -568,17 +572,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {userRequests.map(req => (
+                                    {customerRequests.map(req => (
                                         <TableRow key={req.id}>
                                             <TableCell>{req.fullName}</TableCell>
-                                            <TableCell>
-                                              <span className={cn(
-                                                'px-2 py-1 text-xs font-semibold rounded-full',
-                                                req.requestedRole === 'customer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
-                                              )}>
-                                                {req.requestedRole === 'customer' ? 'Khách hàng' : 'Nhân viên'}
-                                              </span>
-                                            </TableCell>
                                             <TableCell>{req.email}</TableCell>
                                             <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
                                             <TableCell>{req.zaloName || 'N/A'}</TableCell>

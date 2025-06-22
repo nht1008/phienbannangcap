@@ -1061,7 +1061,40 @@ export default function FleurManagerPage() {
     }
   }, [cart, inventory, toast, setCart]);
 
-  const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => { const newQuantity = parseInt(newQuantityStr); if (isNaN(newQuantity) || newQuantity < 0) return; const stockItem = inventory.find(i => i.id === itemId); if (!stockItem && newQuantity > 0) return; if (newQuantity === 0) { setCart(prevCart => prevCart.filter(item => item.id !== itemId)); } else if (stockItem && newQuantity > stockItem.quantity) { toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockItem.quantity} ${stockItem.unit} trong kho.`, variant: "destructive" }); setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item)); } else { setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item)); } }, [inventory, toast, setCart]);
+  const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
+    if (newQuantityStr.trim() === '') {
+        setCart(prevCart => prevCart.map(item =>
+            item.id === itemId ? { ...item, quantityInCart: 0 } : item
+        ));
+        return;
+    }
+    
+    const newQuantity = parseInt(newQuantityStr);
+
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        return;
+    }
+
+    if (newQuantity === 0) {
+        setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+        return;
+    }
+    
+    const stockItem = inventory.find(i => i.id === itemId);
+
+    if (!stockItem) {
+        toast({ title: "Sản phẩm không tồn tại", description: "Sản phẩm này đã bị xóa khỏi kho.", variant: "destructive" });
+        setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+        return;
+    }
+
+    if (newQuantity > stockItem.quantity) {
+      toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockItem.quantity} ${stockItem.unit} trong kho.`, variant: "destructive" });
+      setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: stockItem.quantity } : item));
+    } else {
+      setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
+    }
+  }, [inventory, toast, setCart]);
 
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     let inputWasInvalid = false;

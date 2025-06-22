@@ -46,12 +46,6 @@ const useWindowSize = () => {
 
 export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
   const { width, height } = useWindowSize();
-  const [showConfetti, setShowConfetti] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowConfetti(false), 8000); 
-    return () => clearTimeout(timer);
-  }, []);
 
   const leaderboardData = useMemo((): LeaderboardEntry[] => {
     const spendingMap = new Map<string, number>();
@@ -98,7 +92,7 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
 
   return (
     <>
-      {showConfetti && width && height && <Confetti width={width} height={height} recycle={false} numberOfPieces={400} />}
+      {width && height && <Confetti width={width} height={height} recycle={true} numberOfPieces={200} />}
       <div className="p-4 md:p-6">
         <Card className="overflow-hidden">
           <CardHeader className="bg-muted/30">

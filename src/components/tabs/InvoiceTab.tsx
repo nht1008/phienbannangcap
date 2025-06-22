@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -28,7 +29,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Eye, Plus, Minus } from 'lucide-react'; // Removed Undo2
+import { Trash2, Eye, Plus, Minus, Undo2 } from 'lucide-react'; // Added Undo2
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -85,6 +86,27 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
     }
   };
 
+  const openReturnDialog = (invoice: Invoice) => {
+    setCurrentInvoiceForReturnDialog(invoice);
+    const initialReturnState: Record<string, ReturnItemDetail> = {};
+    invoice.items.forEach(item => {
+      initialReturnState[item.id] = {
+        originalItemId: item.id,
+        originalQuantityInCart: item.quantityInCart,
+        quantityToReturn: '0',
+        name: item.name,
+        color: item.color,
+        quality: item.quality,
+        size: item.size,
+        unit: item.unit,
+        price: item.price,
+        itemDiscount: item.itemDiscount
+      };
+    });
+    setReturnItemsState(initialReturnState);
+    setIsReturnItemsDialogOpen(true);
+  };
+
   const handleReturnItemQuantityChange = (productId: string, value: string) => {
     const itemDetail = returnItemsState[productId];
     if (!itemDetail) return;
@@ -101,23 +123,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
       [productId]: { ...prev[productId], quantityToReturn: numValue.toString() }
     }));
   };
-
-  const calculatedTotalRefundAmount = useMemo(() => {
-    if (!currentInvoiceForReturnDialog || Object.keys(returnItemsState).length === 0) {
-      return 0;
-    }
-    let totalRefund = 0;
-    Object.values(returnItemsState).forEach(detail => {
-      const quantityToReturnNum = parseInt(detail.quantityToReturn);
-      if (quantityToReturnNum > 0) {
-        const originalItemDiscountPerUnit = detail.originalQuantityInCart > 0 ? (detail.itemDiscount || 0) / detail.originalQuantityInCart : 0;
-        const effectivePricePerUnit = detail.price + originalItemDiscountPerUnit;
-        totalRefund += effectivePricePerUnit * quantityToReturnNum;
-      }
-    });
-    return totalRefund;
-  }, [returnItemsState, currentInvoiceForReturnDialog]);
-
 
   const handleConfirmSelectiveReturn = async () => {
     if (!currentInvoiceForReturnDialog) return;
@@ -316,8 +321,11 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           </Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8 text-orange-500 hover:text-orange-600" onClick={() => openReturnDialog(invoice)} title="Hoàn trả hàng">
+                            <Undo2 className="h-4 w-4" />
+                          </Button>
                           {hasFullAccessRights && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
+                            <Button variant="destructive" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/80" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -524,14 +532,7 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 </TableBody>
               </Table>
             </ScrollArea>
-             <DialogFooter className="mt-6 sm:justify-between items-center">
-              <div className="text-left mb-4 sm:mb-0">
-                <p className="text-sm font-medium text-muted-foreground">Số tiền khách phải hoàn trả:</p>
-                <p className="text-xl font-bold text-primary">
-                  {calculatedTotalRefundAmount.toLocaleString('vi-VN')} VNĐ
-                </p>
-              </div>
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+             <DialogFooter className="mt-6 sm:justify-end">
                 <Button variant="outline" onClick={() => setIsReturnItemsDialogOpen(false)}>Hủy</Button>
                 <Button
                   onClick={handleConfirmSelectiveReturn}
@@ -540,7 +541,6 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                 >
                   Xác nhận hoàn trả
                 </Button>
-              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

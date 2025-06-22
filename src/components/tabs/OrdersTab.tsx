@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -281,7 +282,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
       
       {selectedOrderDetails && (
         <Dialog open={!!selectedOrderDetails} onOpenChange={(open) => !open && setSelectedOrderDetails(null)}>
-          <DialogContent className="sm:max-w-4xl">
+          <DialogContent className="sm:max-w-5xl">
             <DialogHeader>
               <DialogTitle>Chi tiết Đơn hàng #{selectedOrderDetails.orderNumber}</DialogTitle>
               <DialogDescription asChild>
@@ -306,6 +307,7 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                     <TableHead className="text-right">SL</TableHead>
                     <TableHead className="text-right">Đơn giá</TableHead>
                     <TableHead className="text-right">Thành tiền</TableHead>
+                    <TableHead>Ghi chú</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -330,24 +332,13 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
                       <TableCell className="text-right font-semibold text-primary">
                         {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={item.notes || ''}>
+                        {item.notes || 'Không có'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              <div className="mt-4 space-y-2">
-                <h4 className="font-semibold">Ghi chú cho từng sản phẩm:</h4>
-                {selectedOrderDetails.items.filter(item => item.notes).length > 0 ? (
-                  <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-                    {selectedOrderDetails.items.filter(item => item.notes).map((item, index) => (
-                      <li key={`note-${item.id}-${index}`}>
-                        <strong>{item.name} ({item.color}, {item.size}):</strong> {item.notes}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Không có ghi chú nào cho các sản phẩm trong đơn hàng này.</p>
-                )}
-              </div>
             </ScrollArea>
             <Separator className="my-4" />
             <div className="flex justify-between font-bold text-lg text-foreground">

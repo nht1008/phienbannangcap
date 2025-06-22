@@ -321,9 +321,11 @@ export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, fil
                           </Button>
                         </TableCell>
                         <TableCell className="text-center space-x-1">
-                          <Button variant="outline" size="icon" className="h-8 w-8 text-orange-500 hover:text-orange-600" onClick={() => openReturnDialog(invoice)} title="Hoàn trả hàng">
-                            <Undo2 className="h-4 w-4" />
-                          </Button>
+                          {hasFullAccessRights && (
+                            <Button variant="outline" size="icon" className="h-8 w-8 text-orange-500 hover:text-orange-600" onClick={() => openReturnDialog(invoice)} title="Hoàn trả hàng">
+                              <Undo2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           {hasFullAccessRights && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => openDeleteConfirmDialog(invoice)} title="Xóa hóa đơn">
                               <Trash2 className="h-4 w-4" />

@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
-import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil, PlusCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, UserCog, UserX, Pencil } from 'lucide-react';
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -92,7 +92,6 @@ interface EmployeeTabProps {
   adminEmail: string;
   isCurrentUserAdmin: boolean;
   onDeleteEmployee: (employeeId: string) => Promise<void>;
-  onAddEmployee: () => void;
 }
 
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
@@ -112,7 +111,6 @@ export function EmployeeTab({
     adminEmail,
     isCurrentUserAdmin,
     onDeleteEmployee,
-    onAddEmployee,
 }: EmployeeTabProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [activityFilter, setActivityFilter] = useState<ActivityDateTimeFilter>(() => {
@@ -287,12 +285,6 @@ export function EmployeeTab({
       <CardHeader>
         <div className="flex justify-between items-center">
             <CardTitle className="text-2xl font-bold">Quản lý Nhân sự</CardTitle>
-            {isCurrentUserAdmin && (
-                <Button onClick={onAddEmployee}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Thêm nhân viên
-                </Button>
-            )}
         </div>
       </CardHeader>
       <CardContent className="flex flex-col space-y-6">

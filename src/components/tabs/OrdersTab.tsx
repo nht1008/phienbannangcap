@@ -289,87 +289,87 @@ export function OrdersTab({ orders, onUpdateStatus, filter: filterProp, onFilter
       {selectedOrderDetails && (
         <Dialog open={!!selectedOrderDetails} onOpenChange={(open) => !open && setSelectedOrderDetails(null)}>
           <DialogContent className="sm:max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Chi tiết Đơn hàng #{selectedOrderDetails.orderNumber}</DialogTitle>
-              <DialogDescription asChild>
-                <div className="text-sm space-y-1">
-                  <p><strong>Khách hàng:</strong> {selectedOrderDetails.customerName}</p>
-                  <p><strong>SĐT:</strong> {selectedOrderDetails.customerPhone}</p>
-                  <p><strong>Địa chỉ:</strong> {selectedOrderDetails.customerAddress}</p>
-                  <p><strong>Ngày đặt:</strong> {new Date(selectedOrderDetails.orderDate).toLocaleString('vi-VN')}</p>
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-            <Separator className="my-4" />
-            <ScrollArea className="max-h-60">
-              <h4 className="font-semibold mb-2 text-foreground">Sản phẩm trong đơn hàng:</h4>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sản phẩm</TableHead>
-                    <TableHead>Màu</TableHead>
-                    <TableHead>Chất lượng</TableHead>
-                    <TableHead>Kích thước</TableHead>
-                    <TableHead className="text-right">SL</TableHead>
-                    <TableHead className="text-right">Đơn giá</TableHead>
-                    <TableHead className="text-right">Thành tiền</TableHead>
-                    <TableHead className="text-center">Ghi chú</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedOrderDetails.items.map((item, index) => (
-                    <TableRow key={`${item.id}-${index}`}>
-                       <TableCell className="font-medium flex items-center gap-2">
-                         <Image
-                            src={item.image || `https://placehold.co/40x40.png`}
-                            alt={item.name}
-                            width={40}
-                            height={40}
-                            className="rounded-md object-cover aspect-square"
-                            data-ai-hint={`${item.name.split(' ')[0]} flower`}
-                         />
-                         {item.name}
-                       </TableCell>
-                       <TableCell className="text-xs">{item.color}</TableCell>
-                       <TableCell className="text-xs">{item.quality || 'N/A'}</TableCell>
-                       <TableCell className="text-xs">{item.size}</TableCell>
-                      <TableCell className="text-right">{item.quantityInCart}</TableCell>
-                      <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
-                      <TableCell className="text-right font-semibold text-primary">
-                        {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.notes ? (
-                            <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 relative cursor-default">
-                                    <MessageSquare className="h-4 w-4 text-primary" />
-                                    <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-destructive ring-1 ring-background" />
-                                </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                <p className="max-w-xs">{item.notes}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                            </TooltipProvider>
-                        ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
+            <TooltipProvider delayDuration={100}>
+              <DialogHeader>
+                <DialogTitle>Chi tiết Đơn hàng #{selectedOrderDetails.orderNumber}</DialogTitle>
+                <DialogDescription asChild>
+                  <div className="text-sm space-y-1">
+                    <p><strong>Khách hàng:</strong> {selectedOrderDetails.customerName}</p>
+                    <p><strong>SĐT:</strong> {selectedOrderDetails.customerPhone}</p>
+                    <p><strong>Địa chỉ:</strong> {selectedOrderDetails.customerAddress}</p>
+                    <p><strong>Ngày đặt:</strong> {new Date(selectedOrderDetails.orderDate).toLocaleString('vi-VN')}</p>
+                  </div>
+                </DialogDescription>
+              </DialogHeader>
+              <Separator className="my-4" />
+              <ScrollArea className="max-h-60">
+                <h4 className="font-semibold mb-2 text-foreground">Sản phẩm trong đơn hàng:</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sản phẩm</TableHead>
+                      <TableHead>Màu</TableHead>
+                      <TableHead>Chất lượng</TableHead>
+                      <TableHead>Kích thước</TableHead>
+                      <TableHead className="text-right">SL</TableHead>
+                      <TableHead className="text-right">Đơn giá</TableHead>
+                      <TableHead className="text-right">Thành tiền</TableHead>
+                      <TableHead className="text-center">Ghi chú</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-            <Separator className="my-4" />
-            <div className="flex justify-between font-bold text-lg text-foreground">
-              <span>Tổng thanh toán:</span>
-              <span>{selectedOrderDetails.totalAmount.toLocaleString('vi-VN')} VNĐ</span>
-            </div>
-            <DialogFooter className="mt-4">
-              <Button onClick={() => setSelectedOrderDetails(null)} variant="outline" className="w-full">Đóng</Button>
-            </DialogFooter>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedOrderDetails.items.map((item, index) => (
+                      <TableRow key={`${item.id}-${index}`}>
+                        <TableCell className="font-medium flex items-center gap-2">
+                          <Image
+                              src={item.image || `https://placehold.co/40x40.png`}
+                              alt={item.name}
+                              width={40}
+                              height={40}
+                              className="rounded-md object-cover aspect-square"
+                              data-ai-hint={`${item.name.split(' ')[0]} flower`}
+                          />
+                          {item.name}
+                        </TableCell>
+                        <TableCell className="text-xs">{item.color}</TableCell>
+                        <TableCell className="text-xs">{item.quality || 'N/A'}</TableCell>
+                        <TableCell className="text-xs">{item.size}</TableCell>
+                        <TableCell className="text-right">{item.quantityInCart}</TableCell>
+                        <TableCell className="text-right">{item.price.toLocaleString('vi-VN')} VNĐ</TableCell>
+                        <TableCell className="text-right font-semibold text-primary">
+                          {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {item.notes ? (
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 relative cursor-default">
+                                      <MessageSquare className="h-4 w-4 text-primary" />
+                                      <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-destructive ring-1 ring-background" />
+                                  </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                  <p className="max-w-xs">{item.notes}</p>
+                                  </TooltipContent>
+                              </Tooltip>
+                          ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+              <Separator className="my-4" />
+              <div className="flex justify-between font-bold text-lg text-foreground">
+                <span>Tổng thanh toán:</span>
+                <span>{selectedOrderDetails.totalAmount.toLocaleString('vi-VN')} VNĐ</span>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button onClick={() => setSelectedOrderDetails(null)} variant="outline" className="w-full">Đóng</Button>
+              </DialogFooter>
+            </TooltipProvider>
           </DialogContent>
         </Dialog>
       )}

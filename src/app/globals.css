@@ -31,103 +31,101 @@ html[data-overall-font-size="lg"] {
 
 @layer base {
   :root {
-    --background: 210 40% 98%; /* Light Cool Gray */
-    --foreground: 210 40% 10%; /* Dark Cool Gray for text */
+    --background: 336 82% 98%; /* Light Pink */
+    --foreground: 343 31% 41%; /* Dark Rose for text */
 
-    --card: 0 0% 100%; /* White for card backgrounds */
-    --card-foreground: 210 40% 10%;
+    --card: 336 100% 99%; /* Very Light Pink, almost white for card backgrounds */
+    --card-foreground: 343 31% 41%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 10%;
+    --popover: 336 100% 99%;
+    --popover-foreground: 343 31% 41%;
 
-    --primary: 220 90% 60%; /* Strong Blue */
-    --primary-foreground: 210 40% 98%; /* Light Cool Gray text on primary */
+    --primary: 343 82% 63%; /* Rose */
+    --primary-foreground: 343 100% 98%; /* Light Rose text on primary */
 
-    --secondary: 210 30% 90%; /* Lighter Cool Gray, analogous to background */
-    --secondary-foreground: 220 70% 30%; /* Darker Blue for text on secondary */
+    --secondary: 271 91% 96%; /* Lighter Lavender */
+    --secondary-foreground: 271 91% 65%; /* Darker Lavender text */
 
-    --muted: 210 20% 95%; /* Very Light Cool Gray/Almost White */
-    --muted-foreground: 210 25% 45%; /* Medium-dark cool gray */
+    --muted: 336 80% 95%; /* Light pink, slightly more saturated */
+    --muted-foreground: 343 30% 55%; /* Medium rose */
 
-    --accent: 190 95% 50%; /* Bright Cyan */
-    --accent-foreground: 210 40% 10%; /* Dark Cool Gray text on accent */
+    --accent: 271 91% 87%; /* Lavender */
+    --accent-foreground: 271 50% 25%; /* Dark Lavender text */
 
-    --destructive: 0 70% 50%; /* Standard Red */
-    --destructive-foreground: 0 0% 100%; /* White text on destructive */
-    
-    --success: 140 60% 40%; /* A clear, slightly darker green */
-    --success-foreground: 140 80% 90%; /* Light Green text on success */
+    --destructive: 0 84% 60%; /* Standard Red */
+    --destructive-foreground: 0 0% 100%; /* White text */
 
-    --border: 210 20% 85%; /* Cool Gray border */
-    --input: 210 30% 96%; /* Very light cool gray input background */
-    --ring: 220 90% 60%; /* Ring color same as primary (Strong Blue) */
+    --success: 140 60% 40%;
+    --success-foreground: 140 80% 90%;
 
-    --chart-1: 220 90% 60%; /* Primary Blue */
-    --chart-2: 190 95% 50%; /* Accent Cyan */
-    --chart-3: 220 70% 50%; /* Darker Blue */
-    --chart-4: 220 90% 75%; /* Lighter Primary Blue */
-    --chart-5: 190 75% 40%; /* Darker Accent Cyan */
-    
+    --border: 343 40% 88%; /* Rose-tinted border */
+    --input: 336 70% 94%; /* Light pink input background */
+    --ring: 343 82% 63%; /* Ring color same as primary */
+
+    --chart-1: 343 82% 63%; /* Primary Rose */
+    --chart-2: 271 91% 87%; /* Accent Lavender */
+    --chart-3: 343 70% 50%; /* Darker Rose */
+    --chart-4: 343 90% 75%; /* Lighter Primary Rose */
+    --chart-5: 271 75% 80%; /* Darker Accent Lavender */
+
     --radius: 0.5rem;
 
-    /* Sidebar specific colors - Masculine */
-    --sidebar-background: 210 20% 18%; /* Dark Cool Gray sidebar */
-    --sidebar-foreground: 210 30% 88%; /* Lighter Cool Gray text */
-    --sidebar-primary: 220 90% 60%; /* Active items - Strong Blue */
-    --sidebar-primary-foreground: 210 40% 98%; /* Light Cool Gray text on active */
-    --sidebar-accent: 210 20% 25%; /* Hover - slightly lighter dark cool gray */
-    --sidebar-accent-foreground: 220 90% 75%; /* Lighter Strong Blue text on hover */
-    --sidebar-border: 210 20% 28%; /* Darker sidebar border */
-    --sidebar-ring: 220 90% 60%; /* Strong Blue */
+    --sidebar-background: 343 31% 41%; /* Dark Rose sidebar */
+    --sidebar-foreground: 336 100% 97%; /* Light Pink text */
+    --sidebar-primary: 343 82% 63%; /* Active items - Primary Rose */
+    --sidebar-primary-foreground: 336 100% 99%; /* Light Rose text on active */
+    --sidebar-accent: 343 40% 50%; /* Hover - slightly lighter dark rose */
+    --sidebar-accent-foreground: 336 100% 99%; /* Lighter Rose text on hover */
+    --sidebar-border: 343 31% 50%; /* Darker sidebar border */
+    --sidebar-ring: 343 82% 63%;
   }
 
   .dark {
-    --background: 210 20% 12%; /* Very Dark Cool Gray */
-    --foreground: 210 30% 90%; /* Light Cool Gray text */
+    --background: 343 31% 15%; /* Very Dark Rose */
+    --foreground: 336 82% 96%; /* Light Pink text */
 
-    --card: 210 20% 18%; /* Dark Cool Gray card */
-    --card-foreground: 210 30% 90%;
+    --card: 343 31% 20%; /* Dark Rose card */
+    --card-foreground: 336 82% 96%;
 
-    --popover: 210 20% 18%;
-    --popover-foreground: 210 30% 90%;
+    --popover: 343 31% 20%;
+    --popover-foreground: 336 82% 96%;
 
-    --primary: 220 85% 65%; /* Strong Blue - slightly adjusted for dark mode */
-    --primary-foreground: 210 20% 15%; /* Dark Cool Gray text on primary */
+    --primary: 343 82% 63%; /* Rose - remains vibrant */
+    --primary-foreground: 343 20% 10%; /* Dark Rose text on primary */
 
-    --secondary: 210 25% 30%; /* Medium-Dark Cool Gray */
-    --secondary-foreground: 210 30% 80%;
+    --secondary: 271 50% 30%; /* Dark Lavender */
+    --secondary-foreground: 271 91% 90%;
 
-    --muted: 210 20% 25%;
-    --muted-foreground: 210 25% 65%; 
+    --muted: 343 31% 25%;
+    --muted-foreground: 336 82% 80%; 
 
-    --accent: 190 90% 55%; /* Bright Cyan - slightly adjusted */
-    --accent-foreground: 210 20% 15%; /* Dark Cool Gray text on accent */
-
-    --destructive: 0 65% 55%; 
+    --accent: 271 91% 75%; /* Brighter Lavender */
+    --accent-foreground: 271 50% 15%; /* Very Dark Lavender text */
+    
+    --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 98%;
-    
-    --success: 140 60% 30%; /* Darker Green background for success in dark mode */
-    --success-foreground: 140 60% 75%; /* Lighter Green text for success in dark mode */
 
-    --border: 210 20% 30%; 
-    --input: 210 20% 22%; 
-    --ring: 220 85% 65%; /* Strong Blue */
-    
-    --chart-1: 220 85% 65%;
-    --chart-2: 190 90% 55%;
-    --chart-3: 220 65% 55%;
-    --chart-4: 220 90% 75%;
-    --chart-5: 190 70% 45%;
+    --success: 140 60% 40%;
+    --success-foreground: 140 80% 90%;
 
-    /* Sidebar specific colors - Masculine Dark */
-    --sidebar-background: 210 15% 10%; /* Very Dark Cool Gray for sidebar */
-    --sidebar-foreground: 210 30% 92%; /* Light Cool Gray text */
-    --sidebar-primary: 220 85% 70%; /* Active items - Strong Blue (brighter) */
-    --sidebar-primary-foreground: 210 15% 8%; /* Very Dark Cool Gray text on active */
-    --sidebar-accent: 210 15% 15%; /* Hover - slightly lighter very dark cool gray */
-    --sidebar-accent-foreground: 220 85% 80%; /* Lighter Strong Blue text on hover */
-    --sidebar-border: 210 15% 20%; /* Darker sidebar border */
-    --sidebar-ring: 220 85% 70%; /* Strong Blue (brighter) */
+    --border: 343 31% 30%; 
+    --input: 343 31% 22%; 
+    --ring: 343 82% 63%;
+
+    --chart-1: 343 82% 63%;
+    --chart-2: 271 91% 75%;
+    --chart-3: 343 70% 50%;
+    --chart-4: 343 90% 80%;
+    --chart-5: 271 75% 65%;
+
+    --sidebar-background: 343 31% 12%; 
+    --sidebar-foreground: 336 82% 97%;
+    --sidebar-primary: 343 82% 68%;
+    --sidebar-primary-foreground: 343 31% 10%;
+    --sidebar-accent: 343 31% 18%;
+    --sidebar-accent-foreground: 336 82% 98%;
+    --sidebar-border: 343 31% 25%;
+    --sidebar-ring: 343 82% 68%;
   }
 }
 
@@ -139,4 +137,19 @@ html[data-overall-font-size="lg"] {
     @apply bg-background text-foreground;
     font-feature-settings: "liga" 1, "calt" 1; /* For Alegreya font */
   }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.5s ease-out forwards;
 }

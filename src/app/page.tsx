@@ -734,7 +734,7 @@ export default function FleurManagerPage() {
   const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>('md');
   const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>('text-2xl');
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
-  const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(false);
+  const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(true);
 
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null);
   const [isConfirmingDebtDelete, setIsConfirmingDebtDelete] = useState(false);
@@ -954,7 +954,7 @@ export default function FleurManagerPage() {
   
   // Effect for ShopInfo (for all logged-in users)
   useEffect(() => {
-    if (!currentUser) return; // Fetch only for authenticated users
+    if (!currentUser) return; 
 
     setIsLoadingShopInfo(true);
     const shopInfoRef = ref(db, 'shopInfo');
@@ -1715,31 +1715,6 @@ export default function FleurManagerPage() {
     }
   }, [activeTab, currentUserEmployeeData, toast]);
 
-
-  const noAccessToastShown = React.useRef(false);
-  useEffect(() => {
-    if (noAccessToastShown.current) return;
-    
-    const shouldShowNoAccess = !authLoading && 
-      !isLoadingAccessRequest &&
-      !isCurrentUserAdmin && 
-      !currentUserEmployeeData && 
-      !isCurrentUserCustomer && 
-      !userAccessRequest && 
-      currentUser && 
-      !isSettingName;
-
-    if (shouldShowNoAccess) {
-      noAccessToastShown.current = true;
-      toast({
-        title: "Không có quyền truy cập",
-        description: "Không tìm thấy thông tin hợp lệ. Vui lòng liên hệ quản trị viên.",
-        variant: "destructive"
-      });
-    }
-  }, [authLoading, isLoadingAccessRequest, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, userAccessRequest, toast, currentUser, isSettingName]);
-
-
   // --- Conditional Rendering Logic ---
   if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
   if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
@@ -1883,3 +1858,6 @@ export default function FleurManagerPage() {
 
 
 
+
+
+    

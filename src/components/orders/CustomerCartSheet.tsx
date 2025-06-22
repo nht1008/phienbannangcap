@@ -70,7 +70,6 @@ export function CustomerCartSheet({
                             <TableHead className="text-right">Đơn giá</TableHead>
                             <TableHead className="text-center w-[130px]">Số lượng</TableHead>
                             <TableHead className="text-right">Thành tiền</TableHead>
-                            <TableHead className="min-w-[120px]">Ghi chú</TableHead>
                             <TableHead className="text-center">Hành động</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -132,9 +131,6 @@ export function CustomerCartSheet({
                                     </TableCell>
                                     <TableCell className="text-right font-semibold text-primary">
                                         {(item.price * item.quantityInCart).toLocaleString('vi-VN')} VNĐ
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]" title={item.notes}>
-                                      {item.notes || "Không có"}
                                     </TableCell>
                                     <TableCell className="text-center space-x-1">
                                       <Button

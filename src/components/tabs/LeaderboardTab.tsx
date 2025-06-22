@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trophy } from 'lucide-react';
 import { cn, normalizeStringForSearch } from '@/lib/utils';
 import Confetti from 'react-confetti';
+import { Badge } from '@/components/ui/badge';
 
 interface LeaderboardTabProps {
   customers: Customer[];
@@ -18,6 +19,9 @@ interface LeaderboardTabProps {
 interface LeaderboardEntry extends Customer {
   totalSpent: number;
   rank: number;
+  purchaseCount: number;
+  firstPurchaseDate: string | null;
+  vipTier: string;
 }
 
 const useWindowSize = () => {
@@ -48,23 +52,44 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
   const { width, height } = useWindowSize();
 
   const leaderboardData = useMemo((): LeaderboardEntry[] => {
-    const spendingMap = new Map<string, number>();
+    const spendingMap = new Map<string, { totalSpent: number; purchaseCount: number; firstPurchaseDate: string | null; }>();
+    const sortedInvoices = [...invoices].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    invoices.forEach(invoice => {
+    sortedInvoices.forEach(invoice => {
       const normalizedName = normalizeStringForSearch(invoice.customerName);
       if (normalizedName && normalizedName !== 'khachle') {
-        const currentSpending = spendingMap.get(normalizedName) || 0;
-        spendingMap.set(normalizedName, currentSpending + invoice.total);
+        if (!spendingMap.has(normalizedName)) {
+          spendingMap.set(normalizedName, {
+            totalSpent: 0,
+            purchaseCount: 0,
+            firstPurchaseDate: invoice.date,
+          });
+        }
+        const customerData = spendingMap.get(normalizedName)!;
+        customerData.totalSpent += invoice.total;
+        customerData.purchaseCount += 1;
       }
     });
+
+    const getVipTier = (totalSpent: number): string => {
+        if (totalSpent > 10000000) return 'Kim Cương';
+        if (totalSpent > 5000000) return 'Vàng';
+        if (totalSpent > 2000000) return 'Bạc';
+        if (totalSpent > 500000) return 'Đồng';
+        return 'Thân Thiết';
+    }
 
     const rankedCustomers = customers
       .map(customer => {
         const normalizedName = normalizeStringForSearch(customer.name);
-        const totalSpent = spendingMap.get(normalizedName) || 0;
+        const customerStats = spendingMap.get(normalizedName) || { totalSpent: 0, purchaseCount: 0, firstPurchaseDate: null };
+        
         return {
           ...customer,
-          totalSpent,
+          totalSpent: customerStats.totalSpent,
+          purchaseCount: customerStats.purchaseCount,
+          firstPurchaseDate: customerStats.firstPurchaseDate,
+          vipTier: getVipTier(customerStats.totalSpent),
         };
       })
       .filter(customer => customer.totalSpent > 0)
@@ -77,6 +102,7 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
     return rankedCustomers;
   }, [customers, invoices]);
 
+
   const getRankStyling = (rank: number) => {
     switch (rank) {
       case 1:
@@ -87,6 +113,21 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
         return 'bg-gradient-to-r from-orange-300 via-orange-400 to-orange-500 text-orange-900 font-semibold';
       default:
         return '';
+    }
+  };
+
+  const getVipTierStyling = (tier: string) => {
+    switch (tier) {
+      case 'Kim Cương':
+        return 'bg-gradient-to-r from-blue-400 to-emerald-400 text-white shadow-lg border-sky-300';
+      case 'Vàng':
+        return 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-lg border-yellow-300';
+      case 'Bạc':
+        return 'bg-gradient-to-r from-slate-400 to-slate-500 text-white shadow-lg border-slate-300';
+      case 'Đồng':
+        return 'bg-gradient-to-r from-orange-400 to-rose-400 text-white shadow-lg border-orange-300';
+      default:
+        return 'bg-secondary text-secondary-foreground';
     }
   };
 
@@ -116,7 +157,10 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                     <TableRow>
                       <TableHead className="w-24 text-center text-lg">Hạng</TableHead>
                       <TableHead className="text-lg">Tên Khách Hàng</TableHead>
+                      <TableHead>Hạng VIP</TableHead>
                       <TableHead className="text-right text-lg">Tổng Chi Tiêu</TableHead>
+                      <TableHead className="text-center">Số Lần Mua</TableHead>
+                      <TableHead>Ngày Đầu Mua</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -145,9 +189,18 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                           <TableCell className={cn("text-lg", isTopThree ? "text-xl" : "font-medium")}>
                             {customer.name}
                           </TableCell>
+                          <TableCell>
+                            <Badge className={cn("text-xs font-bold", getVipTierStyling(customer.vipTier))}>
+                              {customer.vipTier}
+                            </Badge>
+                          </TableCell>
                           <TableCell className={cn("text-right text-lg font-semibold", isTopThree ? "text-xl" : "text-primary")}>
                             {customer.totalSpent.toLocaleString('vi-VN')} VNĐ
                           </TableCell>
+                           <TableCell className="text-center">{customer.purchaseCount}</TableCell>
+                           <TableCell>
+                            {customer.firstPurchaseDate ? new Date(customer.firstPurchaseDate).toLocaleDateString('vi-VN') : 'N/A'}
+                           </TableCell>
                         </TableRow>
                       )
                     })}

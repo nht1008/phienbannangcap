@@ -210,6 +210,8 @@ interface FleurManagerLayoutContentProps {
   productQualityOptions: string[];
   sizeOptions: string[];
   unitOptions: string[];
+  storefrontProducts: Product[];
+  storefrontProductIds: Record<string, boolean>;
   revenueFilter: ActivityDateTimeFilter;
   invoiceFilter: ActivityDateTimeFilter;
   debtFilter: ActivityDateTimeFilter;
@@ -270,6 +272,8 @@ interface FleurManagerLayoutContentProps {
   openEditProductDialog: (product: Product) => void;
   handleDeleteProductFromAnywhere: (productId: string) => void;
   handleUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
+  handleAddToStorefront: (productId: string) => Promise<void>;
+  handleRemoveFromStorefront: (productId: string) => Promise<void>;
   setIsCartSheetOpen: (isOpen: boolean) => void;
   onOpenNoteEditor: (itemId: string) => void;
 }
@@ -278,7 +282,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   const {
     currentUser, activeTab, setActiveTab, inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries,
     shopInfo, isLoadingShopInfo, cart, customerCart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
-    unitOptions, revenueFilter, invoiceFilter, debtFilter, orderFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
+    unitOptions, storefrontProducts, storefrontProductIds, revenueFilter, invoiceFilter, debtFilter, orderFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
     isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
     setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, hasFullAccessRights,
     filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab, filteredOrdersForOrderTab,
@@ -288,7 +292,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, onOpenNoteEditor, setIsCartSheetOpen
+    openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, 
+    handleAddToStorefront, handleRemoveFromStorefront, onOpenNoteEditor, setIsCartSheetOpen
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -347,11 +352,9 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     productQualityOptions={productQualityOptions}
                   />,
     'Gian hàng': <StorefrontTab
-                    inventory={inventory}
-                    invoices={invoicesData}
-                    onOpenAddProductDialog={openAddProductDialog}
+                    products={storefrontProducts}
                     onOpenEditProductDialog={openEditProductDialog}
-                    onDeleteProduct={handleDeleteProductFromAnywhere}
+                    onRemoveFromStorefront={handleRemoveFromStorefront}
                     hasFullAccessRights={hasFullAccessRights}
                     isCurrentUserCustomer={isCurrentUserCustomer}
                     onAddToCart={onAddToCartForCustomer}
@@ -372,6 +375,9 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     hasFullAccessRights={hasFullAccessRights}
                     onDisposeProductItems={handleDisposeProductItems}
                     currentUser={currentUser}
+                    storefrontProductIds={storefrontProductIds}
+                    onAddToStorefront={handleAddToStorefront}
+                    onRemoveFromStorefront={handleRemoveFromStorefront}
                   />,
     'Đơn hàng': <OrdersTab
                   orders={filteredOrdersForOrderTab}
@@ -448,6 +454,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
   }), [
       inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
       productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions,
+      storefrontProducts, storefrontProductIds,
       filteredInvoicesForRevenue, revenueFilter, filteredInvoicesForInvoiceTab, invoiceFilter,
       filteredDebtsForDebtTab, debtFilter, filteredOrdersForOrderTab, orderFilter,
       isCurrentUserAdmin, hasFullAccessRights, isCurrentUserCustomer,
@@ -457,7 +464,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount
+      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount,
+      handleAddToStorefront, handleRemoveFromStorefront
   ]);
 
   return (
@@ -712,6 +720,7 @@ export default function FleurManagerPage() {
   const [productQualityOptions, setProductQualityOptions] = useState<string[]>([]);
   const [sizeOptions, setSizeOptions] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<string[]>([]);
+  const [storefrontProductIds, setStorefrontProductIds] = useState<Record<string, boolean>>({});
 
   const [revenueFilter, setRevenueFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
   const [invoiceFilter, setInvoiceFilter] = useState<ActivityDateTimeFilter>(getInitialActivityDateTimeFilter());
@@ -936,6 +945,8 @@ export default function FleurManagerPage() {
   useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const customersRef = ref(db, 'customers'); const unsubscribe = onValue(customersRef, (snapshot) => { const data = snapshot.val(); if (data) { const customersArray: Customer[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setCustomersData(customersArray.sort((a,b) => a.name.localeCompare(b.name))); } else { setCustomersData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const ordersRef = ref(db, 'orders'); const unsubscribe = onValue(ordersRef, (snapshot) => { const data = snapshot.val(); if (data) { const loadedOrders: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setOrdersData(loadedOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())); } else { setOrdersData([]); } }); return () => unsubscribe(); }, [currentUser]);
+  useEffect(() => { if (!currentUser) return; const storefrontRef = ref(db, 'storefrontProducts'); const unsubscribe = onValue(storefrontRef, (snapshot) => { const data = snapshot.val(); setStorefrontProductIds(data || {}); }); return () => unsubscribe(); }, [currentUser]);
+
   
   useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); const unsubscribe = onValue(invoicesRef, (snapshot) => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }); return () => unsubscribe(); }, [currentUser]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
@@ -1010,6 +1021,10 @@ export default function FleurManagerPage() {
       : ordersData;
     return filterActivityByDateTimeRange(userFilteredOrders.map(o => ({...o, date: o.orderDate })), orderFilter);
   }, [ordersData, orderFilter, isCurrentUserCustomer, currentUser]);
+
+  const storefrontProducts = useMemo(() => {
+    return inventory.filter(p => storefrontProductIds[p.id]);
+  }, [inventory, storefrontProductIds]);
 
 
   const handleAddCustomer = useCallback(async (newCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => { try { const newCustomerRef = push(ref(db, 'customers')); await set(newCustomerRef, newCustomerData); toast({ title: "Thành công", description: "Khách hàng đã được thêm.", variant: "default" }); } catch (error) { console.error("Error adding customer:", error); toast({ title: "Lỗi", description: "Không thể thêm khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
@@ -1561,7 +1576,7 @@ export default function FleurManagerPage() {
         setCustomerCart(prev => prev.filter(item => item.id !== itemId));
     } else if (newQuantity > stockQuantity) {
         toast({ title: "Số lượng không đủ", description: `Chỉ còn ${stockQuantity} sản phẩm trong kho.`, variant: "destructive" });
-        setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
+        setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: stockQuantity } : item));
     } else {
         setCustomerCart(prev => prev.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
@@ -1660,6 +1675,24 @@ export default function FleurManagerPage() {
     setItemNoteContent('');
   };
 
+  const handleAddToStorefront = useCallback(async (productId: string) => {
+    try {
+        await set(ref(db, `storefrontProducts/${productId}`), true);
+        toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào gian hàng." });
+    } catch (error) {
+        toast({ title: "Lỗi", description: "Không thể thêm sản phẩm vào gian hàng.", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const handleRemoveFromStorefront = useCallback(async (productId: string) => {
+      try {
+          await remove(ref(db, `storefrontProducts/${productId}`));
+          toast({ title: "Thành công", description: "Sản phẩm đã được gỡ khỏi gian hàng." });
+      } catch (error) {
+          toast({ title: "Lỗi", description: "Không thể gỡ sản phẩm khỏi gian hàng.", variant: "destructive" });
+      }
+  }, [toast]);
+
 
   useEffect(() => {
     if (isCurrentUserCustomer) {
@@ -1674,7 +1707,7 @@ export default function FleurManagerPage() {
         setActiveTab('Bán hàng');
         toast({ title: "Thông báo", description: "Bạn không có quyền truy cập vào tab này.", variant: "default" });
     }
-  }, [activeTab, currentUserEmployeeData, toast, setActiveTab]);
+  }, [activeTab, currentUserEmployeeData, toast]);
 
 
   const noAccessToastShown = React.useRef(false);
@@ -1718,7 +1751,7 @@ export default function FleurManagerPage() {
           customersData={customersData} ordersData={ordersData} invoicesData={invoicesData} debtsData={debtsData}
           employeesData={employeesData} disposalLogEntries={disposalLogEntries} shopInfo={shopInfo} isLoadingShopInfo={isLoadingShopInfo}
           cart={cart} customerCart={customerCart} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions}
-          sizeOptions={sizeOptions} unitOptions={unitOptions} revenueFilter={revenueFilter} invoiceFilter={invoiceFilter}
+          sizeOptions={sizeOptions} unitOptions={unitOptions} storefrontProducts={storefrontProducts} storefrontProductIds={storefrontProductIds} revenueFilter={revenueFilter} invoiceFilter={invoiceFilter}
           debtFilter={debtFilter} orderFilter={orderFilter} isUserInfoDialogOpen={isUserInfoDialogOpen}
           setIsUserInfoDialogOpen={setIsUserInfoDialogOpen} isScreenLocked={isScreenLocked} setIsScreenLocked={setIsScreenLocked}
           isSettingsDialogOpen={isSettingsDialogOpen} setIsSettingsDialogOpen={setIsSettingsDialogOpen}
@@ -1742,6 +1775,8 @@ export default function FleurManagerPage() {
           handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
           openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           handleUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
+          handleAddToStorefront={handleAddToStorefront}
+          handleRemoveFromStorefront={handleRemoveFromStorefront}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
         />
@@ -1835,6 +1870,7 @@ export default function FleurManagerPage() {
 
 
     
+
 
 
 

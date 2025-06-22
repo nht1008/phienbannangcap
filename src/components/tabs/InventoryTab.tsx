@@ -17,7 +17,7 @@ import {
     DialogDescription 
 } from "@/components/ui/dialog";
 import Image from 'next/image';
-import { PlusCircle, Trash2, Settings, Pencil, Search, BadgePercent, PackageX, ChevronsUpDown, Check } from 'lucide-react';
+import { PlusCircle, Trash2, Settings, Pencil, Search, BadgePercent, PackageX, ChevronsUpDown, Check, Store, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeStringForSearch, cn } from '@/lib/utils';
 import { Label } from '../ui/label';
@@ -39,7 +39,7 @@ interface InventoryTabProps {
   inventory: Product[];
   onOpenAddProductDialog: () => void;
   onOpenEditProductDialog: (product: Product) => void;
-  onDeleteProduct: (productId: string) => Promise<void>; // Or void, if it doesn't return a promise
+  onDeleteProduct: (productId: string) => Promise<void>;
   productNameOptions: string[];
   colorOptions: string[];
   productQualityOptions: string[];
@@ -58,6 +58,9 @@ interface InventoryTabProps {
   ) => Promise<void>;
   currentUser: User | null;
   onUpdateProductMaxDiscount: (productId: string, newMaxDiscountVND: number) => Promise<void>;
+  storefrontProductIds: Record<string, boolean>;
+  onAddToStorefront: (productId: string) => Promise<void>;
+  onRemoveFromStorefront: (productId: string) => Promise<void>;
 }
 
 
@@ -76,7 +79,10 @@ export function InventoryTab({
   hasFullAccessRights,
   onDisposeProductItems,
   currentUser,
-  onUpdateProductMaxDiscount
+  onUpdateProductMaxDiscount,
+  storefrontProductIds,
+  onAddToStorefront,
+  onRemoveFromStorefront,
 }: InventoryTabProps) {
   
   const [isOptionsDialogOpen, setIsOptionsDialogOpen] = useState(false);
@@ -280,6 +286,7 @@ export function InventoryTab({
                   <TableHead key="h-costPrice" className="text-right">Giá gốc</TableHead>,
                   <TableHead key="h-price" className="text-right">Giá bán</TableHead>,
                   <TableHead key="h-maxDiscount" className="text-right">Tối đa GG/ĐV</TableHead>,
+                  <TableHead key="h-storefront" className="text-center">Gian hàng</TableHead>,
                   <TableHead key="h-actions" className="text-center">Hành động</TableHead>,
                 ]}
               </TableRow>
@@ -317,6 +324,19 @@ export function InventoryTab({
                         ? `${item.maxDiscountPerUnitVND.toLocaleString('vi-VN')} VNĐ`
                         : 'Không GH'}
                   </TableCell>
+                  <TableCell className="text-center">
+                    {hasFullAccessRights && (
+                        storefrontProductIds[item.id] ? (
+                            <Button variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemoveFromStorefront(item.id)} title="Gỡ khỏi gian hàng">
+                                <XCircle className="h-4 w-4" />
+                            </Button>
+                        ) : (
+                            <Button variant="outline" size="icon" className="h-8 w-8 text-primary" onClick={() => onAddToStorefront(item.id)} title="Thêm vào gian hàng">
+                                <Store className="h-4 w-4" />
+                            </Button>
+                        )
+                    )}
+                  </TableCell>
                   <TableCell className="text-center space-x-1">
                     {hasFullAccessRights && (
                       <>
@@ -336,7 +356,7 @@ export function InventoryTab({
               ))}
               {filteredInventory.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={11} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={12} className="text-center text-muted-foreground py-10">
                       {inventorySearchQuery ? `Không tìm thấy sản phẩm nào với "${inventorySearchQuery}".` : "Chưa có sản phẩm nào. Hãy thêm sản phẩm mới."}
                     </TableCell>
                 </TableRow>

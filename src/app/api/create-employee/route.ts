@@ -1,15 +1,14 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import type { Employee, EmployeePosition } from '@/types';
 
 export async function POST(request: NextRequest) {
-  // Check if Admin SDK was initialized
-  if (!adminAuth || !adminDb) {
-    return NextResponse.json({ message: 'Lỗi cấu hình phía máy chủ: Không thể khởi tạo Firebase Admin. Vui lòng liên hệ quản trị viên để kiểm tra khóa dịch vụ.' }, { status: 503 });
-  }
-
   try {
+    // Lazily get the admin instances. This will also initialize the app.
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminDb();
+    
     const authorization = request.headers.get('Authorization');
     if (!authorization?.startsWith('Bearer ')) {
       return NextResponse.json({ message: 'Unauthorized: No token provided' }, { status: 401 });
@@ -51,6 +50,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error creating employee:', error);
+    
+    // Catch the specific error from our new firebase-admin.ts
+    if (error.message.includes('FIREBASE_SERVICE_ACCOUNT_KEY')) {
+        return NextResponse.json({ message: 'Lỗi cấu hình phía máy chủ: Không thể khởi tạo Firebase Admin. Vui lòng liên hệ quản trị viên để kiểm tra khóa dịch vụ.' }, { status: 503 });
+    }
     
     if (error.code === 'auth/email-already-exists') {
         return NextResponse.json({ message: 'Địa chỉ email này đã được sử dụng.' }, { status: 409 });

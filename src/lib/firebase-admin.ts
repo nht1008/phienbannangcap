@@ -1,4 +1,5 @@
 
+import 'dotenv/config'; // Make sure to load environment variables
 import admin from 'firebase-admin';
 import { getApps } from 'firebase-admin/app';
 
@@ -12,7 +13,16 @@ if (!serviceAccountString) {
   console.warn('The Firebase Admin SDK service account key is not set in the FIREBASE_SERVICE_ACCOUNT_KEY environment variable. API routes requiring admin privileges will fail.');
 }
 
-const serviceAccount = serviceAccountString ? JSON.parse(serviceAccountString) : undefined;
+let serviceAccount: admin.ServiceAccount | undefined;
+try {
+    if (serviceAccountString) {
+        serviceAccount = JSON.parse(serviceAccountString);
+    }
+} catch (e) {
+    console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Make sure it's a valid JSON string.", e);
+    serviceAccount = undefined;
+}
+
 
 if (!getApps().length) {
     if (serviceAccount) {
@@ -24,7 +34,7 @@ if (!getApps().length) {
     } else {
         // If no service account, we can't initialize.
         // This will cause adminDb and adminAuth to be undefined, and API routes will fail gracefully.
-        console.error("Firebase Admin SDK could not be initialized. Service account key is missing.");
+        console.error("Firebase Admin SDK could not be initialized. Service account key is missing or invalid.");
     }
 }
 
@@ -32,4 +42,3 @@ if (!getApps().length) {
 // The API route must handle this case.
 export const adminDb = getApps().length ? admin.database() : undefined;
 export const adminAuth = getApps().length ? admin.auth() : undefined;
-

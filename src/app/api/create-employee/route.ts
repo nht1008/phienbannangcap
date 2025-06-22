@@ -6,7 +6,7 @@ import type { Employee, EmployeePosition } from '@/types';
 export async function POST(request: NextRequest) {
   // Check if Admin SDK was initialized
   if (!adminAuth || !adminDb) {
-    return NextResponse.json({ message: 'Firebase Admin SDK not initialized.' }, { status: 503 });
+    return NextResponse.json({ message: 'Lỗi cấu hình phía máy chủ: Không thể khởi tạo Firebase Admin. Vui lòng liên hệ quản trị viên để kiểm tra khóa dịch vụ.' }, { status: 503 });
   }
 
   try {

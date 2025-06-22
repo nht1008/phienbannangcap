@@ -20,6 +20,7 @@ import { RevenueIcon } from '@/components/icons/RevenueIcon';
 import { CustomerIcon } from '@/components/icons/CustomerIcon';
 import { EmployeeIcon } from '@/components/icons/EmployeeIcon';
 import { ProductFormDialog } from '@/components/products/ProductFormDialog';
+import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
 
 
 import { SalesTab } from '@/components/tabs/SalesTab';
@@ -221,6 +222,8 @@ interface FleurManagerLayoutContentProps {
   setIsScreenLocked: React.Dispatch<React.SetStateAction<boolean>>;
   isSettingsDialogOpen: boolean;
   setIsSettingsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isAddEmployeeDialogOpen: boolean;
+  setIsAddEmployeeDialogOpen: (isOpen: boolean) => void;
   overallFontSize: OverallFontSize;
   setOverallFontSize: React.Dispatch<React.SetStateAction<OverallFontSize>>;
   numericDisplaySize: NumericDisplaySize;
@@ -280,7 +283,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     currentUser, activeTab, setActiveTab, inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries,
     shopInfo, isLoadingShopInfo, cart, customerCart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
     unitOptions, revenueFilter, invoiceFilter, debtFilter, orderFilter, isUserInfoDialogOpen, setIsUserInfoDialogOpen,
-    isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, overallFontSize,
+    isScreenLocked, setIsScreenLocked, isSettingsDialogOpen, setIsSettingsDialogOpen, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, overallFontSize,
     setOverallFontSize, numericDisplaySize, setNumericDisplaySize, isCurrentUserAdmin, currentUserEmployeeData, isCurrentUserCustomer, hasFullAccessRights,
     filteredInvoicesForRevenue, filteredInvoicesForInvoiceTab, filteredDebtsForDebtTab, filteredOrdersForOrderTab,
     handleCreateInvoice, handleAddProductOption,
@@ -443,6 +446,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     adminEmail={ADMIN_EMAIL}
                     isCurrentUserAdmin={isCurrentUserAdmin}
                     onDeleteEmployee={handleDeleteEmployee}
+                    onAddEmployee={() => setIsAddEmployeeDialogOpen(true)}
                   />,
   }), [
       inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries, cart, currentUser, numericDisplaySize,
@@ -456,7 +460,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
-      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount
+      openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, setIsAddEmployeeDialogOpen
   ]);
 
   return (
@@ -721,6 +725,7 @@ export default function FleurManagerPage() {
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
   const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>('md');
   const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>('text-2xl');
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
@@ -1348,7 +1353,7 @@ export default function FleurManagerPage() {
                 items: orderToUpdate.items.map(item => ({...item, itemDiscount: item.itemDiscount || 0})),
                 total: orderToUpdate.totalAmount,
                 date: new Date().toISOString(),
-                paymentMethod: 'Tiền mặt', // Defaulting since order doesn't specify payment yet
+                paymentMethod: 'Chuyển khoản', // Defaulting since order doesn't specify payment yet
                 discount: orderToUpdate.overallDiscount || 0,
                 amountPaid: orderToUpdate.totalAmount, // Assuming fully paid on completion
                 debtAmount: 0,
@@ -1380,6 +1385,49 @@ export default function FleurManagerPage() {
         toast({ title: "Lỗi", description: `Không thể cập nhật trạng thái đơn hàng: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
     }
   }, [toast, ordersData]);
+
+  const handleAddEmployee = async (data: { name: string, email: string, password: string, position: EmployeePosition, phone?: string, zaloName?: string }) => {
+    if (!isCurrentUserAdmin) {
+      toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const idToken = await getIdToken();
+      if (!idToken) {
+          throw new Error("Không thể lấy token xác thực. Vui lòng đăng nhập lại.");
+      }
+
+      const response = await fetch('/api/create-employee', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Đã có lỗi xảy ra.');
+      }
+
+      toast({
+        title: "Thành công",
+        description: `Nhân viên ${data.name} đã được tạo.`,
+        variant: "default",
+      });
+      setIsAddEmployeeDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error creating employee:", error);
+      toast({
+        title: "Lỗi tạo nhân viên",
+        description: error.message || "Không thể tạo nhân viên. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    }
+  };
 
 
   const handleToggleEmployeeRole = async (employeeId: string, currentPosition: EmployeePosition) => {
@@ -1722,6 +1770,7 @@ export default function FleurManagerPage() {
           debtFilter={debtFilter} orderFilter={orderFilter} isUserInfoDialogOpen={isUserInfoDialogOpen}
           setIsUserInfoDialogOpen={setIsUserInfoDialogOpen} isScreenLocked={isScreenLocked} setIsScreenLocked={setIsScreenLocked}
           isSettingsDialogOpen={isSettingsDialogOpen} setIsSettingsDialogOpen={setIsSettingsDialogOpen}
+          isAddEmployeeDialogOpen={isAddEmployeeDialogOpen} setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
           overallFontSize={overallFontSize} setOverallFontSize={setOverallFontSize} numericDisplaySize={numericDisplaySize}
           setNumericDisplaySize={setNumericDisplaySize} isCurrentUserAdmin={isCurrentUserAdmin}
           currentUserEmployeeData={currentUserEmployeeData} isCurrentUserCustomer={isCurrentUserCustomer} hasFullAccessRights={hasFullAccessRights}
@@ -1754,6 +1803,11 @@ export default function FleurManagerPage() {
             onPlaceOrder={handleConfirmOrderFromCart}
             inventory={inventory}
             onOpenNoteEditor={handleOpenNoteEditor}
+        />
+        <AddEmployeeDialog
+          isOpen={isAddEmployeeDialogOpen}
+          onClose={() => setIsAddEmployeeDialogOpen(false)}
+          onSubmit={handleAddEmployee}
         />
         <Dialog open={isNoteEditorOpen} onOpenChange={setIsNoteEditorOpen}>
           <DialogContent>

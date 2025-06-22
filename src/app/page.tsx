@@ -496,10 +496,10 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     isActive={activeTab === item.name}
                     tooltip={{ children: item.name, side: "right", align: "center" }}
                     className={cn(
-                      'relative rounded-lg group',
+                      'relative rounded-lg group transition-colors duration-200',
                       activeTab === item.name
                         ? 'bg-primary text-primary-foreground shadow-lg'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        : 'text-sidebar-foreground hover:bg-primary/25 hover:text-primary-foreground'
                     )}
                   >
                     <span className="w-6 h-6 transition-transform duration-200 group-hover:scale-110">{item.icon}</span>
@@ -1863,3 +1863,4 @@ export default function FleurManagerPage() {
 
 
     
+

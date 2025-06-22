@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
     const idToken = authorization.split('Bearer ')[1];
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     
-    // Check if the user is an admin by checking their email
-    if (decodedToken.email !== 'nthe1008@gmail.com') { 
-        return NextResponse.json({ message: 'Forbidden: Not an admin' }, { status: 403 });
+    // Check if the user is an admin by checking their role in the database.
+    const requestingUserRef = adminDb.ref(`employees/${decodedToken.uid}`);
+    const snapshot = await requestingUserRef.once('value');
+    const requestingUserData = snapshot.val();
+
+    if (!requestingUserData || requestingUserData.position !== 'ADMIN') {
+      return NextResponse.json({ message: 'Forbidden: You do not have ADMIN permission to create employees.' }, { status: 403 });
     }
 
     const { email, password, name, position, phone, zaloName } = await request.json();

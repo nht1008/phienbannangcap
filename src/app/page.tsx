@@ -980,10 +980,10 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser, isCurrentUserCustomer, toast]); // Reruns when role changes
 
+  // Main data loading effect (real-time for core operations)
   useEffect(() => {
     if (!currentUser) return;
 
-    // Set up real-time listener for inventory
     const inventoryRef = ref(db, 'inventory');
     const unsubInventory = onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
@@ -1025,9 +1025,86 @@ export default function FleurManagerPage() {
     };
   }, [currentUser, toast]);
   
-  useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); get(invoicesRef).then(snapshot => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }).catch(error => console.error("Error fetching invoices once:", error)); }, [currentUser]);
-  useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); get(debtsRef).then(snapshot => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }).catch(error => console.error("Error fetching debts once:", error)); }, [currentUser, isCurrentUserCustomer]);
-  useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser, isCurrentUserCustomer]);
+  // Effect for secondary data (for employees/admins) - All real-time
+  useEffect(() => {
+    if (isCurrentUserCustomer || !currentUser) {
+      setInvoicesData([]);
+      setDebtsData([]);
+      setDisposalLogEntries([]);
+      setProductNameOptions([]);
+      setColorOptions([]);
+      setProductQualityOptions([]);
+      setSizeOptions([]);
+      setUnitOptions([]);
+      return;
+    }
+
+    const invoicesRef = ref(db, 'invoices');
+    const unsubInvoices = onValue(invoicesRef, (snapshot) => {
+        const data = snapshot.val();
+        const invoicesArray: Invoice[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+        setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    }, (error) => {
+      console.error("Error fetching invoices:", error);
+      toast({ title: "Lỗi tải dữ liệu", description: "Không thể tải danh sách hóa đơn.", variant: "destructive" });
+    });
+
+    const debtsRef = ref(db, 'debts');
+    const unsubDebts = onValue(debtsRef, (snapshot) => {
+        const data = snapshot.val();
+        const debtsArray: Debt[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+        setDebtsData(debtsArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    }, (error) => {
+        console.error("Error fetching debts:", error);
+        toast({ title: "Lỗi tải dữ liệu", description: "Không thể tải danh sách công nợ.", variant: "destructive" });
+    });
+
+    const disposalLogRef = ref(db, 'disposalLog');
+    const unsubDisposalLog = onValue(disposalLogRef, (snapshot) => {
+        const data = snapshot.val();
+        const loadedEntries: DisposalLogEntry[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+        setDisposalLogEntries(loadedEntries.sort((a, b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
+    }, (error) => {
+        console.error("Error fetching disposal log:", error);
+        toast({ title: "Lỗi tải dữ liệu", description: "Không thể tải nhật ký loại bỏ.", variant: "destructive" });
+    });
+
+    const productNamesRef = ref(db, 'productOptions/productNames');
+    const unsubProductNames = onValue(productNamesRef, (snapshot) => {
+        setProductNameOptions(snapshot.exists() ? Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)) : []);
+    });
+
+    const colorsRef = ref(db, 'productOptions/colors');
+    const unsubColors = onValue(colorsRef, (snapshot) => {
+        setColorOptions(snapshot.exists() ? Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)) : []);
+    });
+
+    const qualitiesRef = ref(db, 'productOptions/qualities');
+    const unsubQualities = onValue(qualitiesRef, (snapshot) => {
+        setProductQualityOptions(snapshot.exists() ? Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)) : []);
+    });
+
+    const sizesRef = ref(db, 'productOptions/sizes');
+    const unsubSizes = onValue(sizesRef, (snapshot) => {
+        setSizeOptions(snapshot.exists() ? Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)) : []);
+    });
+
+    const unitsRef = ref(db, 'productOptions/units');
+    const unsubUnits = onValue(unitsRef, (snapshot) => {
+        setUnitOptions(snapshot.exists() ? Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b)) : []);
+    });
+
+    return () => {
+      unsubInvoices();
+      unsubDebts();
+      unsubDisposalLog();
+      unsubProductNames();
+      unsubColors();
+      unsubQualities();
+      unsubSizes();
+      unsubUnits();
+    };
+  }, [currentUser, isCurrentUserCustomer, toast]);
   
   // Effect for ShopInfo (for all logged-in users)
   useEffect(() => {
@@ -1067,25 +1144,6 @@ export default function FleurManagerPage() {
     });
     return () => unsubscribeShopInfo();
   }, [currentUser, toast]);
-
-  // Effect for Disposal Log (only for employees/admins)
-  useEffect(() => {
-    if (isCurrentUserCustomer || !currentUser) {
-        setDisposalLogEntries([]);
-        return;
-    }
-    const disposalLogRef = ref(db, 'disposalLog');
-    get(disposalLogRef).then(snapshot => {
-      const data = snapshot.val();
-      const loadedEntries: DisposalLogEntry[] = [];
-      if (data) {
-        Object.keys(data).forEach(key => {
-          loadedEntries.push({ id: key, ...data[key] });
-        });
-      }
-      setDisposalLogEntries(loadedEntries.sort((a,b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
-    }).catch(error => console.error("Error fetching disposal log once:", error));
-  }, [isCurrentUserCustomer, currentUser]);
 
   const handleRevenueFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setRevenueFilter(newFilter), []);
   const handleInvoiceFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setInvoiceFilter(newFilter), []);

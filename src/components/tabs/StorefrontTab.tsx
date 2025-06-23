@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -23,7 +22,7 @@ export function StorefrontTab({ products, onOpenEditProductDialog, onRemoveFromS
     <div className="p-4 md:p-6 space-y-6">
       <div className="text-center mb-8">
         <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-pink-400 mb-2 animate-fadeInUp">
-          Chào mừng đến với Fleur
+          Cửa Hàng Hoa Công Nguyệt
         </h1>
         <p className="text-lg text-muted-foreground animate-fadeInUp" style={{ animationDelay: '200ms' }}>
           Khám phá những sản phẩm hoa tươi đẹp nhất

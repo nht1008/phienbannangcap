@@ -19,6 +19,8 @@ import type { UserAccessRequest } from '@/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from '../ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { Briefcase, Users } from 'lucide-react';
 
 interface RegistrationRequestDialogProps {
   isOpen: boolean;
@@ -122,23 +124,39 @@ export function RegistrationRequestDialog({
                 <Input id="reg-confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="text-base" />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Đăng ký với vai trò (*)</Label>
+            
+            <div className="space-y-2 rounded-lg border border-primary/50 bg-primary/5 p-4">
+              <Label className="text-base font-semibold text-primary">Đăng ký với vai trò (*)</Label>
               <RadioGroup
                 value={requestedRole}
                 onValueChange={(value) => setRequestedRole(value as 'employee' | 'customer')}
-                className="flex space-x-4 pt-2"
+                className="grid grid-cols-2 gap-4 pt-2"
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="customer" id="role-customer" />
-                  <Label htmlFor="role-customer">Khách hàng</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="employee" id="role-employee" />
-                  <Label htmlFor="role-employee">Nhân viên</Label>
-                </div>
+                <Label
+                  htmlFor="role-customer"
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center justify-center rounded-md border-2 p-4 transition-all hover:bg-accent hover:text-accent-foreground",
+                    requestedRole === 'customer' ? "border-primary bg-primary/10 shadow-md" : "border-muted"
+                  )}
+                >
+                  <RadioGroupItem value="customer" id="role-customer" className="sr-only" />
+                  <Users className="mb-3 h-8 w-8 text-primary" />
+                  <span className="font-semibold">Khách hàng</span>
+                </Label>
+                <Label
+                  htmlFor="role-employee"
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center justify-center rounded-md border-2 p-4 transition-all hover:bg-accent hover:text-accent-foreground",
+                    requestedRole === 'employee' ? "border-primary bg-primary/10 shadow-md" : "border-muted"
+                  )}
+                >
+                  <RadioGroupItem value="employee" id="role-employee" className="sr-only" />
+                  <Briefcase className="mb-3 h-8 w-8 text-primary" />
+                  <span className="font-semibold">Nhân viên</span>
+                </Label>
               </RadioGroup>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="reg-phone">Số điện thoại (*)</Label>

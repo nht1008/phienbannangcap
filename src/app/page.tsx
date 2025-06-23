@@ -93,7 +93,7 @@ import {
   useSidebar
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, Store, Pencil, Trash2, PlusCircle, MoreHorizontal } from 'lucide-react';
-import { db } from '@/lib/firebase';
+import { db, uploadImageAndGetURL } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
@@ -252,7 +252,7 @@ interface FleurManagerLayoutContentProps {
   handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => Promise<void>;
   handleDeleteCustomer: (customerId: string) => Promise<void>;
   handleDeleteDebt: (debtId: string) => void;
-  handleSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
+  handleSaveShopInfo: (newInfo: ShopInfo, logoFile: File | null) => Promise<void>;
   handleSignOut: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<User | null>;
   onAddToCart: (item: Product) => void;
@@ -804,8 +804,39 @@ export default function FleurManagerPage() {
     setCurrentEditingProduct(null);
   };
 
-  const handleProductFormSubmit = useCallback(async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string): Promise<boolean> => {
+  const handleProductFormSubmit = useCallback(async (
+    formData: ProductFormData,
+    imageFile: File | null,
+    isEdit: boolean,
+    productId?: string
+  ): Promise<boolean> => {
     try {
+      // Step 1: Handle image upload first
+      let imageUrl = isEdit && currentEditingProduct ? currentEditingProduct.image : '';
+      if (imageFile) {
+        imageUrl = await uploadImageAndGetURL(imageFile, 'product_images');
+      }
+
+      // Step 2: Prepare product data from form data
+      const priceNum = parseFloat(formData.price);
+      const costPriceNum = parseFloat(formData.costPrice);
+      const maxDiscountNum = parseFloat(formData.maxDiscountPerUnitVND) || 0;
+      const quantityNum = parseInt(formData.quantity);
+
+      const productData: Omit<Product, 'id'> = {
+        name: formData.name,
+        color: formData.color,
+        quality: formData.quality,
+        size: formData.size,
+        unit: formData.unit,
+        quantity: quantityNum,
+        price: priceNum * 1000,
+        costPrice: costPriceNum * 1000,
+        image: imageUrl || `https://placehold.co/100x100.png`,
+        maxDiscountPerUnitVND: maxDiscountNum * 1000,
+      };
+
+      // Step 3: Duplicate check
       const isDuplicate = inventory.some(p =>
         (isEdit ? p.id !== productId : true) &&
         p.name === productData.name &&
@@ -818,7 +849,8 @@ export default function FleurManagerPage() {
       if (isDuplicate) {
         throw new Error("Sản phẩm đã tồn tại với các thuộc tính y hệt.");
       }
-      
+
+      // Step 4: Write to database
       if (isEdit && productId) {
         await update(ref(db, `inventory/${productId}`), productData);
         toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });
@@ -828,16 +860,14 @@ export default function FleurManagerPage() {
         toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
       }
       return true; // Indicate success
-    } catch(error) {
+
+    } catch (error) {
       console.error("Error in handleProductFormSubmit:", error);
-      if (error instanceof Error) {
-        toast({ title: "Lỗi lưu sản phẩm", description: error.message, variant: "destructive"});
-      } else {
-        toast({ title: "Lỗi không xác định", description: "Không thể lưu sản phẩm.", variant: "destructive"});
-      }
+      const errorMessage = error instanceof Error ? error.message : "Đã xảy ra lỗi không xác định.";
+      toast({ title: "Lỗi lưu sản phẩm", description: errorMessage, variant: "destructive" });
       return false; // Indicate failure
     }
-  }, [inventory, toast]);
+  }, [inventory, toast, currentEditingProduct]);
 
   const handleDeleteProductFromAnywhere = useCallback(async (productId: string) => {
     if (!hasFullAccessRights) {
@@ -1442,7 +1472,26 @@ export default function FleurManagerPage() {
   const handleUpdateDebtStatus = useCallback(async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', employeeId: string, employeeName: string, isUndoOperation: boolean = false) => { try { const debtRef = ref(db, `debts/${debtId}`); const snapshot = await get(debtRef); if (!snapshot.exists()) { toast({ title: "Lỗi", description: "Không tìm thấy công nợ.", variant: "destructive" }); return; } const originalDebt = snapshot.val() as Debt; const originalStatus = originalDebt.status; const updates: { [key: string]: any } = {}; updates[`debts/${debtId}/status`] = newStatus; if (!isUndoOperation) { updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ'; } else { updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ'; } if (originalDebt.invoiceId) { const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`); const invoiceSnapshot = await get(invoiceRef); if (invoiceSnapshot.exists()) { const currentInvoice = invoiceSnapshot.val() as Invoice; if (newStatus === 'Đã thanh toán' && !isUndoOperation) { updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0; updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total; } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) { updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount; updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total - originalDebt.amount; } } else { console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`); } } await update(ref(db), updates); if (!isUndoOperation) { toast({ title: "Thành công", description: "Trạng thái công nợ đã được cập nhật.", variant: "default", }); } else { toast({ title: "Hoàn tác thành công", description: `Trạng thái công nợ đã được đổi lại thành "${originalStatus}".`, variant: "default", }); } } catch (error) { console.error("Error updating debt status:", error); toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" }); } }, [toast]);
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!name.trim()) { toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" }); return; } try { const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_'); if (sanitizedName !== name.trim()) { toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" }); } if (!sanitizedName) { toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" }); return; } await set(ref(db, `productOptions/${type}/${sanitizedName}`), true); toast({ title: "Thành công", description: `Tùy chọn ${sanitizedName} đã được thêm.`, variant: "default" }); } catch (error) { console.error(`Error adding product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa tùy chọn sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast, hasFullAccessRights]);
-  const handleSaveShopInfo = useCallback(async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } }, [toast, hasFullAccessRights]);
+  
+  const handleSaveShopInfo = useCallback(async (newInfo: ShopInfo, logoFile: File | null) => {
+    if (!hasFullAccessRights) {
+        toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
+        throw new Error("Permission denied");
+    }
+    try {
+        let infoToSave = { ...newInfo };
+        if (logoFile) {
+            const newLogoUrl = await uploadImageAndGetURL(logoFile, 'logos');
+            infoToSave.logoUrl = newLogoUrl;
+        }
+        await set(ref(db, 'shopInfo'), infoToSave);
+        toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." });
+    } catch (error: any) {
+        console.error("Error updating shop info:", error);
+        throw error; // Re-throw to be caught by the calling component
+    }
+  }, [toast, hasFullAccessRights]);
+
   const handleSignOut = useCallback(async () => {
     try {
       await signOut();
@@ -1453,6 +1502,7 @@ export default function FleurManagerPage() {
       toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" });
     }
   }, [signOut, router, toast]);
+
   const handleNameSet = useCallback(async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } }, [currentUser, updateUserProfileName, toast]);
 
   const handleDeleteDebt = useCallback((debtId: string) => {
@@ -2082,6 +2132,7 @@ export default function FleurManagerPage() {
 
 
     
+
 
 
 

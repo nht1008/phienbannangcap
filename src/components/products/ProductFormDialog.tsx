@@ -19,13 +19,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { Product, ProductFormData } from '@/types'; // Using ProductFormData
 import { UploadCloud } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { uploadImageAndGetURL } from '@/lib/firebase';
 import { initialProductFormData } from '@/types';
 
 interface ProductFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (productData: Omit<Product, 'id'>, isEditMode: boolean, productId?: string) => Promise<boolean>;
+  onSubmit: (formData: ProductFormData, imageFile: File | null, isEditMode: boolean, productId?: string) => Promise<boolean>;
   initialData?: Product | null;
   productNameOptions: string[];
   colorOptions: string[];
@@ -147,43 +146,14 @@ export function ProductFormDialog({
 
     setIsSubmitting(true);
     try {
-      let finalImageUrl = formState.image; // Start with the current state image URL
-      if (isEditMode && initialData) {
-        finalImageUrl = initialData.image; // For edits, default to the existing image
-      }
-
-      if (imageFile) {
-        finalImageUrl = await uploadImageAndGetURL(imageFile, 'product_images');
-      }
-
-      const productData: Omit<Product, 'id'> = {
-        name: formState.name,
-        quantity: quantityNum,
-        price: priceNum * 1000,
-        costPrice: costPriceNum * 1000,
-        image: finalImageUrl || `https://placehold.co/100x100.png`,
-        color: formState.color,
-        quality: formState.quality,
-        size: formState.size,
-        unit: formState.unit,
-        maxDiscountPerUnitVND: maxDiscountNum * 1000,
-      };
-      
-      const success = await onSubmit(productData, isEditMode, initialData?.id);
+      const success = await onSubmit(formState, imageFile, isEditMode, initialData?.id);
       if (success) {
         onClose();
       }
-    } catch(error: any) {
-      console.error("Error submitting product form:", error);
-      let errorMessage = "Đã có lỗi xảy ra khi lưu sản phẩm.";
-      if (error.code === 'storage/unauthorized') {
-        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền tải ảnh lên. Vui lòng kiểm tra lại quy tắc bảo mật của Firebase Storage.";
-      } else if (error.code === 'storage/unknown') {
-        errorMessage = "Lỗi không xác định từ Firebase Storage. Có thể do lỗi kết nối mạng hoặc cấu hình CORS.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      toast({ title: "Lỗi", description: errorMessage, variant: "destructive", duration: 7000});
+    } catch(error) {
+      // This catch is a fallback, but the main error handling is now in page.tsx
+      console.error("Error in ProductFormDialog submit wrapper:", error);
+      toast({ title: "Lỗi", description: "Đã xảy ra lỗi không thể đoán trước.", variant: "destructive"});
     } finally {
       setIsSubmitting(false);
     }

@@ -19,7 +19,6 @@ import { Separator } from "@/components/ui/separator";
 import type { ShopInfo } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud } from 'lucide-react';
-import { uploadImageAndGetURL } from '@/lib/firebase';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 export type OverallFontSize = 'sm' | 'md' | 'lg';
@@ -49,7 +48,7 @@ interface SettingsDialogProps {
   numericDisplaySize: NumericDisplaySize;
   onNumericDisplaySizeChange: (size: NumericDisplaySize) => void;
   shopInfo: ShopInfo | null;
-  onSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
+  onSaveShopInfo: (newInfo: ShopInfo, logoFile: File | null) => Promise<void>;
   hasAdminOrManagerRights: boolean; // Changed from isAdmin
   isLoadingShopInfo: boolean;
 }
@@ -138,14 +137,9 @@ export function SettingsDialog({
     }
     setIsSavingShopInfo(true);
     try {
-      let infoToSave = { ...editableShopInfo };
-      if (logoFile) {
-        const newLogoUrl = await uploadImageAndGetURL(logoFile, 'logos');
-        infoToSave.logoUrl = newLogoUrl;
-      }
-      await onSaveShopInfo(infoToSave);
+      await onSaveShopInfo(editableShopInfo, logoFile);
       setLogoFile(null);
-      // Let the parent handle closing on success
+      // The parent's onSaveShopInfo is now responsible for showing success toast and closing
     } catch (error: any) {
       console.error("Error updating shop info:", error);
       let errorMessage = "Không thể cập nhật thông tin cửa hàng.";

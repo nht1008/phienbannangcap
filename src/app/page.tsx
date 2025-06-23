@@ -814,7 +814,6 @@ export default function FleurManagerPage() {
   }, []);
 
   const handleProductFormSubmit = useCallback(async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string) => {
-    // No try-catch here. Let errors propagate up to the dialog component.
     const isDuplicate = inventory.some(p =>
       (isEdit ? p.id !== productId : true) &&
       p.name === productData.name &&
@@ -825,7 +824,6 @@ export default function FleurManagerPage() {
     );
 
     if (isDuplicate) {
-      // Throw an error that will be caught by the calling component's catch block.
       throw new Error("Sản phẩm đã tồn tại với các thuộc tính y hệt.");
     }
     
@@ -837,9 +835,7 @@ export default function FleurManagerPage() {
       await set(newProductRef, productData);
       toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
     }
-    // This will only be called on success.
-    handleCloseProductFormDialog();
-  }, [inventory, toast, handleCloseProductFormDialog]);
+  }, [inventory, toast]);
 
   const handleDeleteProductFromAnywhere = useCallback(async (productId: string) => {
     if (!hasFullAccessRights) {
@@ -2072,4 +2068,5 @@ export default function FleurManagerPage() {
 
 
     
+
 

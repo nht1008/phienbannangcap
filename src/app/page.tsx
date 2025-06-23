@@ -814,38 +814,31 @@ export default function FleurManagerPage() {
   }, []);
 
   const handleProductFormSubmit = useCallback(async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string) => {
-    try {
-      const isDuplicate = inventory.some(p =>
-        (isEdit ? p.id !== productId : true) &&
-        p.name === productData.name &&
-        p.color === productData.color &&
-        p.quality === productData.quality &&
-        p.size === productData.size &&
-        p.unit === productData.unit
-      );
+    // No try-catch here. Let errors propagate up to the dialog component.
+    const isDuplicate = inventory.some(p =>
+      (isEdit ? p.id !== productId : true) &&
+      p.name === productData.name &&
+      p.color === productData.color &&
+      p.quality === productData.quality &&
+      p.size === productData.size &&
+      p.unit === productData.unit
+    );
 
-      if (isDuplicate) {
-        toast({
-          title: "Sản phẩm đã tồn tại",
-          description: "Trong danh sách sản phẩm đã có sản phẩm với các thuộc tính y hệt.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (isEdit && productId) {
-        await update(ref(db, `inventory/${productId}`), productData);
-        toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });
-      } else {
-        const newProductRef = push(ref(db, 'inventory'));
-        await set(newProductRef, productData);
-        toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
-      }
-      handleCloseProductFormDialog();
-    } catch (error) {
-      console.error("Error saving product:", error);
-      toast({ title: "Lỗi", description: "Không thể lưu sản phẩm. Vui lòng thử lại.", variant: "destructive" });
+    if (isDuplicate) {
+      // Throw an error that will be caught by the calling component's catch block.
+      throw new Error("Sản phẩm đã tồn tại với các thuộc tính y hệt.");
     }
+    
+    if (isEdit && productId) {
+      await update(ref(db, `inventory/${productId}`), productData);
+      toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });
+    } else {
+      const newProductRef = push(ref(db, 'inventory'));
+      await set(newProductRef, productData);
+      toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
+    }
+    // This will only be called on success.
+    handleCloseProductFormDialog();
   }, [inventory, toast, handleCloseProductFormDialog]);
 
   const handleDeleteProductFromAnywhere = useCallback(async (productId: string) => {
@@ -887,46 +880,14 @@ export default function FleurManagerPage() {
   }, [hasFullAccessRights, toast]);
 
   useEffect(() => {
-    const savedTab = localStorage.getItem('fleur-manager-active-tab') as TabName | null;
-    if (savedTab) setActiveTab(savedTab);
-    
     const savedFontSize = localStorage.getItem('fleur-manager-font-size') as OverallFontSize | null;
     if (savedFontSize && ['sm', 'md', 'lg'].includes(savedFontSize)) setOverallFontSize(savedFontSize);
     
     const savedNumericSize = localStorage.getItem('fleur-manager-numeric-size') as NumericDisplaySize | null;
     const validSizes: NumericDisplaySize[] = ['text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
     if (savedNumericSize && validSizes.includes(savedNumericSize)) setNumericDisplaySize(savedNumericSize);
-    
-    try {
-      const savedCart = localStorage.getItem('fleur-manager-cart');
-      if (savedCart) setCart(JSON.parse(savedCart));
-    } catch (error) {
-      console.error("Failed to parse cart from localStorage on initial load", error);
-    }
   }, []);
   
-  useEffect(() => {
-    localStorage.setItem('fleur-manager-active-tab', activeTab);
-  }, [activeTab]);
-
-  useEffect(() => {
-    try {
-        localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
-    } catch (error) {
-        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-            console.warn("localStorage quota exceeded. Cart will not be persisted if page is reloaded.");
-            toast({
-                title: "Bộ nhớ đệm đầy",
-                description: "Giỏ hàng của bạn quá lớn để lưu trữ. Nếu bạn tải lại trang, giỏ hàng có thể bị mất.",
-                variant: "destructive",
-                duration: 10000
-            });
-        } else {
-            console.error("Failed to save cart to localStorage", error);
-        }
-    }
-  }, [cart, toast]);
-
   useEffect(() => {
     document.documentElement.setAttribute('data-overall-font-size', overallFontSize);
     localStorage.setItem('fleur-manager-font-size', overallFontSize);
@@ -2111,3 +2072,4 @@ export default function FleurManagerPage() {
 
 
     
+

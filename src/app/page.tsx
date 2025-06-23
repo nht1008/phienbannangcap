@@ -964,8 +964,10 @@ export default function FleurManagerPage() {
 
   useEffect(() => {
     if (!currentUser) return;
+
+    // Set up real-time listener for inventory
     const inventoryRef = ref(db, 'inventory');
-    get(inventoryRef).then(snapshot => {
+    const unsubInventory = onValue(inventoryRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
@@ -973,7 +975,10 @@ export default function FleurManagerPage() {
       } else {
         setInventory([]);
       }
-    }).catch(error => console.error("Error fetching inventory once:", error));
+    }, (error) => {
+      console.error("Error fetching inventory data:", error);
+      toast({ title: "Lỗi tải dữ liệu", description: "Không thể tải dữ liệu kho hàng.", variant: "destructive" });
+    });
 
     const customersRef = ref(db, 'customers');
     const unsubCustomers = onValue(customersRef, (snapshot) => {
@@ -994,8 +999,13 @@ export default function FleurManagerPage() {
     const storefrontRef = ref(db, 'storefrontProducts');
     const unsubStorefront = onValue(storefrontRef, (snapshot) => { const data = snapshot.val(); setStorefrontProductIds(data || {}); });
     
-    return () => { unsubCustomers(); unsubOrders(); unsubStorefront(); };
-  }, [currentUser]);
+    return () => { 
+      unsubInventory();
+      unsubCustomers(); 
+      unsubOrders(); 
+      unsubStorefront(); 
+    };
+  }, [currentUser, toast]);
   
   useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); get(invoicesRef).then(snapshot => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }).catch(error => console.error("Error fetching invoices once:", error)); }, [currentUser]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); get(debtsRef).then(snapshot => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }).catch(error => console.error("Error fetching debts once:", error)); }, [currentUser, isCurrentUserCustomer]);
@@ -1085,31 +1095,9 @@ export default function FleurManagerPage() {
   const handleUpdateCustomer = useCallback(async (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => { try { await update(ref(db, `customers/${customerId}`), updatedCustomerData); toast({ title: "Thành công", description: "Thông tin khách hàng đã được cập nhật.", variant: "default" }); } catch (error) { console.error("Error updating customer:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast]);
   const handleDeleteCustomer = useCallback(async (customerId: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa khách hàng.", variant: "destructive" }); return; } try { await remove(ref(db, `customers/${customerId}`)); toast({ title: "Thành công", description: "Khách hàng đã được xóa.", variant: "default" }); } catch (error) { console.error("Error deleting customer:", error); toast({ title: "Lỗi", description: "Không thể xóa khách hàng. Vui lòng thử lại.", variant: "destructive" }); } }, [toast, hasFullAccessRights]);
 
-  const onAddToCart = useCallback((item: Product) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
-    const stockItem = inventory.find(i => i.id === item.id);
-
-    if (!stockItem || stockItem.quantity <= 0) {
-      toast({ title: "Hết hàng", description: `Sản phẩm "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" đã hết hàng!`, variant: "destructive" });
-      return;
-    }
-
-    if (existingItem) {
-      if (existingItem.quantityInCart < stockItem.quantity) {
-        setCart(prevCart => prevCart.map(cartItem =>
-          cartItem.id === item.id ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 } : cartItem
-        ));
-      } else {
-        toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, variant: "destructive" });
-      }
-    } else {
-      setCart(prevCart => [...prevCart, { ...item, quantityInCart: 1, itemDiscount: 0, maxDiscountPerUnitVND: stockItem.maxDiscountPerUnitVND }]);
-    }
-  }, [cart, inventory, toast, setCart]);
-
   const onRemoveFromCart = useCallback((itemId: string) => {
     setCart(prevCart => prevCart.filter(item => item.id !== itemId));
-  }, [setCart]);
+  }, []);
 
   const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
     if (newQuantityStr.trim() === '') {
@@ -1142,7 +1130,28 @@ export default function FleurManagerPage() {
     } else {
       setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
-  }, [inventory, toast, setCart, onRemoveFromCart]);
+  }, [inventory, toast, onRemoveFromCart]);
+
+  const onAddToCart = useCallback((item: Product) => {
+    const existingItem = cart.find(cartItem => cartItem.id === item.id);
+    const stockItem = inventory.find(i => i.id === item.id);
+
+    if (!stockItem || stockItem.quantity <= 0) {
+      toast({ title: "Hết hàng", description: `Sản phẩm "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" đã hết hàng!`, variant: "destructive" });
+      return;
+    }
+
+    if (existingItem) {
+      const newQuantityInCart = existingItem.quantityInCart + 1;
+      if (newQuantityInCart <= stockItem.quantity) {
+        onUpdateCartQuantity(item.id, newQuantityInCart.toString());
+      } else {
+        toast({ title: "Số lượng tối đa", description: `Không đủ số lượng "${item.name} ${item.color} ${item.quality} ${item.size} ${item.unit}" trong kho (Còn: ${stockItem.quantity}).`, variant: "destructive" });
+      }
+    } else {
+      setCart(prevCart => [...prevCart, { ...item, quantityInCart: 1, itemDiscount: 0, maxDiscountPerUnitVND: stockItem.maxDiscountPerUnitVND }]);
+    }
+  }, [cart, inventory, toast, onUpdateCartQuantity]);
 
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     let inputWasInvalid = false;
@@ -1183,9 +1192,9 @@ export default function FleurManagerPage() {
         )
     );
     return inputWasInvalid;
-  }, [cart, toast, setCart]);
+  }, [cart, toast]);
 
-  const onClearCart = useCallback(() => { setCart([]); }, [setCart]);
+  const onClearCart = useCallback(() => { setCart([]); }, []);
   const handleCreateInvoice = useCallback(async (customerName: string, invoiceCartItems: CartItem[], subtotalAfterItemDiscounts: number, paymentMethod: string, amountPaid: number, isGuestCustomer: boolean, employeeId: string, employeeName: string) => {
     try {
       const finalTotal = subtotalAfterItemDiscounts;
@@ -1970,3 +1979,6 @@ export default function FleurManagerPage() {
 
     
 
+
+
+    

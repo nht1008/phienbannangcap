@@ -48,13 +48,10 @@ interface SettingsDialogProps {
   numericDisplaySize: NumericDisplaySize;
   onNumericDisplaySizeChange: (size: NumericDisplaySize) => void;
   shopInfo: ShopInfo | null;
-  onSaveShopInfo: (newInfo: ShopInfo, logoFile: File | null) => Promise<void>;
+  onSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
   hasAdminOrManagerRights: boolean; // Changed from isAdmin
   isLoadingShopInfo: boolean;
 }
-
-const MAX_LOGO_SIZE_MB = 2;
-const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
 export function SettingsDialog({
   isOpen,
@@ -71,8 +68,6 @@ export function SettingsDialog({
   const [currentOverallSize, setCurrentOverallSize] = useState<OverallFontSize>(overallFontSize);
   const [currentNumericSize, setCurrentNumericSize] = useState<NumericDisplaySize>(numericDisplaySize);
   const [editableShopInfo, setEditableShopInfo] = useState<ShopInfo>(shopInfo || defaultShopInfo);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSavingShopInfo, setIsSavingShopInfo] = useState(false);
   const { toast } = useToast();
 
@@ -83,8 +78,6 @@ export function SettingsDialog({
     if (isOpen && !prevIsOpen.current) {
       const info = shopInfo || defaultShopInfo;
       setEditableShopInfo(info);
-      setLogoPreview(info.logoUrl);
-      setLogoFile(null);
     }
     prevIsOpen.current = isOpen;
   }, [isOpen, shopInfo]);
@@ -109,26 +102,6 @@ export function SettingsDialog({
     setEditableShopInfo(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_LOGO_SIZE_BYTES) {
-        toast({
-          title: "Lỗi tải ảnh",
-          description: `Kích thước file không được vượt quá ${MAX_LOGO_SIZE_MB}MB.`,
-          variant: "destructive",
-        });
-        e.target.value = ""; // Clear the input
-        return;
-      }
-      setLogoFile(file);
-      setLogoPreview(URL.createObjectURL(file));
-    } else {
-       setLogoFile(null);
-       setLogoPreview(editableShopInfo.logoUrl);
-    }
-  };
-
   const handleSaveShopInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasAdminOrManagerRights) { // Changed from isAdmin
@@ -137,17 +110,11 @@ export function SettingsDialog({
     }
     setIsSavingShopInfo(true);
     try {
-      await onSaveShopInfo(editableShopInfo, logoFile);
-      setLogoFile(null);
-      // The parent's onSaveShopInfo is now responsible for showing success toast and closing
+      await onSaveShopInfo(editableShopInfo);
     } catch (error: any) {
       console.error("Error updating shop info:", error);
       let errorMessage = "Không thể cập nhật thông tin cửa hàng.";
-      if (error.code === 'storage/unauthorized') {
-        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền tải ảnh lên. Vui lòng kiểm tra lại quy tắc bảo mật của Firebase Storage.";
-      } else if (error.code === 'storage/unknown') {
-        errorMessage = "Lỗi không xác định từ Firebase Storage. Có thể do lỗi kết nối mạng hoặc cấu hình CORS.";
-      } else if (error.message) {
+      if (error.message) {
         errorMessage = error.message;
       }
       toast({ title: "Lỗi", description: errorMessage, variant: "destructive", duration: 7000 });
@@ -238,19 +205,20 @@ export function SettingsDialog({
                   </div>
                   
                   <div>
-                    <Label htmlFor="shopLogoFile" className="mb-1 block">Logo cửa hàng (Tối đa ${MAX_LOGO_SIZE_MB}MB)</Label>
+                    <Label htmlFor="shopLogoUrl" className="mb-1 block">URL Logo cửa hàng</Label>
                     <div className="flex items-center gap-4">
                         <Input 
-                            id="shopLogoFile" 
+                            id="shopLogoUrl" 
                             name="logoUrl" 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={handleLogoFileChange}
-                            className="bg-card flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                            type="url"
+                            placeholder="https://example.com/logo.png"
+                            value={editableShopInfo.logoUrl}
+                            onChange={handleShopInfoInputChange}
+                            className="bg-card flex-grow"
                         />
-                        {logoPreview ? (
+                        {editableShopInfo.logoUrl ? (
                             <Image
-                                src={logoPreview}
+                                src={editableShopInfo.logoUrl}
                                 alt="Xem trước logo"
                                 width={60}
                                 height={60}
@@ -258,7 +226,7 @@ export function SettingsDialog({
                                 data-ai-hint="shop logo"
                                 onError={(e) => {
                                     const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none'; // Hide broken image
+                                    target.src = 'https://placehold.co/60x60.png';
                                 }}
                             />
                         ) : (

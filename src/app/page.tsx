@@ -93,7 +93,7 @@ import {
   useSidebar
 } from '@/components/ui/sidebar';
 import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, Store, Pencil, Trash2, PlusCircle, MoreHorizontal } from 'lucide-react';
-import { db, uploadImageAndGetURL } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
 
@@ -252,7 +252,7 @@ interface FleurManagerLayoutContentProps {
   handleUpdateCustomer: (customerId: string, updatedCustomerData: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string }) => Promise<void>;
   handleDeleteCustomer: (customerId: string) => Promise<void>;
   handleDeleteDebt: (debtId: string) => void;
-  handleSaveShopInfo: (newInfo: ShopInfo, logoFile: File | null) => Promise<void>;
+  handleSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
   handleSignOut: () => Promise<void>;
   signIn: (email: string, pass: string) => Promise<User | null>;
   onAddToCart: (item: Product) => void;
@@ -806,18 +806,12 @@ export default function FleurManagerPage() {
 
   const handleProductFormSubmit = useCallback(async (
     formData: ProductFormData,
-    imageFile: File | null,
     isEdit: boolean,
     productId?: string
   ): Promise<boolean> => {
     try {
-      // Step 1: Handle image upload first
-      let imageUrl = isEdit && currentEditingProduct ? currentEditingProduct.image : '';
-      if (imageFile) {
-        imageUrl = await uploadImageAndGetURL(imageFile, 'product_images');
-      }
-
-      // Step 2: Prepare product data from form data
+      const imageUrl = formData.image || `https://placehold.co/100x100.png`;
+      
       const priceNum = parseFloat(formData.price);
       const costPriceNum = parseFloat(formData.costPrice);
       const maxDiscountNum = parseFloat(formData.maxDiscountPerUnitVND) || 0;
@@ -832,11 +826,10 @@ export default function FleurManagerPage() {
         quantity: quantityNum,
         price: priceNum * 1000,
         costPrice: costPriceNum * 1000,
-        image: imageUrl || `https://placehold.co/100x100.png`,
+        image: imageUrl,
         maxDiscountPerUnitVND: maxDiscountNum * 1000,
       };
 
-      // Step 3: Duplicate check
       const isDuplicate = inventory.some(p =>
         (isEdit ? p.id !== productId : true) &&
         p.name === productData.name &&
@@ -850,7 +843,6 @@ export default function FleurManagerPage() {
         throw new Error("Sản phẩm đã tồn tại với các thuộc tính y hệt.");
       }
 
-      // Step 4: Write to database
       if (isEdit && productId) {
         await update(ref(db, `inventory/${productId}`), productData);
         toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });
@@ -859,15 +851,15 @@ export default function FleurManagerPage() {
         await set(newProductRef, productData);
         toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
       }
-      return true; // Indicate success
+      return true;
 
     } catch (error) {
       console.error("Error in handleProductFormSubmit:", error);
       const errorMessage = error instanceof Error ? error.message : "Đã xảy ra lỗi không xác định.";
       toast({ title: "Lỗi lưu sản phẩm", description: errorMessage, variant: "destructive" });
-      return false; // Indicate failure
+      return false;
     }
-  }, [inventory, toast, currentEditingProduct]);
+  }, [inventory, toast]);
 
   const handleDeleteProductFromAnywhere = useCallback(async (productId: string) => {
     if (!hasFullAccessRights) {
@@ -1473,22 +1465,17 @@ export default function FleurManagerPage() {
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!name.trim()) { toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" }); return; } try { const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_'); if (sanitizedName !== name.trim()) { toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" }); } if (!sanitizedName) { toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" }); return; } await set(ref(db, `productOptions/${type}/${sanitizedName}`), true); toast({ title: "Thành công", description: `Tùy chọn ${sanitizedName} đã được thêm.`, variant: "default" }); } catch (error) { console.error(`Error adding product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa tùy chọn sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast, hasFullAccessRights]);
   
-  const handleSaveShopInfo = useCallback(async (newInfo: ShopInfo, logoFile: File | null) => {
+  const handleSaveShopInfo = useCallback(async (newInfo: ShopInfo) => {
     if (!hasFullAccessRights) {
         toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
         throw new Error("Permission denied");
     }
     try {
-        let infoToSave = { ...newInfo };
-        if (logoFile) {
-            const newLogoUrl = await uploadImageAndGetURL(logoFile, 'logos');
-            infoToSave.logoUrl = newLogoUrl;
-        }
-        await set(ref(db, 'shopInfo'), infoToSave);
+        await set(ref(db, 'shopInfo'), newInfo);
         toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." });
     } catch (error: any) {
         console.error("Error updating shop info:", error);
-        throw error; // Re-throw to be caught by the calling component
+        throw error; 
     }
   }, [toast, hasFullAccessRights]);
 
@@ -2132,6 +2119,7 @@ export default function FleurManagerPage() {
 
 
     
+
 
 
 

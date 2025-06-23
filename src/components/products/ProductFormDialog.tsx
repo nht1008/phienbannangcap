@@ -24,7 +24,7 @@ import { initialProductFormData } from '@/types';
 interface ProductFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (formData: ProductFormData, imageFile: File | null, isEditMode: boolean, productId?: string) => Promise<boolean>;
+  onSubmit: (formData: ProductFormData, isEditMode: boolean, productId?: string) => Promise<boolean>;
   initialData?: Product | null;
   productNameOptions: string[];
   colorOptions: string[];
@@ -47,19 +47,13 @@ export function ProductFormDialog({
   isEditMode,
 }: ProductFormDialogProps) {
   const [formState, setFormState] = useState<ProductFormData>(initialProductFormData);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   
   const prevIsOpen = useRef(isOpen);
 
   useEffect(() => {
-    // Only initialize the form when the dialog is newly opened
     if (isOpen && !prevIsOpen.current) {
-      const placeholderImage = `https://placehold.co/100x100.png`;
-      setImageFile(null); // Reset file every time it's newly opened
-      
       if (isEditMode && initialData) {
         const populatedFormState: ProductFormData = {
           name: initialData.name,
@@ -70,11 +64,10 @@ export function ProductFormDialog({
           quantity: initialData.quantity.toString(),
           price: (initialData.price / 1000).toString(),
           costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : '',
-          image: initialData.image || placeholderImage,
+          image: initialData.image || '',
           maxDiscountPerUnitVND: initialData.maxDiscountPerUnitVND ? (initialData.maxDiscountPerUnitVND / 1000).toString() : '0',
         };
         setFormState(populatedFormState);
-        setImagePreview(initialData.image || placeholderImage);
       } else {
         const newProductDefaultState: ProductFormData = {
           name: productNameOptions.length > 0 ? productNameOptions[0] : '',
@@ -85,15 +78,13 @@ export function ProductFormDialog({
           quantity: '1',
           price: '',
           costPrice: '',
-          image: placeholderImage,
+          image: '',
           maxDiscountPerUnitVND: '0',
         };
         setFormState(newProductDefaultState);
-        setImagePreview(newProductDefaultState.image);
       }
     }
     
-    // Update the ref to the current value for the next render
     prevIsOpen.current = isOpen;
   }, [isOpen, isEditMode, initialData, productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions]);
 
@@ -105,23 +96,6 @@ export function ProductFormDialog({
 
   const handleSelectChange = (fieldName: keyof ProductFormData, value: string) => {
     setFormState(prev => ({ ...prev, [fieldName]: value }));
-  };
-
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: "Lỗi", description: "Kích thước file ảnh không được vượt quá 5MB.", variant: "destructive" });
-        e.target.value = "";
-        return;
-      }
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    } else {
-      setImageFile(null);
-      // Don't reset preview to default if there was an existing image
-      setImagePreview(isEditMode && initialData?.image ? initialData.image : 'https://placehold.co/100x100.png');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,12 +120,11 @@ export function ProductFormDialog({
 
     setIsSubmitting(true);
     try {
-      const success = await onSubmit(formState, imageFile, isEditMode, initialData?.id);
+      const success = await onSubmit(formState, isEditMode, initialData?.id);
       if (success) {
         onClose();
       }
     } catch(error) {
-      // This catch is a fallback, but the main error handling is now in page.tsx
       console.error("Error in ProductFormDialog submit wrapper:", error);
       toast({ title: "Lỗi", description: "Đã xảy ra lỗi không thể đoán trước.", variant: "destructive"});
     } finally {
@@ -265,20 +238,22 @@ export function ProductFormDialog({
               <Input id="prodForm-maxDiscount" type="number" name="maxDiscountPerUnitVND" placeholder="Mặc định là 0" value={formState.maxDiscountPerUnitVND} onChange={handleInputChange} min="0" step="any" className="bg-card"/>
           </div>
           
-          <div className="md:col-span-2 flex flex-col">
-              <Label htmlFor="prodForm-imageFile" className="text-sm text-foreground mb-1">Hình ảnh sản phẩm</Label>
+          <div className="md:col-span-3 flex flex-col">
+              <Label htmlFor="prodForm-image" className="text-sm text-foreground mb-1">URL Hình ảnh</Label>
               <Input
-                  id="prodForm-imageFile"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageFileChange}
+                  id="prodForm-image"
+                  type="url"
+                  name="image"
+                  placeholder="https://example.com/image.png"
+                  value={formState.image}
+                  onChange={handleInputChange}
                   className="bg-card flex-grow"
               />
           </div>
-            {imagePreview && (
+            {formState.image && (
                 <div className="md:col-span-1 flex items-center justify-center">
                 <Image
-                    src={imagePreview}
+                    src={formState.image}
                     alt="Xem trước hình ảnh"
                     width={80}
                     height={80}
@@ -291,8 +266,6 @@ export function ProductFormDialog({
                 />
                 </div>
             )}
-            <div className="md:col-span-1 flex items-end">
-            </div>
 
 
           <DialogFooter className="md:col-span-4 mt-4">

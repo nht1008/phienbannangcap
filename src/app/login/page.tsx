@@ -109,11 +109,29 @@ export default function LoginPage() {
     setIsSendingResetEmail(true);
     try {
       await sendPasswordResetEmail(forgotPasswordEmail);
-      toast({ title: "Thành công", description: "Email đặt lại mật khẩu đã được gửi (nếu tài khoản tồn tại). Vui lòng kiểm tra hộp thư của bạn." });
+      toast({ 
+        title: "Yêu cầu đã được gửi", 
+        description: "Nếu tài khoản của bạn tồn tại, một email đặt lại mật khẩu sẽ được gửi đến. Vui lòng kiểm tra hộp thư (và cả mục Spam).",
+        duration: 7000
+      });
       setIsForgotPasswordOpen(false);
       setForgotPasswordEmail('');
     } catch (err: any) {
-      toast({ title: "Lỗi gửi email", description: err.message || "Không thể gửi email đặt lại mật khẩu.", variant: "destructive" });
+      console.error("Forgot password error:", err); // Added for better debugging
+      let errorMessage = "Không thể gửi email đặt lại mật khẩu.";
+      if (err.code === 'auth/invalid-email') {
+          errorMessage = "Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.";
+      } else if (err.code === 'auth/network-request-failed') {
+          errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra lại đường truyền.";
+      } else if (err.message) {
+          // Keep firebase's message if it's more specific but not one we handle
+          errorMessage = err.message;
+      }
+      toast({ 
+          title: "Lỗi gửi email", 
+          description: errorMessage, 
+          variant: "destructive" 
+      });
     } finally {
       setIsSendingResetEmail(false);
     }

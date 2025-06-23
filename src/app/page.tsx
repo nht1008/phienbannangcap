@@ -38,6 +38,7 @@ import { LoadingScreen } from '@/components/shared/LoadingScreen';
 import { LockScreen } from '@/components/shared/LockScreen';
 import { SettingsDialog, type OverallFontSize, type NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { CustomerCartSheet } from '@/components/orders/CustomerCartSheet';
+import { ProductOrderDialog } from '@/components/orders/ProductOrderDialog';
 import { cn } from '@/lib/utils';
 import { UserX, HelpCircle, Trophy, History } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
@@ -259,7 +260,7 @@ interface FleurManagerLayoutContentProps {
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
   onClearCart: () => void;
   onRemoveFromCart: (itemId: string) => void;
-  onAddToCartForCustomer: (product: Product) => void;
+  onAddToCartForCustomer: (product: Product, quantity: number, notes: string) => void;
   handleRevenueFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleInvoiceFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleDebtFilterChange: (newFilter: ActivityDateTimeFilter) => void;
@@ -284,6 +285,7 @@ interface FleurManagerLayoutContentProps {
   handleRemoveFromStorefront: (productId: string) => Promise<void>;
   setIsCartSheetOpen: (isOpen: boolean) => void;
   onOpenNoteEditor: (itemId: string) => void;
+  onSelectProductGroupForOrder: (productGroup: Product[]) => void;
 }
 
 function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
@@ -301,7 +303,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
     openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, 
-    handleAddToStorefront, handleRemoveFromStorefront, onOpenNoteEditor, setIsCartSheetOpen
+    handleAddToStorefront, handleRemoveFromStorefront, onOpenNoteEditor, setIsCartSheetOpen,
+    onSelectProductGroupForOrder
   } = props;
 
   const { open: sidebarStateOpen, toggleSidebar, isMobile } = useSidebar();
@@ -366,7 +369,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     onRemoveFromStorefront={handleRemoveFromStorefront}
                     hasFullAccessRights={hasFullAccessRights}
                     isCurrentUserCustomer={isCurrentUserCustomer}
-                    onAddToCart={onAddToCartForCustomer}
+                    onSelectProduct={onSelectProductGroupForOrder}
                   />,
     'Kho hàng': <InventoryTab
                     inventory={inventory}
@@ -415,7 +418,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     currentUser={currentUser}
                   />,
     'Hóa đơn': <InvoiceTab
-                  invoices={filteredInvoicesForInvoiceTab}
+                  invoices={filteredInvoicesForInvoiceTab || []}
                   onProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
                   filter={invoiceFilter}
                   onFilterChange={handleInvoiceFilterChange}
@@ -474,7 +477,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
       openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount,
-      handleAddToStorefront, handleRemoveFromStorefront
+      handleAddToStorefront, handleRemoveFromStorefront, onSelectProductGroupForOrder
   ]);
 
   return (
@@ -767,6 +770,9 @@ export default function FleurManagerPage() {
   const [editingNoteItemId, setEditingNoteItemId] = useState<string | null>(null);
   const [itemNoteContent, setItemNoteContent] = useState('');
 
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [selectedProductGroupForOrder, setSelectedProductGroupForOrder] = useState<Product[] | null>(null);
+
   const isCurrentUserAdmin = useMemo(() => currentUser?.email === ADMIN_EMAIL, [currentUser]);
   const currentUserEmployeeData = useMemo(() => employeesData.find(emp => emp.id === currentUser?.uid), [employeesData, currentUser]);
 
@@ -956,15 +962,43 @@ export default function FleurManagerPage() {
     return () => unsubscribe();
   }, [currentUser, isCurrentUserCustomer, toast]); // Reruns when role changes
 
+  useEffect(() => {
+    if (!currentUser) return;
+    const inventoryRef = ref(db, 'inventory');
+    get(inventoryRef).then(snapshot => {
+      const data = snapshot.val();
+      if (data) {
+        const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name)));
+      } else {
+        setInventory([]);
+      }
+    }).catch(error => console.error("Error fetching inventory once:", error));
 
-  useEffect(() => { if (!currentUser) return; const inventoryRef = ref(db, 'inventory'); const unsubscribe = onValue(inventoryRef, (snapshot) => { const data = snapshot.val(); if (data) { const inventoryArray: Product[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInventory(inventoryArray.sort((a,b) => b.name.localeCompare(a.name))); } else { setInventory([]); } }); return () => unsubscribe(); }, [currentUser]);
-  useEffect(() => { if (!currentUser) return; const customersRef = ref(db, 'customers'); const unsubscribe = onValue(customersRef, (snapshot) => { const data = snapshot.val(); if (data) { const customersArray: Customer[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setCustomersData(customersArray.sort((a,b) => a.name.localeCompare(b.name))); } else { setCustomersData([]); } }); return () => unsubscribe(); }, [currentUser]);
-  useEffect(() => { if (!currentUser) return; const ordersRef = ref(db, 'orders'); const unsubscribe = onValue(ordersRef, (snapshot) => { const data = snapshot.val(); if (data) { const loadedOrders: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setOrdersData(loadedOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())); } else { setOrdersData([]); } }); return () => unsubscribe(); }, [currentUser]);
-  useEffect(() => { if (!currentUser) return; const storefrontRef = ref(db, 'storefrontProducts'); const unsubscribe = onValue(storefrontRef, (snapshot) => { const data = snapshot.val(); setStorefrontProductIds(data || {}); }); return () => unsubscribe(); }, [currentUser]);
+    const customersRef = ref(db, 'customers');
+    const unsubCustomers = onValue(customersRef, (snapshot) => {
+        const data = snapshot.val(); if (data) { const customersArray: Customer[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setCustomersData(customersArray.sort((a,b) => a.name.localeCompare(b.name))); } else { setCustomersData([]); }
+    });
 
+    const ordersRef = ref(db, 'orders');
+    const unsubOrders = onValue(ordersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const loadedOrders: Order[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        setOrdersData(loadedOrders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()));
+      } else {
+        setOrdersData([]);
+      }
+    });
+
+    const storefrontRef = ref(db, 'storefrontProducts');
+    const unsubStorefront = onValue(storefrontRef, (snapshot) => { const data = snapshot.val(); setStorefrontProductIds(data || {}); });
+    
+    return () => { unsubCustomers(); unsubOrders(); unsubStorefront(); };
+  }, [currentUser]);
   
-  useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); const unsubscribe = onValue(invoicesRef, (snapshot) => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }); return () => unsubscribe(); }, [currentUser]);
-  useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); const unsubscribe = onValue(debtsRef, (snapshot) => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }); return () => unsubscribe(); }, [currentUser, isCurrentUserCustomer]);
+  useEffect(() => { if (!currentUser) return; const invoicesRef = ref(db, 'invoices'); get(invoicesRef).then(snapshot => { const data = snapshot.val(); if (data) { const invoicesArray: Invoice[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setInvoicesData(invoicesArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setInvoicesData([]); } }).catch(error => console.error("Error fetching invoices once:", error)); }, [currentUser]);
+  useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const debtsRef = ref(db, 'debts'); get(debtsRef).then(snapshot => { const data = snapshot.val(); if (data) { const debtsArray: Debt[] = Object.keys(data).map(key => ({ id: key, ...data[key] })); setDebtsData(debtsArray.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())); } else { setDebtsData([]); } }).catch(error => console.error("Error fetching debts once:", error)); }, [currentUser, isCurrentUserCustomer]);
   useEffect(() => { if (!currentUser || isCurrentUserCustomer) return; const productNamesRef = ref(db, 'productOptions/productNames'); const colorsRef = ref(db, 'productOptions/colors'); const qualitiesRef = ref(db, 'productOptions/qualities'); const sizesRef = ref(db, 'productOptions/sizes'); const unitsRef = ref(db, 'productOptions/units'); const unsubProductNames = onValue(productNamesRef, (snapshot) => { if (snapshot.exists()) { setProductNameOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductNameOptions([]); } }); const unsubColors = onValue(colorsRef, (snapshot) => { if (snapshot.exists()) { setColorOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setColorOptions([]); } }); const unsubQualities = onValue(qualitiesRef, (snapshot) => { if (snapshot.exists()) { setProductQualityOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setProductQualityOptions([]); } }); const unsubSizes = onValue(sizesRef, (snapshot) => { if (snapshot.exists()) { setSizeOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setSizeOptions([]); } }); const unsubUnits = onValue(unitsRef, (snapshot) => { if (snapshot.exists()) { setUnitOptions(Object.keys(snapshot.val()).sort((a, b) => a.localeCompare(b))); } else { setUnitOptions([]); } }); return () => { unsubProductNames(); unsubColors(); unsubQualities(); unsubSizes(); unsubUnits(); }; }, [currentUser, isCurrentUserCustomer]);
   
   // Effect for ShopInfo (for all logged-in users)
@@ -1013,7 +1047,7 @@ export default function FleurManagerPage() {
         return;
     }
     const disposalLogRef = ref(db, 'disposalLog');
-    const unsubscribeDisposalLog = onValue(disposalLogRef, (snapshot) => {
+    get(disposalLogRef).then(snapshot => {
       const data = snapshot.val();
       const loadedEntries: DisposalLogEntry[] = [];
       if (data) {
@@ -1022,8 +1056,7 @@ export default function FleurManagerPage() {
         });
       }
       setDisposalLogEntries(loadedEntries.sort((a,b) => new Date(b.disposalDate).getTime() - new Date(a.disposalDate).getTime()));
-    });
-    return () => unsubscribeDisposalLog();
+    }).catch(error => console.error("Error fetching disposal log once:", error));
   }, [isCurrentUserCustomer, currentUser]);
 
   const handleRevenueFilterChange = useCallback((newFilter: ActivityDateTimeFilter) => setRevenueFilter(newFilter), []);
@@ -1074,6 +1107,10 @@ export default function FleurManagerPage() {
     }
   }, [cart, inventory, toast, setCart]);
 
+  const onRemoveFromCart = useCallback((itemId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+  }, [setCart]);
+
   const onUpdateCartQuantity = useCallback((itemId: string, newQuantityStr: string) => {
     if (newQuantityStr.trim() === '') {
         setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: 0 } : item));
@@ -1083,7 +1120,7 @@ export default function FleurManagerPage() {
     const newQuantity = parseInt(newQuantityStr, 10);
     
     if (newQuantity === 0) {
-        setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+        onRemoveFromCart(itemId);
         return;
     }
 
@@ -1095,7 +1132,7 @@ export default function FleurManagerPage() {
 
     if (!stockItem) {
         toast({ title: "Sản phẩm không tồn tại", description: "Sản phẩm này đã bị xóa khỏi kho.", variant: "destructive" });
-        setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+        onRemoveFromCart(itemId);
         return;
     }
 
@@ -1105,11 +1142,7 @@ export default function FleurManagerPage() {
     } else {
       setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
-  }, [inventory, toast, setCart]);
-
-  const onRemoveFromCart = useCallback((itemId: string) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== itemId));
-  }, [setCart]);
+  }, [inventory, toast, setCart, onRemoveFromCart]);
 
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     let inputWasInvalid = false;
@@ -1593,7 +1626,7 @@ export default function FleurManagerPage() {
     }
   }, [toast, hasFullAccessRights]);
 
-  const onAddToCartForCustomer = useCallback((product: Product) => {
+  const onAddToCartForCustomer = useCallback((product: Product, quantity: number, notes: string) => {
       if (product.quantity <= 0) {
           toast({ title: "Hết hàng", description: `Sản phẩm "${product.name}" đã hết hàng!`, variant: "destructive" });
           return;
@@ -1601,10 +1634,11 @@ export default function FleurManagerPage() {
       setCustomerCart(prevCart => {
           const existingItem = prevCart.find(cartItem => cartItem.id === product.id);
           if (existingItem) {
-              if (existingItem.quantityInCart < product.quantity) {
-                   return prevCart.map(cartItem => 
-                      cartItem.id === product.id 
-                          ? { ...cartItem, quantityInCart: cartItem.quantityInCart + 1 }
+              const newQuantity = existingItem.quantityInCart + quantity;
+              if (newQuantity <= product.quantity) {
+                  return prevCart.map(cartItem =>
+                      cartItem.id === product.id
+                          ? { ...cartItem, quantityInCart: newQuantity, notes: notes || cartItem.notes }
                           : cartItem
                   );
               } else {
@@ -1612,11 +1646,11 @@ export default function FleurManagerPage() {
                    return prevCart;
               }
           }
-          return [...prevCart, { ...product, quantityInCart: 1, itemDiscount: 0, notes: '' }];
+          return [...prevCart, { ...product, quantityInCart: quantity, itemDiscount: 0, notes }];
       });
       toast({
           title: "Đã thêm vào giỏ",
-          description: `Đã thêm "${product.name}" vào giỏ hàng.`,
+          description: `Đã thêm ${quantity} "${product.name}" vào giỏ hàng.`,
           variant: 'default',
       });
   }, [toast]);
@@ -1773,6 +1807,11 @@ export default function FleurManagerPage() {
     }
   }, [activeTab, currentUserEmployeeData, toast]);
 
+  const handleOpenOrderDialog = (productGroup: Product[]) => {
+    setSelectedProductGroupForOrder(productGroup);
+    setIsOrderDialogOpen(true);
+  };
+
   // --- Conditional Rendering Logic ---
   if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
   if (!currentUser) return <LoadingScreen message="Đang chuyển hướng đến trang đăng nhập..." />;
@@ -1820,6 +1859,13 @@ export default function FleurManagerPage() {
           handleRemoveFromStorefront={handleRemoveFromStorefront}
           setIsCartSheetOpen={setIsCartSheetOpen}
           onOpenNoteEditor={handleOpenNoteEditor}
+          onSelectProductGroupForOrder={handleOpenOrderDialog}
+        />
+        <ProductOrderDialog
+          isOpen={isOrderDialogOpen}
+          onClose={() => setIsOrderDialogOpen(false)}
+          productGroup={selectedProductGroupForOrder}
+          onAddToCart={onAddToCartForCustomer}
         />
         <CustomerCartSheet
             isOpen={isCartSheetOpen}
@@ -1923,3 +1969,4 @@ export default function FleurManagerPage() {
 
 
     
+

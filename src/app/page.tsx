@@ -721,12 +721,7 @@ export default function FleurManagerPage() {
 
   const [isSettingName, setIsSettingName] = useState(false);
   const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
-  const [activeTab, setActiveTab] = useState<TabName>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('fleur-manager-active-tab') as TabName) || 'Bán hàng';
-    }
-    return 'Bán hàng';
-  });
+  const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [ordersData, setOrdersData] = useState<Order[]>([]);
@@ -734,18 +729,7 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [disposalLogEntries, setDisposalLogEntries] = useState<DisposalLogEntry[]>([]);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-        const savedCart = localStorage.getItem('fleur-manager-cart');
-        try {
-            return savedCart ? JSON.parse(savedCart) : [];
-        } catch (error) {
-            console.error("Failed to parse cart from localStorage", error);
-            return [];
-        }
-    }
-    return [];
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [customerCart, setCustomerCart] = useState<CartItem[]>([]);
   const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
   
@@ -765,17 +749,8 @@ export default function FleurManagerPage() {
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>(() => {
-    if (typeof window === 'undefined') return 'md';
-    const savedSize = localStorage.getItem('fleur-manager-font-size') as OverallFontSize | null;
-    return savedSize && ['sm', 'md', 'lg'].includes(savedSize) ? savedSize : 'md';
-  });
-  const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>(() => {
-    if (typeof window === 'undefined') return 'text-2xl';
-    const savedSize = localStorage.getItem('fleur-manager-numeric-size') as NumericDisplaySize | null;
-    const validSizes: NumericDisplaySize[] = ['text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
-    return savedSize && validSizes.includes(savedSize) ? savedSize : 'text-2xl';
-  });
+  const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>('md');
+  const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>('text-2xl');
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(true);
 
@@ -912,42 +887,53 @@ export default function FleurManagerPage() {
   }, [hasFullAccessRights, toast]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('fleur-manager-active-tab', activeTab);
+    const savedTab = localStorage.getItem('fleur-manager-active-tab') as TabName | null;
+    if (savedTab) setActiveTab(savedTab);
+    
+    const savedFontSize = localStorage.getItem('fleur-manager-font-size') as OverallFontSize | null;
+    if (savedFontSize && ['sm', 'md', 'lg'].includes(savedFontSize)) setOverallFontSize(savedFontSize);
+    
+    const savedNumericSize = localStorage.getItem('fleur-manager-numeric-size') as NumericDisplaySize | null;
+    const validSizes: NumericDisplaySize[] = ['text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
+    if (savedNumericSize && validSizes.includes(savedNumericSize)) setNumericDisplaySize(savedNumericSize);
+    
+    try {
+      const savedCart = localStorage.getItem('fleur-manager-cart');
+      if (savedCart) setCart(JSON.parse(savedCart));
+    } catch (error) {
+      console.error("Failed to parse cart from localStorage on initial load", error);
     }
+  }, []);
+  
+  useEffect(() => {
+    localStorage.setItem('fleur-manager-active-tab', activeTab);
   }, [activeTab]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        try {
-            localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
-        } catch (error) {
-            if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-                console.warn("localStorage quota exceeded. Cart will not be persisted if page is reloaded.");
-                toast({
-                    title: "Bộ nhớ đệm đầy",
-                    description: "Giỏ hàng của bạn quá lớn để lưu trữ. Nếu bạn tải lại trang, giỏ hàng có thể bị mất.",
-                    variant: "destructive",
-                    duration: 10000
-                });
-            } else {
-                console.error("Failed to save cart to localStorage", error);
-            }
+    try {
+        localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+            console.warn("localStorage quota exceeded. Cart will not be persisted if page is reloaded.");
+            toast({
+                title: "Bộ nhớ đệm đầy",
+                description: "Giỏ hàng của bạn quá lớn để lưu trữ. Nếu bạn tải lại trang, giỏ hàng có thể bị mất.",
+                variant: "destructive",
+                duration: 10000
+            });
+        } else {
+            console.error("Failed to save cart to localStorage", error);
         }
     }
   }, [cart, toast]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      document.documentElement.setAttribute('data-overall-font-size', overallFontSize);
-      localStorage.setItem('fleur-manager-font-size', overallFontSize);
-    }
+    document.documentElement.setAttribute('data-overall-font-size', overallFontSize);
+    localStorage.setItem('fleur-manager-font-size', overallFontSize);
   }, [overallFontSize]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('fleur-manager-numeric-size', numericDisplaySize);
-    }
+    localStorage.setItem('fleur-manager-numeric-size', numericDisplaySize);
   }, [numericDisplaySize]);
 
   useEffect(() => {

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NotificationDialog } from '@/components/shared/NotificationDialog';
 import { Trash2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface LocalItemToImport {
   key: string;
@@ -84,6 +85,7 @@ export function ImportTab({
 
   const [localNotification, setLocalNotification] = useState<string | null>(null);
   const [localNotificationType, setLocalNotificationType] = useState<'success' | 'error'>('error');
+  const [isImporting, setIsImporting] = useState(false);
 
   const showLocalNotification = (message: string, type: 'success' | 'error') => {
     setLocalNotification(message);
@@ -229,16 +231,21 @@ export function ImportTab({
         cost: item.cost,
       }));
 
-    const success = await onImportProducts(
-        undefined,
-        itemsToSubmit,
-        totalCostVND,
-        currentUser.uid,
-        currentUser.displayName || currentUser.email || "Không rõ"
-    );
+    setIsImporting(true);
+    try {
+      const success = await onImportProducts(
+          undefined,
+          itemsToSubmit,
+          totalCostVND,
+          currentUser.uid,
+          currentUser.displayName || currentUser.email || "Không rõ"
+      );
 
-    if (success) {
-      setItemsToImport([createNewImportItem(productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions)]);
+      if (success) {
+        setItemsToImport([createNewImportItem(productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions)]);
+      }
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -343,9 +350,16 @@ export function ImportTab({
                 <Button
                     type="submit"
                     className="w-full bg-blue-500 text-white hover:bg-blue-600"
-                    disabled={!canConfirmImport}
+                    disabled={isImporting || !canConfirmImport}
                 >
-                    Xác nhận nhập hàng
+                  {isImporting ? (
+                    <>
+                      <LoadingSpinner className="mr-2" />
+                      Đang nhập hàng...
+                    </>
+                  ) : (
+                    'Xác nhận nhập hàng'
+                  )}
                 </Button>
             </form>
         </CardContent>
@@ -353,4 +367,3 @@ export function ImportTab({
     </>
   );
 }
-

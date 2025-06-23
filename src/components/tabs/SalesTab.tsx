@@ -32,6 +32,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, formatPhoneNumber, normalizeStringForSearch } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 
 interface SalesTabProps {
@@ -95,6 +96,7 @@ export function SalesTab({
   const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string>(paymentOptions[0]);
   const [amountPaidStr, setAmountPaidStr] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
@@ -176,21 +178,25 @@ export function SalesTab({
         return;
       }
     }
-
-    const success = await onCreateInvoice(
-        finalCustomerName,
-        cart,
-        subtotalAfterItemDiscounts,
-        currentPaymentMethod,
-        // 0, // Overall discount is now 0
-        actualAmountPaidVND,
-        isGuest,
-        currentUser.uid,
-        currentUser.displayName || currentUser.email || "Không rõ"
-    );
-    if (success) {
-      setIsPaymentDialogOpen(false);
-      setAmountPaidStr('');
+    
+    setIsProcessingPayment(true);
+    try {
+      const success = await onCreateInvoice(
+          finalCustomerName,
+          cart,
+          subtotalAfterItemDiscounts,
+          currentPaymentMethod,
+          actualAmountPaidVND,
+          isGuest,
+          currentUser.uid,
+          currentUser.displayName || currentUser.email || "Không rõ"
+      );
+      if (success) {
+        setIsPaymentDialogOpen(false);
+        setAmountPaidStr('');
+      }
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -858,7 +864,7 @@ export function SalesTab({
           </div>
 
           <DialogFooter className="sm:justify-between gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)} disabled={isProcessingPayment}>
               Hủy
             </Button>
             <Button
@@ -866,13 +872,21 @@ export function SalesTab({
               onClick={handleConfirmCheckout}
               className="w-full bg-green-500 text-white hover:bg-green-600"
               disabled={
+                isProcessingPayment ||
                 finalTotalAfterAllDiscounts <= 0 ||
                 (customerNameForInvoice.trim().toLowerCase() === 'khách lẻ' && finalTotalAfterAllDiscounts > actualAmountPaidVND && currentPaymentMethod !== 'Chuyển khoản') || 
                 (currentPaymentMethod === 'Chuyển khoản' && finalTotalAfterAllDiscounts > actualAmountPaidVND) ||
                 !areAllItemDiscountsValid
               }
             >
-              Xác nhận thanh toán
+              {isProcessingPayment ? (
+                  <>
+                    <LoadingSpinner className="mr-2" />
+                    Đang xử lý...
+                  </>
+              ) : (
+                'Xác nhận thanh toán'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

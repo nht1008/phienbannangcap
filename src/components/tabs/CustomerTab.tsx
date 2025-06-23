@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
 import { ref, set, remove, onValue } from "firebase/database";
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface CustomerTabProps {
   customers: Customer[];
@@ -56,6 +57,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const [userRequests, setUserRequests] = useState<UserAccessRequest[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!hasFullAccessRights) return;
@@ -156,9 +158,14 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho khách hàng khác.", variant: "destructive" });
       return;
     }
-    await onAddCustomer(newCustomer);
-    setNewCustomer(initialFormState);
-    setIsAdding(false);
+    setIsSubmitting(true);
+    try {
+      await onAddCustomer(newCustomer);
+      setNewCustomer(initialFormState);
+      setIsAdding(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openEditDialog = (customer: Customer) => {
@@ -177,9 +184,14 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại cho khách hàng khác.", variant: "destructive" });
       return;
     }
-    await onUpdateCustomer(customerToEdit.id, editedCustomer);
-    setIsEditing(false);
-    setCustomerToEdit(null);
+    setIsSubmitting(true);
+    try {
+      await onUpdateCustomer(customerToEdit.id, editedCustomer);
+      setIsEditing(false);
+      setCustomerToEdit(null);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openDeleteConfirmDialog = (customer: Customer) => {
@@ -274,9 +286,16 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             />
         </div>
         <div className="md:col-span-2 flex justify-end gap-2">
-            {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>}
-            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                {isEditMode ? 'Lưu thay đổi' : 'Lưu khách hàng'}
+            {onCancel && <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Hủy</Button>}
+            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <LoadingSpinner className="mr-2" />
+                  Đang lưu...
+                </>
+              ) : (
+                isEditMode ? 'Lưu thay đổi' : 'Lưu khách hàng'
+              )}
             </Button>
         </div>
     </form>

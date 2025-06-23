@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from '@/hooks/use-toast';
 import type { Product, ProductFormData } from '@/types'; // Using ProductFormData
 import { UploadCloud } from 'lucide-react';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface ProductFormDialogProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const [formState, setFormState] = useState<ProductFormData>(defaultFormState);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -132,20 +134,24 @@ export function ProductFormDialog({
       return;
     }
 
-    const productData: Omit<Product, 'id'> = {
-      name: formState.name,
-      quantity: quantityNum,
-      price: priceNum * 1000,
-      costPrice: costPriceNum * 1000,
-      image: formState.image || `https://placehold.co/100x100.png`,
-      color: formState.color,
-      quality: formState.quality,
-      size: formState.size,
-      unit: formState.unit,
-      maxDiscountPerUnitVND: maxDiscountNum * 1000,
-    };
-    await onSubmit(productData, isEditMode, initialData?.id);
-    // onClose(); // Parent will handle closing and state reset
+    setIsSubmitting(true);
+    try {
+      const productData: Omit<Product, 'id'> = {
+        name: formState.name,
+        quantity: quantityNum,
+        price: priceNum * 1000,
+        costPrice: costPriceNum * 1000,
+        image: formState.image || `https://placehold.co/100x100.png`,
+        color: formState.color,
+        quality: formState.quality,
+        size: formState.size,
+        unit: formState.unit,
+        maxDiscountPerUnitVND: maxDiscountNum * 1000,
+      };
+      await onSubmit(productData, isEditMode, initialData?.id);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -285,11 +291,12 @@ export function ProductFormDialog({
 
 
           <DialogFooter className="md:col-span-4 mt-4">
-            <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Hủy</Button>
             <Button
               type="submit"
               className="bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={
+                isSubmitting ||
                 (productNameOptions.length > 0 && !formState.name) || productNameOptions.length === 0 ||
                 (colorOptions.length > 0 && !formState.color) || colorOptions.length === 0 ||
                 (productQualityOptions.length > 0 && !formState.quality) || productQualityOptions.length === 0 ||
@@ -297,8 +304,17 @@ export function ProductFormDialog({
                 (unitOptions.length > 0 && !formState.unit) || unitOptions.length === 0
               }
             >
-              <UploadCloud className="mr-2 h-4 w-4" />
-              {isEditMode ? 'Lưu thay đổi' : 'Thêm sản phẩm'}
+              {isSubmitting ? (
+                  <>
+                    <LoadingSpinner className="mr-2" />
+                    Đang lưu...
+                  </>
+              ) : (
+                  <>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    {isEditMode ? 'Lưu thay đổi' : 'Thêm sản phẩm'}
+                  </>
+              )}
             </Button>
           </DialogFooter>
         </form>

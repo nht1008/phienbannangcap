@@ -721,7 +721,16 @@ export default function FleurManagerPage() {
   const [isSettingName, setIsSettingName] = useState(false);
   const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
 
-  const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
+  const [activeTab, setActiveTab] = useState<TabName>(() => {
+    if (typeof window === 'undefined') return 'Bán hàng';
+    try {
+      const savedTab = localStorage.getItem('fleur-manager-active-tab') as TabName | null;
+      const validTabs: TabName[] = ['Bán hàng', 'Gian hàng', 'Kho hàng', 'Đơn hàng', 'Nhập hàng', 'Hóa đơn', 'Công nợ', 'Doanh thu', 'Khách hàng', 'Nhân viên', 'Bảng xếp hạng', 'Lịch sử mua hàng'];
+      return savedTab && validTabs.includes(savedTab) ? savedTab : 'Bán hàng';
+    } catch {
+      return 'Bán hàng';
+    }
+  });
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [ordersData, setOrdersData] = useState<Order[]>([]);
@@ -729,7 +738,15 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [disposalLogEntries, setDisposalLogEntries] = useState<DisposalLogEntry[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const savedCart = localStorage.getItem('fleur-manager-cart');
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch {
+      return [];
+    }
+  });
   const [customerCart, setCustomerCart] = useState<CartItem[]>([]);
   const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
   
@@ -749,8 +766,17 @@ export default function FleurManagerPage() {
   const [isUserInfoDialogOpen, setIsUserInfoDialogOpen] = useState(false);
   const [isScreenLocked, setIsScreenLocked] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>('md');
-  const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>('text-2xl');
+  const [overallFontSize, setOverallFontSize] = useState<OverallFontSize>(() => {
+    if (typeof window === 'undefined') return 'md';
+    const savedSize = localStorage.getItem('fleur-manager-font-size') as OverallFontSize | null;
+    return savedSize && ['sm', 'md', 'lg'].includes(savedSize) ? savedSize : 'md';
+  });
+  const [numericDisplaySize, setNumericDisplaySize] = useState<NumericDisplaySize>(() => {
+    if (typeof window === 'undefined') return 'text-2xl';
+    const savedSize = localStorage.getItem('fleur-manager-numeric-size') as NumericDisplaySize | null;
+    const validSizes: NumericDisplaySize[] = ['text-xl', 'text-2xl', 'text-3xl', 'text-4xl'];
+    return savedSize && validSizes.includes(savedSize) ? savedSize : 'text-2xl';
+  });
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [isLoadingShopInfo, setIsLoadingShopInfo] = useState(true);
 
@@ -890,8 +916,27 @@ export default function FleurManagerPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       document.documentElement.setAttribute('data-overall-font-size', overallFontSize);
+      localStorage.setItem('fleur-manager-font-size', overallFontSize);
     }
   }, [overallFontSize]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fleur-manager-numeric-size', numericDisplaySize);
+    }
+  }, [numericDisplaySize]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
+    }
+  }, [cart]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fleur-manager-active-tab', activeTab);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -1183,7 +1228,7 @@ export default function FleurManagerPage() {
 
     const newQuantity = parseInt(newQuantityStr, 10);
     
-    if (newQuantity === 0) {
+    if (newQuantity <= 0) {
         onRemoveFromCart(itemId);
         return;
     }
@@ -1441,7 +1486,20 @@ export default function FleurManagerPage() {
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!name.trim()) { toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" }); return; } try { const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_'); if (sanitizedName !== name.trim()) { toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" }); } if (!sanitizedName) { toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" }); return; } await set(ref(db, `productOptions/${type}/${sanitizedName}`), true); toast({ title: "Thành công", description: `Tùy chọn ${sanitizedName} đã được thêm.`, variant: "default" }); } catch (error) { console.error(`Error adding product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa tùy chọn sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast, hasFullAccessRights]);
   const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
-  const handleSignOut = async () => { try { await signOut(); router.push('/login'); toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" }); } catch (error) { console.error("Error signing out:", error); toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" }); } };
+  const handleSignOut = async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('fleur-manager-cart');
+        localStorage.removeItem('fleur-manager-active-tab');
+      }
+      await signOut();
+      router.push('/login');
+      toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" });
+    }
+  };
   const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
 
   const handleDeleteDebt = (debtId: string) => {
@@ -1880,8 +1938,6 @@ export default function FleurManagerPage() {
   useEffect(() => {
     if (isCurrentUserCustomer) {
       setActiveTab('Gian hàng');
-    } else {
-      setActiveTab('Bán hàng');
     }
   }, [isCurrentUserCustomer]);
 

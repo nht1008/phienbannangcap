@@ -251,6 +251,7 @@ interface FleurManagerLayoutContentProps {
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
   onClearCart: () => void;
+  onRemoveFromCart: (itemId: string) => void;
   onAddToCartForCustomer: (product: Product) => void;
   handleRevenueFilterChange: (newFilter: ActivityDateTimeFilter) => void;
   handleInvoiceFilterChange: (newFilter: ActivityDateTimeFilter) => void;
@@ -289,7 +290,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
     handleCreateInvoice, handleAddProductOption,
     handleDeleteProductOption, handleImportProducts, handleProcessInvoiceCancellationOrReturn,
     handleUpdateDebtStatus, handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
-    handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
+    handleSaveShopInfo, handleSignOut, signIn, onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onRemoveFromCart, onAddToCartForCustomer,
     handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
     handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
     openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount, 
@@ -347,6 +348,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
                     cart={cart}
                     onAddToCart={onAddToCart}
                     onUpdateCartQuantity={onUpdateCartQuantity}
+                    onRemoveFromCart={onRemoveFromCart}
                     onItemDiscountChange={onItemDiscountChange}
                     onClearCart={onClearCart}
                     productQualityOptions={productQualityOptions}
@@ -461,7 +463,7 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       handleCreateInvoice, handleAddProductOption, handleDeleteProductOption, handleImportProducts,
       handleProcessInvoiceCancellationOrReturn, handleUpdateDebtStatus,
       handleAddCustomer, handleUpdateCustomer, handleDeleteCustomer, handleDeleteDebt,
-      onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onAddToCartForCustomer,
+      onAddToCart, onUpdateCartQuantity, onItemDiscountChange, onClearCart, onRemoveFromCart, onAddToCartForCustomer,
       handleRevenueFilterChange, handleInvoiceFilterChange, handleDebtFilterChange, handleOrderFilterChange, handleUpdateOrderStatus,
       handleToggleEmployeeRole, handleUpdateEmployeeInfo, handleDeleteEmployee, handleDisposeProductItems,
       openAddProductDialog, openEditProductDialog, handleDeleteProductFromAnywhere, handleUpdateProductMaxDiscount,
@@ -1069,13 +1071,13 @@ export default function FleurManagerPage() {
 
     const newQuantity = parseInt(newQuantityStr, 10);
     
-    if (isNaN(newQuantity)) {
+    if (newQuantity === 0) {
+        setCart(prevCart => prevCart.filter(item => item.id !== itemId));
         return;
     }
 
-    if (newQuantity <= 0) {
-      setCart(prevCart => prevCart.filter(item => item.id !== itemId));
-      return;
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        return; 
     }
 
     const stockItem = inventory.find(i => i.id === itemId);
@@ -1093,6 +1095,10 @@ export default function FleurManagerPage() {
       setCart(prevCart => prevCart.map(item => item.id === itemId ? { ...item, quantityInCart: newQuantity } : item));
     }
   }, [inventory, toast, setCart]);
+
+  const onRemoveFromCart = useCallback((itemId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== itemId));
+  }, [setCart]);
 
   const onItemDiscountChange = useCallback((itemId: string, discountNghinStr: string): boolean => {
     let inputWasInvalid = false;
@@ -1780,8 +1786,10 @@ export default function FleurManagerPage() {
           overallFontSize={overallFontSize} setOverallFontSize={setOverallFontSize} numericDisplaySize={numericDisplaySize}
           setNumericDisplaySize={setNumericDisplaySize} isCurrentUserAdmin={isCurrentUserAdmin}
           currentUserEmployeeData={currentUserEmployeeData} isCurrentUserCustomer={isCurrentUserCustomer} hasFullAccessRights={hasFullAccessRights}
-          filteredInvoicesForRevenue={filteredInvoicesForInvoiceTab}
-          filteredDebtsForDebtTab={filteredDebtsForDebtTab} filteredOrdersForOrderTab={filteredOrdersForOrderTab}
+          filteredInvoicesForRevenue={filteredInvoicesForRevenue}
+          filteredInvoicesForInvoiceTab={filteredInvoicesForInvoiceTab}
+          filteredDebtsForDebtTab={filteredDebtsForDebtTab} 
+          filteredOrdersForOrderTab={filteredOrdersForOrderTab}
           handleCreateInvoice={handleCreateInvoice} handleAddProductOption={handleAddProductOption}
           handleDeleteProductOption={handleDeleteProductOption} handleImportProducts={handleImportProducts}
           handleProcessInvoiceCancellationOrReturn={handleProcessInvoiceCancellationOrReturn}
@@ -1789,7 +1797,7 @@ export default function FleurManagerPage() {
           handleUpdateCustomer={handleUpdateCustomer} handleDeleteCustomer={handleDeleteCustomer}
           handleDeleteDebt={handleDeleteDebt} handleSaveShopInfo={handleSaveShopInfo} handleSignOut={handleSignOut}
           signIn={signIn} onAddToCart={onAddToCart} onUpdateCartQuantity={onUpdateCartQuantity}
-          onItemDiscountChange={onItemDiscountChange} onClearCart={onClearCart} onAddToCartForCustomer={onAddToCartForCustomer}
+          onItemDiscountChange={onItemDiscountChange} onClearCart={onClearCart} onRemoveFromCart={onRemoveFromCart} onAddToCartForCustomer={onAddToCartForCustomer}
           handleRevenueFilterChange={handleRevenueFilterChange} handleInvoiceFilterChange={handleInvoiceFilterChange}
           handleDebtFilterChange={handleDebtFilterChange} handleOrderFilterChange={handleOrderFilterChange}
           handleUpdateOrderStatus={handleUpdateOrderStatus} handleToggleEmployeeRole={handleToggleEmployeeRole}
@@ -1904,5 +1912,7 @@ export default function FleurManagerPage() {
 
 
     
+
+
 
 

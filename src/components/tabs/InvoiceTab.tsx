@@ -67,7 +67,7 @@ type ReturnItemDetail = {
   itemDiscount?: number; 
 };
 
-export function InvoiceTab({ invoices, onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, hasFullAccessRights }: InvoiceTabProps) {
+export function InvoiceTab({ invoices = [], onProcessInvoiceCancellationOrReturn, filter: filterProp, onFilterChange, hasFullAccessRights }: InvoiceTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 

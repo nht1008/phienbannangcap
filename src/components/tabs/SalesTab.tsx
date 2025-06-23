@@ -55,6 +55,7 @@ interface SalesTabProps {
   onUpdateCartQuantity: (itemId: string, newQuantityStr: string) => void;
   onItemDiscountChange: (itemId: string, discountNghinStr: string) => boolean;
   onClearCart: () => void;
+  onRemoveFromCart: (itemId: string) => void;
   productQualityOptions: string[];
 }
 
@@ -85,6 +86,7 @@ export function SalesTab({
     onUpdateCartQuantity,
     onItemDiscountChange,
     onClearCart,
+    onRemoveFromCart,
     productQualityOptions
 }: SalesTabProps) {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -519,7 +521,7 @@ export function SalesTab({
                                   size="icon"
                                   className="h-7 w-7 shrink-0"
                                   onClick={() => onUpdateCartQuantity(item.id, (item.quantityInCart - 1).toString())}
-                                  disabled={item.quantityInCart <= 0}
+                                  disabled={item.quantityInCart <= 1}
                                   aria-label="Giảm số lượng"
                                 >
                                   <Minus className="h-3 w-3" />
@@ -570,7 +572,7 @@ export function SalesTab({
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive/80"
-                                onClick={() => onUpdateCartQuantity(item.id, '0')}
+                                onClick={() => onRemoveFromCart(item.id)}
                                 aria-label="Xóa sản phẩm khỏi giỏ hàng"
                               >
                                 <Trash2 className="h-4 w-4" />

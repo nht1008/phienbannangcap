@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import type { UserAccessRequest } from '@/types';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 interface RegistrationRequestDialogProps {
@@ -40,6 +41,7 @@ export function RegistrationRequestDialog({
   const [address, setAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [requestedRole, setRequestedRole] = useState<'employee' | 'customer'>('customer');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const { toast } = useToast();
 
   const resetForm = () => {
@@ -52,6 +54,7 @@ export function RegistrationRequestDialog({
     setAddress('');
     setIsLoading(false);
     setRequestedRole('customer');
+    setAgreedToTerms(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,6 +69,10 @@ export function RegistrationRequestDialog({
     }
     if (password.length < 6) {
       toast({ title: "Lỗi mật khẩu", description: "Mật khẩu phải có ít nhất 6 ký tự.", variant: "destructive" });
+      return;
+    }
+    if (!agreedToTerms) {
+      toast({ title: "Điều khoản dịch vụ", description: "Bạn phải đồng ý với các điều khoản và điều kiện.", variant: "destructive" });
       return;
     }
 
@@ -146,9 +153,19 @@ export function RegistrationRequestDialog({
             <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" required={requestedRole === 'customer'}/>
           </div>
           
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
+            <label
+              htmlFor="terms"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Tôi đồng ý với các <a href="#" className="underline text-primary hover:text-primary/80">điều khoản và điều kiện</a>.
+            </label>
+          </div>
+
           <DialogFooter className="pt-4">
             <Button type="button" variant="outline" onClick={() => { resetForm(); onClose(); }} disabled={isLoading}>Hủy</Button>
-            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
+            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading || !agreedToTerms}>
               {isLoading ? <><LoadingSpinner className="mr-2" />Đang xử lý...</> : 'Đăng ký và Gửi yêu cầu'}
             </Button>
           </DialogFooter>

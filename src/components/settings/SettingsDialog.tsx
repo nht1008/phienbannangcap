@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -77,6 +77,19 @@ export function SettingsDialog({
   const [isSavingShopInfo, setIsSavingShopInfo] = useState(false);
   const { toast } = useToast();
 
+  const prevIsOpen = useRef(isOpen);
+
+  useEffect(() => {
+    // Only initialize when the dialog is newly opened
+    if (isOpen && !prevIsOpen.current) {
+      const info = shopInfo || defaultShopInfo;
+      setEditableShopInfo(info);
+      setLogoPreview(info.logoUrl);
+      setLogoFile(null);
+    }
+    prevIsOpen.current = isOpen;
+  }, [isOpen, shopInfo]);
+  
   useEffect(() => {
     setCurrentOverallSize(overallFontSize);
   }, [overallFontSize]);
@@ -85,13 +98,6 @@ export function SettingsDialog({
     setCurrentNumericSize(numericDisplaySize);
   }, [numericDisplaySize]);
   
-  useEffect(() => {
-    const info = shopInfo || defaultShopInfo;
-    setEditableShopInfo(info);
-    setLogoPreview(info.logoUrl);
-    setLogoFile(null);
-  }, [shopInfo, isOpen]);
-
 
   const handleApplySettings = () => {
     onOverallFontSizeChange(currentOverallSize);
@@ -139,6 +145,7 @@ export function SettingsDialog({
       }
       await onSaveShopInfo(infoToSave);
       setLogoFile(null);
+      // Let the parent handle closing on success
     } catch (error: any) {
       console.error("Error updating shop info:", error);
       let errorMessage = "Không thể cập nhật thông tin cửa hàng.";

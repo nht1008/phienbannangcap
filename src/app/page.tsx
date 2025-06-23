@@ -786,54 +786,56 @@ export default function FleurManagerPage() {
     return false;
   }, [currentUser, currentUserEmployeeData, isCurrentUserCustomer]);
 
-  const productFormDefaultState = useMemo<ProductFormData>(() => ({
-    ...defaultProductFormData,
-    name: productNameOptions.length > 0 ? productNameOptions[0] : '',
-    color: colorOptions.length > 0 ? colorOptions[0] : '',
-    quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
-    size: sizeOptions.length > 0 ? sizeOptions[0] : '',
-    unit: unitOptions.length > 0 ? unitOptions[0] : '',
-    image: `https://placehold.co/100x100.png`,
-  }), [productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions]);
 
-  const handleOpenAddProductDialog = useCallback(() => {
+  const openAddProductDialog = () => {
     setCurrentEditingProduct(null);
     setIsProductFormEditMode(false);
     setIsProductFormOpen(true);
-  }, []);
+  };
 
-  const handleOpenEditProductDialog = useCallback((product: Product) => {
+  const openEditProductDialog = (product: Product) => {
     setCurrentEditingProduct(product);
     setIsProductFormEditMode(true);
     setIsProductFormOpen(true);
-  }, []);
+  };
 
-  const handleCloseProductFormDialog = useCallback(() => {
+  const handleCloseProductFormDialog = () => {
     setIsProductFormOpen(false);
     setCurrentEditingProduct(null);
-  }, []);
+  };
 
-  const handleProductFormSubmit = useCallback(async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string) => {
-    const isDuplicate = inventory.some(p =>
-      (isEdit ? p.id !== productId : true) &&
-      p.name === productData.name &&
-      p.color === productData.color &&
-      p.quality === productData.quality &&
-      p.size === productData.size &&
-      p.unit === productData.unit
-    );
+  const handleProductFormSubmit = useCallback(async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string): Promise<boolean> => {
+    try {
+      const isDuplicate = inventory.some(p =>
+        (isEdit ? p.id !== productId : true) &&
+        p.name === productData.name &&
+        p.color === productData.color &&
+        p.quality === productData.quality &&
+        p.size === productData.size &&
+        p.unit === productData.unit
+      );
 
-    if (isDuplicate) {
-      throw new Error("Sản phẩm đã tồn tại với các thuộc tính y hệt.");
-    }
-    
-    if (isEdit && productId) {
-      await update(ref(db, `inventory/${productId}`), productData);
-      toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });
-    } else {
-      const newProductRef = push(ref(db, 'inventory'));
-      await set(newProductRef, productData);
-      toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
+      if (isDuplicate) {
+        throw new Error("Sản phẩm đã tồn tại với các thuộc tính y hệt.");
+      }
+      
+      if (isEdit && productId) {
+        await update(ref(db, `inventory/${productId}`), productData);
+        toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });
+      } else {
+        const newProductRef = push(ref(db, 'inventory'));
+        await set(newProductRef, productData);
+        toast({ title: "Thành công", description: "Sản phẩm đã được thêm vào kho." });
+      }
+      return true; // Indicate success
+    } catch(error) {
+      console.error("Error in handleProductFormSubmit:", error);
+      if (error instanceof Error) {
+        toast({ title: "Lỗi lưu sản phẩm", description: error.message, variant: "destructive"});
+      } else {
+        toast({ title: "Lỗi không xác định", description: "Không thể lưu sản phẩm.", variant: "destructive"});
+      }
+      return false; // Indicate failure
     }
   }, [inventory, toast]);
 
@@ -1944,8 +1946,8 @@ export default function FleurManagerPage() {
           handleDebtFilterChange={handleDebtFilterChange} handleOrderFilterChange={handleOrderFilterChange}
           handleUpdateOrderStatus={handleUpdateOrderStatus} handleToggleEmployeeRole={handleToggleEmployeeRole}
           handleUpdateEmployeeInfo={handleUpdateEmployeeInfo} handleDeleteEmployee={handleDeleteEmployee}
-          handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={handleOpenAddProductDialog}
-          openEditProductDialog={handleOpenEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
+          handleDisposeProductItems={handleDisposeProductItems} openAddProductDialog={openAddProductDialog}
+          openEditProductDialog={openEditProductDialog} handleDeleteProductFromAnywhere={handleDeleteProductFromAnywhere}
           handleUpdateProductMaxDiscount={handleUpdateProductMaxDiscount}
           handleAddToStorefront={handleAddToStorefront}
           handleRemoveFromStorefront={handleRemoveFromStorefront}
@@ -1990,7 +1992,19 @@ export default function FleurManagerPage() {
           </DialogContent>
         </Dialog>
 
-        <ProductFormDialog isOpen={isProductFormOpen} onClose={handleCloseProductFormDialog} onSubmit={handleProductFormSubmit} initialData={currentEditingProduct} productNameOptions={productNameOptions} colorOptions={colorOptions} productQualityOptions={productQualityOptions} sizeOptions={sizeOptions} unitOptions={unitOptions} isEditMode={isProductFormEditMode} defaultFormState={productFormDefaultState} />
+        <ProductFormDialog
+            isOpen={isProductFormOpen}
+            onClose={handleCloseProductFormDialog}
+            onSubmit={handleProductFormSubmit}
+            initialData={currentEditingProduct}
+            productNameOptions={productNameOptions}
+            colorOptions={colorOptions}
+            productQualityOptions={productQualityOptions}
+            sizeOptions={sizeOptions}
+            unitOptions={unitOptions}
+            isEditMode={isProductFormEditMode}
+        />
+
         {productToDeleteId && (<AlertDialog open={isConfirmingProductDelete} onOpenChange={setIsConfirmingProductDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa sản phẩm?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingProductDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteProduct} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>)}
         {debtToDelete && (<AlertDialog open={isConfirmingDebtDelete} onOpenChange={setIsConfirmingDebtDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitleComponent>Xác nhận xóa công nợ?</AlertDialogTitleComponent><AlertDialogDescription>Bạn có chắc chắn muốn xóa công nợ cho "{debtToDelete.supplier}" trị giá {debtToDelete.amount.toLocaleString('vi-VN')} VNĐ không?{debtToDelete.invoiceId && " Nếu công nợ này được tạo từ hóa đơn, nó cũng sẽ được cập nhật trên hóa đơn đó."}Hành động này không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setIsConfirmingDebtDelete(false)}>Hủy</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDeleteDebt} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Xóa công nợ</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> )}
       </SidebarProvider>
@@ -2068,5 +2082,6 @@ export default function FleurManagerPage() {
 
 
     
+
 
 

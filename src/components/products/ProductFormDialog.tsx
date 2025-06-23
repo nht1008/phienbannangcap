@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -20,11 +20,12 @@ import type { Product, ProductFormData } from '@/types'; // Using ProductFormDat
 import { UploadCloud } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { uploadImageAndGetURL } from '@/lib/firebase';
+import { initialProductFormData } from '@/types';
 
 interface ProductFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (productData: Omit<Product, 'id'>, isEditMode: boolean, productId?: string) => Promise<void>;
+  onSubmit: (productData: Omit<Product, 'id'>, isEditMode: boolean, productId?: string) => Promise<boolean>;
   initialData?: Product | null;
   productNameOptions: string[];
   colorOptions: string[];
@@ -32,7 +33,6 @@ interface ProductFormDialogProps {
   sizeOptions: string[];
   unitOptions: string[];
   isEditMode: boolean;
-  defaultFormState: ProductFormData; // Pass default state from parent
 }
 
 export function ProductFormDialog({
@@ -46,43 +46,57 @@ export function ProductFormDialog({
   sizeOptions,
   unitOptions,
   isEditMode,
-  defaultFormState,
 }: ProductFormDialogProps) {
-  const [formState, setFormState] = useState<ProductFormData>(defaultFormState);
+  const [formState, setFormState] = useState<ProductFormData>(initialProductFormData);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   
-  const initializeForm = useCallback(() => {
-    const placeholderImage = `https://placehold.co/100x100.png`;
-    setImageFile(null); // Reset file on open
-    if (isEditMode && initialData) {
-      const populatedFormState: ProductFormData = {
-        name: initialData.name,
-        color: initialData.color,
-        quality: initialData.quality || (productQualityOptions.length > 0 ? productQualityOptions[0] : ''),
-        size: initialData.size,
-        unit: initialData.unit,
-        quantity: initialData.quantity.toString(),
-        price: (initialData.price / 1000).toString(),
-        costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : '',
-        image: initialData.image || placeholderImage,
-        maxDiscountPerUnitVND: initialData.maxDiscountPerUnitVND ? (initialData.maxDiscountPerUnitVND / 1000).toString() : '0',
-      };
-      setFormState(populatedFormState);
-      setImagePreview(initialData.image || placeholderImage);
-    } else {
-      setFormState(defaultFormState);
-      setImagePreview(defaultFormState.image || placeholderImage);
-    }
-  }, [isEditMode, initialData, productQualityOptions, defaultFormState]);
+  const prevIsOpen = useRef(isOpen);
 
   useEffect(() => {
-    if (isOpen) {
-      initializeForm();
+    // Only initialize the form when the dialog is newly opened
+    if (isOpen && !prevIsOpen.current) {
+      const placeholderImage = `https://placehold.co/100x100.png`;
+      setImageFile(null); // Reset file every time it's newly opened
+      
+      if (isEditMode && initialData) {
+        const populatedFormState: ProductFormData = {
+          name: initialData.name,
+          color: initialData.color,
+          quality: initialData.quality || '',
+          size: initialData.size,
+          unit: initialData.unit,
+          quantity: initialData.quantity.toString(),
+          price: (initialData.price / 1000).toString(),
+          costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : '',
+          image: initialData.image || placeholderImage,
+          maxDiscountPerUnitVND: initialData.maxDiscountPerUnitVND ? (initialData.maxDiscountPerUnitVND / 1000).toString() : '0',
+        };
+        setFormState(populatedFormState);
+        setImagePreview(initialData.image || placeholderImage);
+      } else {
+        const newProductDefaultState: ProductFormData = {
+          name: productNameOptions.length > 0 ? productNameOptions[0] : '',
+          color: colorOptions.length > 0 ? colorOptions[0] : '',
+          quality: productQualityOptions.length > 0 ? productQualityOptions[0] : '',
+          size: sizeOptions.length > 0 ? sizeOptions[0] : '',
+          unit: unitOptions.length > 0 ? unitOptions[0] : '',
+          quantity: '1',
+          price: '',
+          costPrice: '',
+          image: placeholderImage,
+          maxDiscountPerUnitVND: '0',
+        };
+        setFormState(newProductDefaultState);
+        setImagePreview(newProductDefaultState.image);
+      }
     }
-  }, [isOpen, initializeForm]);
+    
+    // Update the ref to the current value for the next render
+    prevIsOpen.current = isOpen;
+  }, [isOpen, isEditMode, initialData, productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,7 +120,8 @@ export function ProductFormDialog({
       setImagePreview(URL.createObjectURL(file));
     } else {
       setImageFile(null);
-      setImagePreview(formState.image || `https://placehold.co/100x100.png`);
+      // Don't reset preview to default if there was an existing image
+      setImagePreview(isEditMode && initialData?.image ? initialData.image : 'https://placehold.co/100x100.png');
     }
   };
 
@@ -132,7 +147,11 @@ export function ProductFormDialog({
 
     setIsSubmitting(true);
     try {
-      let finalImageUrl = isEditMode ? initialData?.image : formState.image;
+      let finalImageUrl = formState.image; // Start with the current state image URL
+      if (isEditMode && initialData) {
+        finalImageUrl = initialData.image; // For edits, default to the existing image
+      }
+
       if (imageFile) {
         finalImageUrl = await uploadImageAndGetURL(imageFile, 'product_images');
       }
@@ -150,8 +169,10 @@ export function ProductFormDialog({
         maxDiscountPerUnitVND: maxDiscountNum * 1000,
       };
       
-      await onSubmit(productData, isEditMode, initialData?.id);
-      onClose();
+      const success = await onSubmit(productData, isEditMode, initialData?.id);
+      if (success) {
+        onClose();
+      }
     } catch(error: any) {
       console.error("Error submitting product form:", error);
       let errorMessage = "Đã có lỗi xảy ra khi lưu sản phẩm.";

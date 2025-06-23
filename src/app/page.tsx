@@ -815,6 +815,24 @@ export default function FleurManagerPage() {
 
   const handleProductFormSubmit = async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string) => {
     try {
+      const isDuplicate = inventory.some(p =>
+        (isEdit ? p.id !== productId : true) &&
+        p.name === productData.name &&
+        p.color === productData.color &&
+        p.quality === productData.quality &&
+        p.size === productData.size &&
+        p.unit === productData.unit
+      );
+
+      if (isDuplicate) {
+        toast({
+          title: "Sản phẩm đã tồn tại",
+          description: "Trong danh sách sản phẩm đã có sản phẩm với các thuộc tính y hệt.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       if (isEdit && productId) {
         await update(ref(db, `inventory/${productId}`), productData);
         toast({ title: "Thành công", description: "Sản phẩm đã được cập nhật." });

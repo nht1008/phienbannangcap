@@ -104,7 +104,21 @@ export function ProductOrderDialog({ isOpen, onClose, productGroup, onAddToCart 
   }, [productGroup, variantSelection]);
 
   const handleVariantChange = (field: keyof VariantSelection, value: string) => {
-    setVariantSelection(prev => ({ ...prev, [field]: value }));
+    setVariantSelection(prev => {
+      const newState = { ...prev, [field]: value };
+      // When a higher-level field changes, reset the lower-level ones.
+      if (field === 'color') {
+        newState.quality = '';
+        newState.size = '';
+        newState.unit = '';
+      } else if (field === 'quality') {
+        newState.size = '';
+        newState.unit = '';
+      } else if (field === 'size') {
+        newState.unit = '';
+      }
+      return newState;
+    });
   };
 
   const handleQuantityChange = (value: string) => {

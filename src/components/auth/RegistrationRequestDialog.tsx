@@ -125,6 +125,21 @@ export function RegistrationRequestDialog({
               </div>
             </div>
             
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="reg-phone">Số điện thoại (*)</Label>
+                <Input id="reg-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required className="text-base" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="reg-zaloName">Tên Zalo (*)</Label>
+                <Input id="reg-zaloName" value={zaloName} onChange={(e) => setZaloName(e.target.value)} required className="text-base" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="reg-address">Địa chỉ {requestedRole === 'customer' ? '(*)' : ''}</Label>
+              <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" required={requestedRole === 'customer'}/>
+            </div>
+            
             <div className="space-y-2 rounded-lg border border-primary/50 bg-primary/5 p-4">
               <Label className="text-base font-semibold text-primary">Đăng ký với vai trò (*)</Label>
               <RadioGroup
@@ -157,21 +172,6 @@ export function RegistrationRequestDialog({
               </RadioGroup>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="reg-phone">Số điện thoại (*)</Label>
-                <Input id="reg-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required className="text-base" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="reg-zaloName">Tên Zalo (*)</Label>
-                <Input id="reg-zaloName" value={zaloName} onChange={(e) => setZaloName(e.target.value)} required className="text-base" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="reg-address">Địa chỉ {requestedRole === 'customer' ? '(*)' : ''}</Label>
-              <Textarea id="reg-address" value={address} onChange={(e) => setAddress(e.target.value)} className="text-base min-h-[70px]" required={requestedRole === 'customer'}/>
-            </div>
-            
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} />
               <label

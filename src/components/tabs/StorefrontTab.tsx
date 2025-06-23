@@ -4,11 +4,10 @@
 import React from 'react';
 import type { Product } from '@/types';
 import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Pencil, Store, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ShoppingCart, Store, Pencil, XCircle } from 'lucide-react';
 
 interface StorefrontTabProps {
   products: Product[];
@@ -22,88 +21,86 @@ interface StorefrontTabProps {
 export function StorefrontTab({ products, onOpenEditProductDialog, onRemoveFromStorefront, hasFullAccessRights, isCurrentUserCustomer, onAddToCart }: StorefrontTabProps) {
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-bold flex items-center">
-              <Store className="mr-2 h-6 w-6 text-primary" />
-              Gian hàng
-            </CardTitle>
-            <CardDescription>Các sản phẩm dành cho khách hàng đặt hàng online.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {products.length === 0 ? (
-            <p className="text-muted-foreground text-center py-10">
-              Chưa có sản phẩm nào được trưng bày trên gian hàng.
-            </p>
-          ) : (
-            <ScrollArea className="max-h-[75vh] w-full overflow-x-auto no-scrollbar">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Ảnh</TableHead>
-                    <TableHead>Tên sản phẩm</TableHead>
-                    <TableHead className="text-right">Giá</TableHead>
-                    <TableHead>Màu</TableHead>
-                    <TableHead>Chất lượng</TableHead>
-                    <TableHead>Kích thước</TableHead>
-                    <TableHead>Đơn vị</TableHead>
-                    <TableHead className="text-right">Tồn kho</TableHead>
-                    <TableHead className="text-right">Hành động</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <Image
-                          src={product.image || `https://placehold.co/40x40.png`}
-                          alt={product.name}
-                          width={40}
-                          height={40}
-                          className="rounded-md object-cover aspect-square"
-                          data-ai-hint={`${product.name.split(' ')[0]} flower`}
-                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40.png'; }}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right">{product.price.toLocaleString('vi-VN')} VNĐ</TableCell>
-                      <TableCell>{product.color}</TableCell>
-                      <TableCell>{product.quality || 'N/A'}</TableCell>
-                      <TableCell>{product.size}</TableCell>
-                      <TableCell>{product.unit}</TableCell>
-                      <TableCell className="text-right">{product.quantity}</TableCell>
-                      <TableCell className="text-right space-x-1">
-                        {hasFullAccessRights && (
-                          <>
-                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onOpenEditProductDialog(product)} title="Sửa thông tin sản phẩm (trong kho)">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onRemoveFromStorefront(product.id)} title="Gỡ khỏi gian hàng">
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {isCurrentUserCustomer && product.quantity > 0 && (
-                          <Button variant="default" size="sm" className="h-8" onClick={() => onAddToCart(product)}>
-                              Thêm vào giỏ
-                          </Button>
-                        )}
-                        {isCurrentUserCustomer && product.quantity <= 0 && (
-                          <Button variant="outline" size="sm" className="h-8" disabled>
-                              Hết hàng
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
+      <div className="text-center mb-8">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-pink-400 mb-2 animate-fadeInUp">
+          Chào mừng đến với Fleur
+        </h1>
+        <p className="text-lg text-muted-foreground animate-fadeInUp" style={{ animationDelay: '200ms' }}>
+          Khám phá những sản phẩm hoa tươi đẹp nhất
+        </p>
+      </div>
+
+      {products.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-[50vh] text-center animate-fadeInUp" style={{ animationDelay: '400ms' }}>
+          <Store className="w-20 h-20 text-muted-foreground/50 mb-4" />
+          <h3 className="text-2xl font-bold text-foreground">Gian hàng đang được cập nhật</h3>
+          <p className="text-muted-foreground mt-2">
+            Chưa có sản phẩm nào được trưng bày. Vui lòng quay lại sau!
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {products.map((product, index) => (
+            <Card
+              key={product.id}
+              className="overflow-hidden group/card relative flex flex-col transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 animate-popIn"
+              style={{ animationDelay: `${index * 70}ms`, opacity: 0 }}
+            >
+              <CardHeader className="p-0 relative">
+                <div className="aspect-square overflow-hidden">
+                  <Image
+                    src={product.image || `https://placehold.co/400x400.png`}
+                    alt={product.name}
+                    width={400}
+                    height={400}
+                    className="object-cover w-full h-full transition-transform duration-500 ease-in-out group-hover/card:scale-110"
+                    data-ai-hint={`${product.name.split(' ')[0]} flower`}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x400.png'; }}
+                  />
+                </div>
+                {product.quantity <= 0 && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <Badge variant="destructive" className="text-base px-4 py-1 border-2 border-white/50 backdrop-blur-sm">Hết hàng</Badge>
+                  </div>
+                )}
+                 {hasFullAccessRights && (
+                    <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
+                        <Button variant="outline" size="icon" className="h-8 w-8 bg-background/80 hover:bg-background" onClick={() => onOpenEditProductDialog(product)} title="Sửa thông tin sản phẩm (trong kho)">
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="destructive" size="icon" className="h-8 w-8 bg-destructive/80 hover:bg-destructive" onClick={() => onRemoveFromStorefront(product.id)} title="Gỡ khỏi gian hàng">
+                            <XCircle className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
+              </CardHeader>
+              <CardContent className="p-4 flex flex-col flex-grow">
+                <h3 className="font-bold text-lg truncate text-foreground group-hover/card:text-primary transition-colors" title={product.name}>
+                    {product.name}
+                </h3>
+                <p className="text-sm text-muted-foreground h-10"> 
+                    {`${product.color} / ${product.quality || 'N/A'}`.replace('/ N/A', '')}
+                </p>
+                <div className="flex-grow" />
+                <div className="flex justify-between items-center mt-4">
+                  <p className="text-xl font-bold text-primary">{product.price.toLocaleString('vi-VN')} VNĐ</p>
+                  {isCurrentUserCustomer && (
+                    <Button
+                      size="icon"
+                      onClick={() => onAddToCart(product)}
+                      disabled={product.quantity <= 0}
+                      className="rounded-full transition-transform duration-200 group-hover/card:scale-110 bg-primary hover:bg-primary/90"
+                      aria-label="Thêm vào giỏ hàng"
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

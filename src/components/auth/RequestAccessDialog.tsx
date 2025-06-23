@@ -31,6 +31,7 @@ interface RequestAccessDialogProps {
     address: string;
     zaloName: string; // Added Zalo Name
     requestedRole: RequestedRole;
+    zaloName?: string;
   }) => Promise<void>;
   existingRequestStatus?: UserAccessRequest['status'] | null;
   rejectionReason?: string | null;
@@ -46,7 +47,11 @@ export function RequestAccessDialog({
   const [requestedRole, setRequestedRole] = useState<RequestedRole>('employee');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+<<<<<<< HEAD
   const [zaloName, setZaloName] = useState(''); // Added Zalo Name state
+=======
+  const [zaloName, setZaloName] = useState('');
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -61,13 +66,10 @@ export function RequestAccessDialog({
       return;
     }
     if (!phone.trim()) {
-      toast({
-        title: "Thiếu thông tin",
-        description: "Vui lòng nhập số điện thoại.",
-        variant: "destructive",
-      });
+      toast({ title: "Thiếu thông tin", description: "Vui lòng nhập số điện thoại.", variant: "destructive" });
       return;
     }
+<<<<<<< HEAD
     if (!zaloName.trim()) { // Added Zalo Name validation
       toast({
         title: "Thiếu thông tin",
@@ -82,8 +84,17 @@ export function RequestAccessDialog({
         description: "Vui lòng nhập địa chỉ cho khách hàng.",
         variant: "destructive",
       });
+=======
+    if (!address.trim() && requestedRole === 'customer') {
+      toast({ title: "Thiếu thông tin", description: "Vui lòng nhập địa chỉ cho khách hàng.", variant: "destructive" });
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
       return;
     }
+     if (!zaloName.trim() && requestedRole === 'customer') {
+      toast({ title: "Thiếu thông tin", description: "Vui lòng nhập tên Zalo cho khách hàng.", variant: "destructive"});
+      return;
+    }
+
 
     setIsLoading(true);
     try {
@@ -92,7 +103,11 @@ export function RequestAccessDialog({
         email: currentUserEmail,
         phone: phone.trim(),
         address: address.trim(),
+<<<<<<< HEAD
         zaloName: zaloName.trim(), // Pass Zalo Name
+=======
+        zaloName: zaloName.trim(),
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
         requestedRole,
       });
     } catch (error) {
@@ -105,7 +120,7 @@ export function RequestAccessDialog({
       setIsLoading(false);
     }
   };
-  
+
   if (existingRequestStatus === 'pending') {
     return (
       <Dialog open={true} onOpenChange={() => {}}>
@@ -120,7 +135,7 @@ export function RequestAccessDialog({
       </Dialog>
     );
   }
-  
+
   if (existingRequestStatus === 'approved') {
     return (
       <Dialog open={true} onOpenChange={() => {}}>
@@ -200,6 +215,19 @@ export function RequestAccessDialog({
             />
           </div>
 
+           <div className="space-y-2">
+            <Label htmlFor="zaloName">Tên Zalo {requestedRole === 'customer' ? '(*)' : '(Tùy chọn cho nhân viên)'}</Label>
+            <Input
+              id="zaloName"
+              type="text"
+              placeholder="Nhập tên Zalo"
+              value={zaloName}
+              onChange={(e) => setZaloName(e.target.value)}
+              required={requestedRole === 'customer'}
+              className="text-base"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="address">Địa chỉ {requestedRole === 'customer' ? '(*)' : '(Tùy chọn cho nhân viên)'}</Label>
             <Textarea
@@ -214,7 +242,16 @@ export function RequestAccessDialog({
 
           <DialogFooter>
             <Button type="submit" className="w-full" disabled={isLoading}>
+<<<<<<< HEAD
               {isLoading ? <><LoadingSpinner className="mr-2" />Đang gửi...</> : 'Gửi yêu cầu'}
+=======
+              {isLoading ? (
+                <>
+                  <LoadingSpinner size={20} className="mr-2 text-primary-foreground" />
+                  Đang gửi...
+                </>
+              ) : 'Gửi yêu cầu'}
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
             </Button>
           </DialogFooter>
         </form>

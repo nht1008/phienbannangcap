@@ -6,20 +6,33 @@ import type { Customer, Invoice, InvoiceCartItem, UserAccessRequest, Employee } 
 import type { User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+<<<<<<< HEAD
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+=======
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
 import { formatPhoneNumber, cn, normalizeStringForSearch } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+<<<<<<< HEAD
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users, CheckCircle, XCircle } from 'lucide-react';
+=======
+import { PlusCircle, Pencil, Trash2, Eye, ListChecks, Users, CheckCircle, XCircle, Mail, MessageSquare } from 'lucide-react';
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
+<<<<<<< HEAD
 import { ref, set, remove, onValue } from "firebase/database";
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+=======
+import { ref, onValue, update, set, serverTimestamp, remove } from "firebase/database";
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 
 interface CustomerTabProps {
   customers: Customer[];
@@ -33,7 +46,11 @@ interface CustomerTabProps {
   isCurrentUserCustomer: boolean;
 }
 
+<<<<<<< HEAD
 const initialFormState: Omit<Customer, 'id' | 'email' | 'zaloName'> & { zaloName?: string } = { name: '', phone: '', address: '', zaloName: '' };
+=======
+const initialFormState: Omit<Customer, 'id' | 'email'> = { name: '', phone: '', address: '', zaloName: '' };
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 
 
 export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustomer, onDeleteCustomer, hasFullAccessRights, currentUser, isCurrentUserAdmin, isCurrentUserCustomer }: CustomerTabProps) {
@@ -60,6 +77,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+<<<<<<< HEAD
     if (!hasFullAccessRights) return;
 
     setIsLoadingRequests(true);
@@ -80,6 +98,39 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       setIsLoadingRequests(false);
     });
     return () => unsubscribe();
+=======
+    if (hasFullAccessRights) {
+      setIsLoadingCustomerRequests(true);
+      const requestsRef = ref(db, 'khach_hang_cho_duyet'); 
+      const unsubscribe = onValue(requestsRef, (snapshot) => {
+        const requestsData = snapshot.val();
+        const loadedRequests: UserAccessRequest[] = [];
+        if (requestsData) {
+          Object.keys(requestsData).forEach(userId => {
+            const requestDetails = requestsData[userId];
+            loadedRequests.push({
+              id: userId,
+              fullName: requestDetails.fullName || 'Chưa có tên',
+              email: requestDetails.email || '',
+              phone: requestDetails.phone || '',
+              address: requestDetails.address || '',
+              zaloName: requestDetails.zaloName || '',
+              requestedRole: 'customer', 
+              status: 'pending', 
+              requestDate: requestDetails.requestDate || new Date().toISOString(),
+            });
+          });
+        }
+        setCustomerAccessRequests(loadedRequests.sort((a, b) => new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime()));
+        setIsLoadingCustomerRequests(false);
+      }, (error) => {
+        console.error("Error fetching customer approval requests from khach_hang_cho_duyet:", error);
+        toast({ title: "Lỗi tải yêu cầu", description: "Không thể tải danh sách yêu cầu từ 'khach_hang_cho_duyet'.", variant: "destructive" });
+        setIsLoadingCustomerRequests(false);
+      });
+      return () => unsubscribe();
+    }
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
   }, [hasFullAccessRights, toast]);
 
   const customerRequests = useMemo(() =>
@@ -90,6 +141,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
   const handleApproveRequest = async (request: UserAccessRequest) => {
     if (!currentUser || !hasFullAccessRights) return;
     try {
+<<<<<<< HEAD
       if (request.requestedRole === 'customer') {
         const newCustomerData: Omit<Customer, 'id'> = {
             name: request.fullName,
@@ -124,6 +176,60 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
      try {
         await remove(ref(db, `khach_hang_cho_duyet/${request.id}`));
         toast({ title: "Đã từ chối", description: `Đã từ chối yêu cầu của ${request.fullName}.` });
+=======
+      const updates: Record<string, any> = {};
+      
+      updates[`users/${request.id}/approvalStatus`] = 'approved';
+      updates[`users/${request.id}/reviewedBy`] = currentUser.uid;
+      updates[`users/${request.id}/reviewDate`] = new Date().toISOString();
+      updates[`users/${request.id}/displayName`] = request.fullName;
+      updates[`users/${request.id}/email`] = request.email;
+      updates[`users/${request.id}/phone`] = request.phone || '';
+      updates[`users/${request.id}/address`] = request.address || '';
+      updates[`users/${request.id}/zaloName`] = request.zaloName || '';
+      updates[`users/${request.id}/profileCompletionDate`] = request.requestDate;
+
+
+      updates[`customers/${request.id}`] = {
+        name: request.fullName, 
+        email: request.email, 
+        phone: request.phone || '',
+        address: request.address || '',
+        zaloName: request.zaloName || '',
+      };
+      
+      updates[`khach_hang_cho_duyet/${request.id}`] = null;
+      
+      await update(ref(db), updates);
+      toast({ title: "Thành công", description: `Đã duyệt yêu cầu của khách hàng ${request.fullName}.`, variant: "default" });
+    } catch (error) {
+      console.error("Error approving customer request:", error);
+      toast({ title: "Lỗi", description: "Không thể duyệt yêu cầu khách hàng.", variant: "destructive" });
+    }
+  };
+
+  const openRejectCustomerDialog = (request: UserAccessRequest) => {
+    setCustomerRequestToReject(request);
+    setCustomerRejectionReason(""); 
+  };
+
+  const handleConfirmRejectCustomerRequest = async () => {
+    if (!hasFullAccessRights || !currentUser || !customerRequestToReject) return;
+    try {
+      const updates: Record<string, any> = {};
+      updates[`users/${customerRequestToReject.id}/approvalStatus`] = 'rejected';
+      updates[`users/${customerRequestToReject.id}/reviewedBy`] = currentUser.uid;
+      updates[`users/${customerRequestToReject.id}/reviewDate`] = new Date().toISOString();
+      updates[`users/${customerRequestToReject.id}/rejectionReason`] = customerRejectionReason.trim() || "Không có lý do cụ thể.";
+
+      updates[`khach_hang_cho_duyet/${customerRequestToReject.id}`] = null;
+
+      await update(ref(db), updates);
+
+      toast({ title: "Thành công", description: `Đã từ chối yêu cầu của ${customerRequestToReject.fullName}.`, variant: "default" });
+      setCustomerRequestToReject(null);
+      setCustomerRejectionReason("");
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
     } catch (error) {
         console.error("Error rejecting request:", error);
         toast({ title: "Lỗi", description: "Không thể từ chối yêu cầu.", variant: "destructive" });
@@ -150,8 +256,13 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+<<<<<<< HEAD
     if (!newCustomer.name || !newCustomer.phone || !newCustomer.zaloName) {
       toast({ title: "Lỗi", description: "Vui lòng điền tên, số điện thoại và tên Zalo khách hàng.", variant: "destructive" });
+=======
+    if (!newCustomer.name || !newCustomer.phone || !newCustomer.zaloName?.trim() || !newCustomer.address?.trim()) {
+      toast({ title: "Lỗi", description: "Vui lòng điền tên, số điện thoại, tên Zalo và địa chỉ khách hàng.", variant: "destructive" });
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
       return;
     }
     if (customers.some(c => c.phone === newCustomer.phone)) {
@@ -176,8 +287,13 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+<<<<<<< HEAD
     if (!customerToEdit || !editedCustomer.name || !editedCustomer.phone || !editedCustomer.zaloName) {
       toast({ title: "Lỗi", description: "Vui lòng điền tên, số điện thoại và tên Zalo khách hàng.", variant: "destructive" });
+=======
+    if (!customerToEdit || !editedCustomer.name || !editedCustomer.phone || !editedCustomer.zaloName?.trim() || !editedCustomer.address?.trim()) {
+      toast({ title: "Lỗi", description: "Vui lòng điền tên, số điện thoại, tên Zalo và địa chỉ khách hàng.", variant: "destructive" });
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
       return;
     }
     if (customers.some(c => c.id !== customerToEdit.id && c.phone === editedCustomer.phone)) {
@@ -238,9 +354,15 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <div className="space-y-1">
             <Label htmlFor="form-name">Tên khách hàng (*)</Label>
             <Input
+<<<<<<< HEAD
                 id="form-name"
                 type="text"
                 name="name"
+=======
+                type="text"
+                name="name"
+                id="form-name"
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                 placeholder="Tên khách hàng"
                 value={formState.name}
                 onChange={(e) => handleInputChange(e, formSetter)}
@@ -251,9 +373,15 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
         <div className="space-y-1">
             <Label htmlFor="form-phone">Số điện thoại (*)</Label>
             <Input
+<<<<<<< HEAD
                 id="form-phone"
                 type="tel"
                 name="phone"
+=======
+                type="tel"
+                name="phone"
+                id="form-phone"
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                 placeholder="Số điện thoại"
                 value={formState.phone}
                 onChange={(e) => handleInputChange(e, formSetter)}
@@ -261,12 +389,21 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 className="bg-card"
             />
         </div>
+<<<<<<< HEAD
         <div className="space-y-1 md:col-span-2">
             <Label htmlFor="form-zaloName">Tên Zalo (*)</Label>
             <Input
                 id="form-zaloName"
                 type="text"
                 name="zaloName"
+=======
+        <div className="space-y-1">
+            <Label htmlFor="form-zaloName">Tên Zalo (*)</Label>
+            <Input
+                type="text"
+                name="zaloName"
+                id="form-zaloName"
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                 placeholder="Tên Zalo"
                 value={formState.zaloName || ''}
                 onChange={(e) => handleInputChange(e, formSetter)}
@@ -275,6 +412,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             />
         </div>
         <div className="space-y-1 md:col-span-2">
+<<<<<<< HEAD
             <Label htmlFor="form-address">Địa chỉ</Label>
             <Textarea
                 id="form-address"
@@ -296,6 +434,23 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               ) : (
                 isEditMode ? 'Lưu thay đổi' : 'Lưu khách hàng'
               )}
+=======
+            <Label htmlFor="form-address">Địa chỉ (*)</Label>
+            <Textarea
+                name="address"
+                id="form-address"
+                placeholder="Địa chỉ"
+                value={formState.address || ''}
+                onChange={(e) => handleInputChange(e, formSetter)}
+                required
+                className="min-h-[80px] bg-card"
+            />
+        </div>
+        <div className="md:col-span-2 flex justify-end gap-2">
+            {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>}
+            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {isEditMode ? 'Lưu thay đổi' : 'Lưu khách hàng'}
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
             </Button>
         </div>
     </form>
@@ -336,6 +491,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>STT</TableHead>
                   <TableHead>Họ và tên</TableHead>
                   <TableHead>Số điện thoại</TableHead>
                   <TableHead>Email</TableHead>
@@ -345,8 +501,9 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map(customer => (
+                {customers.map((customer, index) => (
                   <TableRow key={customer.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell>{customer.name}</TableCell>
                     <TableCell>{formatPhoneNumber(customer.phone)}</TableCell>
                     <TableCell>{customer.email || 'N/A'}</TableCell>
@@ -370,7 +527,11 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                   </TableRow>
                 ))}
                 {customers.length === 0 && !isAdding && !isEditing && (
+<<<<<<< HEAD
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
+=======
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">Chưa có khách hàng nào.</TableCell></TableRow>
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                 )}
               </TableBody>
             </Table>
@@ -414,10 +575,17 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
               <DialogTitle className="text-2xl">Lịch sử giao dịch của: {selectedCustomerForDetails.name}</DialogTitle>
               <DialogDescription asChild>
                 <div>
+<<<<<<< HEAD
                   <p>Số điện thoại: {formatPhoneNumber(selectedCustomerForDetails.phone)}</p>
                   {selectedCustomerForDetails.email && <p>Email: {selectedCustomerForDetails.email}</p>}
                   {selectedCustomerForDetails.zaloName && <p>Tên Zalo: {selectedCustomerForDetails.zaloName}</p>}
                   {selectedCustomerForDetails.address && <p>Địa chỉ: {selectedCustomerForDetails.address}</p>}
+=======
+                  <p><strong>Số điện thoại:</strong> {formatPhoneNumber(selectedCustomerForDetails.phone)}</p>
+                  <p><strong>Email:</strong> {selectedCustomerForDetails.email || 'N/A'}</p>
+                  <p><strong>Tên Zalo:</strong> {selectedCustomerForDetails.zaloName || 'N/A'}</p>
+                  {selectedCustomerForDetails.address && <p><strong>Địa chỉ:</strong> {selectedCustomerForDetails.address}</p>}
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                 </div>
               </DialogDescription>
             </DialogHeader>
@@ -563,6 +731,7 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
       )}
 
       {hasFullAccessRights && (
+<<<<<<< HEAD
         <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
             <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
@@ -618,6 +787,95 @@ export function CustomerTab({ customers, invoices, onAddCustomer, onUpdateCustom
                     <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)}>Đóng</Button>
                 </DialogFooter>
             </DialogContent>
+=======
+        <Dialog open={isReviewCustomerDialogOpen} onOpenChange={setIsReviewCustomerDialogOpen}>
+          <DialogContent className="sm:max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Xét duyệt yêu cầu khách hàng ({customerAccessRequests.length})</DialogTitle>
+              <DialogDescription>
+                Duyệt hoặc từ chối các yêu cầu truy cập với vai trò khách hàng.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              {isLoadingCustomerRequests ? (
+                <p className="text-center text-muted-foreground">Đang tải danh sách yêu cầu...</p>
+              ) : customerAccessRequests.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">Không có yêu cầu nào đang chờ xử lý.</p>
+              ) : (
+                <ScrollArea className="max-h-[60vh]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Họ và tên</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>SĐT</TableHead>
+                        <TableHead>Tên Zalo</TableHead>
+                        <TableHead>Địa chỉ</TableHead>
+                        <TableHead>Ngày yêu cầu</TableHead>
+                        <TableHead className="text-center">Hành động</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customerAccessRequests.map((req) => (
+                        <TableRow key={req.id}>
+                          <TableCell>{req.fullName}</TableCell>
+                          <TableCell>{req.email}</TableCell>
+                          <TableCell>{formatPhoneNumber(req.phone)}</TableCell>
+                          <TableCell>{req.zaloName || 'N/A'}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate" title={req.address}>{req.address || 'N/A'}</TableCell>
+                          <TableCell>{new Date(req.requestDate).toLocaleDateString('vi-VN')}</TableCell>
+                          <TableCell className="text-center space-x-2">
+                            <Button
+                              size="sm"
+                              className="bg-success hover:bg-success/90 h-7 px-2"
+                              onClick={() => handleApproveCustomerRequest(req)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />Duyệt
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2"
+                              onClick={() => openRejectCustomerDialog(req)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />Từ chối
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsReviewCustomerDialogOpen(false)}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {customerRequestToReject && (
+        <Dialog open={!!customerRequestToReject} onOpenChange={() => setCustomerRequestToReject(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Từ chối yêu cầu của {customerRequestToReject.fullName}?</DialogTitle>
+              <DialogDescription>
+                Nhập lý do từ chối (nếu có). Lý do này sẽ được hiển thị cho người dùng.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              value={customerRejectionReason}
+              onChange={(e) => setCustomerRejectionReason(e.target.value)}
+              placeholder="Nhập lý do từ chối (tùy chọn)..."
+              className="min-h-[100px]"
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCustomerRequestToReject(null)}>Hủy</Button>
+              <Button variant="destructive" onClick={handleConfirmRejectCustomerRequest}>Xác nhận từ chối</Button>
+            </DialogFooter>
+          </DialogContent>
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
         </Dialog>
       )}
     </>

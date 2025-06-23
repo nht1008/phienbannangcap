@@ -24,8 +24,13 @@ export interface Customer {
   name: string;
   phone: string;
   address?: string;
+<<<<<<< HEAD
   email?: string;
   zaloName?: string; // Added Zalo Name
+=======
+  email?: string; 
+  zaloName?: string;
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 }
 
 export interface Supplier {
@@ -180,6 +185,7 @@ export interface UserAccessRequest {
   reviewedBy?: string; 
   reviewDate?: string; 
   rejectionReason?: string;
+  zaloName?: string;
 }
 
 export type ProductFormData = Omit<Product, 'id' | 'quantity' | 'price' | 'costPrice' | 'maxDiscountPerUnitVND'> & {
@@ -195,9 +201,83 @@ export const initialProductFormData: ProductFormData = {
   quality: '',
   size: '',
   unit: '',
+<<<<<<< HEAD
   quantity: '', // Changed from '0' to empty string
+=======
+  quantity: '', 
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
   price: '0',
   costPrice: '', // Kept as empty for optional input initially, but will be required by form logic
   image: '',
   maxDiscountPerUnitVND: '0',
 };
+
+// Order Management Types
+export type OrderStatus =
+  | 'Chờ xác nhận'
+  | 'Đã xác nhận'
+  | 'Đang chuẩn bị hàng'
+  | 'Đang giao hàng'
+  | 'Đã giao hàng'
+  | 'Hoàn thành'
+  | 'Đã hủy'
+  | 'Yêu cầu hủy';
+
+export const ALL_ORDER_STATUSES: OrderStatus[] = [
+  'Chờ xác nhận',
+  'Đã xác nhận',
+  'Đang chuẩn bị hàng',
+  'Đang giao hàng',
+  'Đã giao hàng',
+  'Hoàn thành',
+  'Đã hủy',
+  'Yêu cầu hủy',
+];
+
+export type PaymentStatus =
+  | 'Chưa thanh toán'
+  | 'Đã thanh toán một phần'
+  | 'Đã thanh toán'
+  | 'Đã hoàn tiền';
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  color: string;
+  quality?: string;
+  size: string;
+  unit: string;
+  quantity: number;
+  priceAtOrder: number; 
+  image?: string;
+}
+
+export interface Order {
+  id: string; 
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerUserId?: string; 
+  items: OrderItem[];
+  orderTotal: number; 
+  orderDate: string; 
+  status: OrderStatus;
+  paymentMethod?: string; 
+  paymentStatus: PaymentStatus;
+  shippingAddress?: string; 
+  shippingFee: number;
+  discountCode?: string;
+  discountAmount: number; 
+  finalAmount: number; 
+  notes?: string; 
+  reviewedByEmployeeId?: string;
+  reviewedByEmployeeName?: string;
+  cancellationReason?: string; 
+  history?: Array<{
+    status: OrderStatus;
+    changedAt: string; 
+    changedByEmployeeId?: string;
+    changedByEmployeeName?: string;
+    reason?: string;
+  }>; 
+}

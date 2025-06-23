@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface SetNameDialogProps {
   onNameSet: (name: string) => Promise<void>;
@@ -51,7 +52,7 @@ export function SetNameDialog({ onNameSet }: SetNameDialogProps) {
 
   return (
     <Dialog open={true} onOpenChange={() => { /* Prevent closing via overlay click or Esc */ }}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-md"
         onInteractOutside={(e) => e.preventDefault()} // Prevent closing by clicking outside
       >
@@ -75,7 +76,12 @@ export function SetNameDialog({ onNameSet }: SetNameDialogProps) {
           </div>
           <DialogFooter>
             <Button type="submit" className="w-full" disabled={isLoading || !name.trim()}>
-              {isLoading ? 'Đang lưu...' : 'Lưu và tiếp tục'}
+              {isLoading ? (
+                <>
+                  <LoadingSpinner size={20} className="mr-2 text-primary-foreground" />
+                  Đang lưu...
+                </>
+              ) : 'Lưu và tiếp tục'}
             </Button>
           </DialogFooter>
         </form>

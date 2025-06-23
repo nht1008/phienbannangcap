@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LockKeyhole } from 'lucide-react';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
 interface LockScreenProps {
   isOpen: boolean;
@@ -37,17 +38,14 @@ export function LockScreen({ isOpen, onUnlock, currentUserEmail, signIn, current
     setError(null);
 
     try {
-      // Attempt to sign in with the current user's email and the entered password
       const user = await signIn(currentUserEmail, password);
       if (user) {
-        onUnlock(); // If successful, call the onUnlock callback
-        setPassword(''); // Clear password field
+        onUnlock();
+        setPassword('');
       } else {
-        // This case might be hit if signIn resolves with null without throwing an error for wrong password
         setError("Mật khẩu không đúng. Vui lòng thử lại.");
       }
     } catch (authError: any) {
-      // Handle specific Firebase auth errors
       if (authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
         setError("Mật khẩu không đúng. Vui lòng thử lại.");
       } else if (authError.code === 'auth/user-not-found') {
@@ -99,7 +97,12 @@ export function LockScreen({ isOpen, onUnlock, currentUserEmail, signIn, current
               </p>
             )}
             <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg py-3" disabled={isLoading}>
-              {isLoading ? 'Đang mở khóa...' : 'Mở khóa'}
+              {isLoading ? (
+                <>
+                  <LoadingSpinner size={20} className="mr-2 text-primary-foreground" />
+                  Đang mở khóa...
+                </>
+              ) : 'Mở khóa'}
             </Button>
           </form>
         </CardContent>

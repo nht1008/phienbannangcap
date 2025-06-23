@@ -18,8 +18,13 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { ShopInfo } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import { UploadCloud } from 'lucide-react';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
+=======
+import { UploadCloud, Save } from 'lucide-react'; // Added Save icon
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 
 export type OverallFontSize = 'sm' | 'md' | 'lg';
 export type NumericDisplaySize = 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl';
@@ -49,10 +54,16 @@ interface SettingsDialogProps {
   onNumericDisplaySizeChange: (size: NumericDisplaySize) => void;
   shopInfo: ShopInfo | null;
   onSaveShopInfo: (newInfo: ShopInfo) => Promise<void>;
-  hasAdminOrManagerRights: boolean; // Changed from isAdmin
+  hasAdminOrManagerRights: boolean;
   isLoadingShopInfo: boolean;
 }
 
+<<<<<<< HEAD
+=======
+const MAX_LOGO_SIZE_MB = 3; // Updated
+const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
+
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 export function SettingsDialog({
   isOpen,
   onClose,
@@ -62,7 +73,7 @@ export function SettingsDialog({
   onNumericDisplaySizeChange,
   shopInfo,
   onSaveShopInfo,
-  hasAdminOrManagerRights, // Changed from isAdmin
+  hasAdminOrManagerRights,
   isLoadingShopInfo
 }: SettingsDialogProps) {
   const [currentOverallSize, setCurrentOverallSize] = useState<OverallFontSize>(overallFontSize);
@@ -89,7 +100,15 @@ export function SettingsDialog({
   useEffect(() => {
     setCurrentNumericSize(numericDisplaySize);
   }, [numericDisplaySize]);
+<<<<<<< HEAD
   
+=======
+
+  useEffect(() => {
+    setEditableShopInfo(shopInfo || defaultShopInfo);
+  }, [shopInfo]);
+
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
 
   const handleApplySettings = () => {
     onOverallFontSizeChange(currentOverallSize);
@@ -102,9 +121,41 @@ export function SettingsDialog({
     setEditableShopInfo(prev => ({ ...prev, [name]: value }));
   };
 
+<<<<<<< HEAD
+=======
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > MAX_LOGO_SIZE_BYTES) {
+        toast({
+          title: "Lỗi tải ảnh",
+          description: `Kích thước file không được vượt quá ${MAX_LOGO_SIZE_MB}MB.`,
+          variant: "destructive",
+        });
+        e.target.value = ""; // Clear the input
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditableShopInfo(prev => ({ ...prev, logoUrl: reader.result as string }));
+      };
+      reader.onerror = () => {
+        toast({
+          title: "Lỗi đọc file",
+          description: "Không thể đọc file ảnh đã chọn.",
+          variant: "destructive",
+        });
+      }
+      reader.readAsDataURL(file);
+    } else {
+       setEditableShopInfo(prev => ({ ...prev, logoUrl: shopInfo?.logoUrl || defaultShopInfo.logoUrl }));
+    }
+  };
+
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
   const handleSaveShopInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasAdminOrManagerRights) { // Changed from isAdmin
+    if (!hasAdminOrManagerRights) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
     }
@@ -180,13 +231,16 @@ export function SettingsDialog({
             </div>
           </section>
 
-          {hasAdminOrManagerRights && ( // Changed from isAdmin
+          {hasAdminOrManagerRights && (
             <>
               <Separator />
               <section>
                 <h3 className="text-lg font-semibold mb-3 text-primary">Thông tin cửa hàng (Quản trị viên/Quản lý)</h3>
                 {isLoadingShopInfo ? (
-                  <p>Đang tải thông tin cửa hàng...</p>
+                  <div className="flex items-center text-muted-foreground">
+                    <LoadingSpinner size={20} className="mr-2" />
+                    Đang tải thông tin cửa hàng...
+                  </div>
                 ) : (
                 <form onSubmit={handleSaveShopInfoSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -203,10 +257,11 @@ export function SettingsDialog({
                     <Label htmlFor="shopAddress">Địa chỉ cửa hàng</Label>
                     <Input id="shopAddress" name="address" value={editableShopInfo.address} onChange={handleShopInfoInputChange} placeholder="VD: 123 Đường Hoa, Phường X, Quận Y, TP. Z" />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="shopLogoUrl" className="mb-1 block">URL Logo cửa hàng</Label>
                     <div className="flex items-center gap-4">
+<<<<<<< HEAD
                         <Input 
                             id="shopLogoUrl" 
                             name="logoUrl" 
@@ -215,6 +270,15 @@ export function SettingsDialog({
                             value={editableShopInfo.logoUrl}
                             onChange={handleShopInfoInputChange}
                             className="bg-card flex-grow"
+=======
+                        <Input
+                            id="shopLogoFile"
+                            name="logoUrl"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoFileChange}
+                            className="bg-card flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                         />
                         {editableShopInfo.logoUrl ? (
                             <Image
@@ -226,7 +290,11 @@ export function SettingsDialog({
                                 data-ai-hint="shop logo"
                                 onError={(e) => {
                                     const target = e.target as HTMLImageElement;
+<<<<<<< HEAD
                                     target.src = 'https://placehold.co/60x60.png';
+=======
+                                    target.style.display = 'none';
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                                 }}
                             />
                         ) : (
@@ -254,8 +322,23 @@ export function SettingsDialog({
                         <Input id="bankName" name="bankName" value={editableShopInfo.bankName} onChange={handleShopInfoInputChange} placeholder="VD: Vietcombank - CN ABC" />
                     </div>
 
+<<<<<<< HEAD
                   <Button type="submit" className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white" disabled={isSavingShopInfo}>
                     {isSavingShopInfo ? <><LoadingSpinner className="mr-2" /> Đang lưu...</> : 'Lưu thông tin cửa hàng'}
+=======
+                  <Button type="submit" className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white" disabled={isSavingShopInfo}>
+                    {isSavingShopInfo ? (
+                        <>
+                            <LoadingSpinner size={20} className="mr-2 text-white" />
+                            Đang lưu...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Lưu thông tin cửa hàng
+                        </>
+                    )}
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
                   </Button>
                 </form>
                 )}

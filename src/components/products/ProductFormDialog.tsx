@@ -63,8 +63,13 @@ export function ProductFormDialog({
           unit: initialData.unit,
           quantity: initialData.quantity.toString(),
           price: (initialData.price / 1000).toString(),
+<<<<<<< HEAD
           costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : '',
           image: initialData.image || '',
+=======
+          costPrice: initialData.costPrice ? (initialData.costPrice / 1000).toString() : (initialData.costPrice === 0 ? '0' : ''),
+          image: initialData.image || placeholderImage,
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
           maxDiscountPerUnitVND: initialData.maxDiscountPerUnitVND ? (initialData.maxDiscountPerUnitVND / 1000).toString() : '0',
         };
         setFormState(populatedFormState);
@@ -105,6 +110,7 @@ export function ProductFormDialog({
     const maxDiscountNum = parseFloat(formState.maxDiscountPerUnitVND) || 0;
     const quantityNum = parseInt(formState.quantity);
 
+<<<<<<< HEAD
     if (!formState.name || !formState.color || !formState.quality || !formState.size || !formState.unit || formState.quantity === '' || formState.price === '' || formState.costPrice === '' || isNaN(quantityNum) || quantityNum < 0 || isNaN(priceNum) || priceNum < 0 || isNaN(costPriceNum) || costPriceNum < 0 || isNaN(maxDiscountNum) || maxDiscountNum < 0) {
       toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ các trường bắt buộc (*). Giá trị số phải lớn hơn hoặc bằng 0.", variant: "destructive" });
       return;
@@ -114,10 +120,27 @@ export function ProductFormDialog({
       return;
     }
     if (maxDiscountNum > priceNum) {
+=======
+    if (!formState.name || !formState.color || !formState.quality || !formState.size || !formState.unit || 
+        formState.quantity === '' || formState.price === '' || formState.costPrice === '' ||
+        isNaN(quantityNum) || quantityNum < 0 || 
+        isNaN(priceNum) || priceNum < 0 || 
+        isNaN(costPriceNum) || costPriceNum < 0 || 
+        isNaN(maxDiscountNum) || maxDiscountNum < 0) {
+      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ các trường bắt buộc (*). Số lượng, giá bán, và giá gốc phải là số, không được để trống và không âm.", variant: "destructive" });
+      return;
+    }
+    if (priceNum <= costPriceNum && costPriceNum > 0) { 
+      toast({ title: "Lỗi", description: "Giá bán phải lớn hơn giá gốc (nếu giá gốc > 0).", variant: "destructive" });
+      return;
+    }
+    if (maxDiscountNum > priceNum && priceNum > 0) { 
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
       toast({ title: "Lỗi", description: "Giảm giá tối đa không được vượt quá Giá bán.", variant: "destructive" });
       return;
     }
 
+<<<<<<< HEAD
     setIsSubmitting(true);
     try {
       const success = await onSubmit(formState, isEditMode, initialData?.id);
@@ -130,6 +153,21 @@ export function ProductFormDialog({
     } finally {
       setIsSubmitting(false);
     }
+=======
+    const productData: Omit<Product, 'id'> = {
+      name: formState.name,
+      quantity: quantityNum,
+      price: priceNum * 1000,
+      costPrice: costPriceNum * 1000,
+      image: formState.image || `https://placehold.co/100x100.png`,
+      color: formState.color,
+      quality: formState.quality,
+      size: formState.size,
+      unit: formState.unit,
+      maxDiscountPerUnitVND: maxDiscountNum * 1000,
+    };
+    await onSubmit(productData, isEditMode, initialData?.id);
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
   };
 
   if (!isOpen) return null;
@@ -227,7 +265,11 @@ export function ProductFormDialog({
           </div>
           <div>
               <Label htmlFor="prodForm-costPrice" className="text-sm text-foreground">Giá gốc (Nghìn VND) (*)</Label>
+<<<<<<< HEAD
               <Input id="prodForm-costPrice" type="number" name="costPrice" placeholder="Giá nhập hàng" value={formState.costPrice} onChange={handleInputChange} required min="0" step="any" className="bg-card"/>
+=======
+              <Input id="prodForm-costPrice" type="number" name="costPrice" value={formState.costPrice} onChange={handleInputChange} required min="0" step="any" className="bg-card"/>
+>>>>>>> f497b674c67425e219da5b3ccf493b1db10fa740
           </div>
           <div>
               <Label htmlFor="prodForm-price" className="text-sm text-foreground">Giá bán (Nghìn VND) (*)</Label>
@@ -300,3 +342,4 @@ export function ProductFormDialog({
     </Dialog>
   );
 }
+

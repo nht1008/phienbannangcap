@@ -60,6 +60,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as AlertDialogTitleComponent,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from '@/components/ui/button';
@@ -84,7 +91,7 @@ import {
   SidebarFooter,
   useSidebar
 } from '@/components/ui/sidebar';
-import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, Store, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { PanelLeft, ChevronsLeft, ChevronsRight, LogOut, UserCircle, Settings, Lock, ShoppingCart, Store, Pencil, Trash2, PlusCircle, MoreHorizontal } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { ref, onValue, set, push, update, get, child, remove } from "firebase/database";
 import { useToast } from "@/hooks/use-toast";
@@ -517,36 +524,40 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar space-y-2">
-            {currentUser && (
-                <SidebarMenuButton
-                    onClick={() => setIsUserInfoDialogOpen(true)}
-                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    tooltip={{children: currentUser.displayName || currentUser.email || "Tài khoản", side: "right", align: "center"}}
-                    variant="ghost"
+          <SidebarFooter className="p-2 border-t border-sidebar-border sticky bottom-0 bg-sidebar">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                        className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        tooltip={{children: "Tùy chọn khác", side: "right", align: "center"}}
+                        variant="ghost"
+                    >
+                        <MoreHorizontal className="h-5 w-5" />
+                        <span>Tùy chọn</span>
+                    </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                    side="top" 
+                    align="start" 
+                    className="w-56 mb-2 ml-2 bg-popover text-popover-foreground"
                 >
-                    <UserCircle className="h-5 w-5" />
-                    <span>{currentUser.displayName || currentUser.email}</span>
-                </SidebarMenuButton>
-            )}
-            <SidebarMenuButton
-                onClick={() => setIsSettingsDialogOpen(true) }
-                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                tooltip={{children: "Cài đặt", side: "right", align: "center"}}
-                variant="ghost"
-            >
-                <Settings className="h-5 w-5" />
-                <span>Cài đặt</span>
-            </SidebarMenuButton>
-            <SidebarMenuButton
-                onClick={handleSignOut}
-                className="w-full text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                tooltip={{children: "Đăng xuất", side: "right", align: "center"}}
-                variant="ghost"
-            >
-                <LogOut className="h-5 w-5" />
-                <span>Đăng xuất</span>
-            </SidebarMenuButton>
+                    {currentUser && (
+                        <DropdownMenuItem onClick={() => setIsUserInfoDialogOpen(true)}>
+                            <UserCircle className="mr-2 h-4 w-4" />
+                            <span>{currentUser.displayName || "Tài khoản"}</span>
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setIsSettingsDialogOpen(true)}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Cài đặt</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Đăng xuất</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
 
@@ -1912,7 +1923,3 @@ export default function FleurManagerPage() {
 
 
     
-
-
-
-

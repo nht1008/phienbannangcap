@@ -24,7 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { NumericDisplaySize } from '@/components/settings/SettingsDialog';
-import { Eye, Calendar as CalendarIcon } from 'lucide-react';
+import { Eye, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, endOfDay, getDaysInMonth, getMonth, getYear, isSameDay, isSameMonth, isSameYear } from 'date-fns';
@@ -228,7 +228,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
     return [...productSalesPerformanceInPeriod]
       .filter(p => p.soldInPeriod > 0)
       .sort((a, b) => b.soldInPeriod - a.soldInPeriod)
-      .slice(0, 10);
+ .slice(0, 20);
   }, [productSalesPerformanceInPeriod]);
 
   const filteredDisposedProducts = useMemo(() => {
@@ -606,8 +606,8 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold">top sản phẩm</CardTitle>
-          <CardDescription>Theo số lượng bán trong khoảng thời gian đã lọc. (Tối đa 10 sản phẩm)</CardDescription>
+          <CardTitle className="text-2xl font-semibold">Top Sản Phẩm</CardTitle>
+ <CardDescription>Theo số lượng bán trong khoảng thời gian đã lọc. (Tối đa 20 sản phẩm)</CardDescription>
         </CardHeader>
         <CardContent>
           {topSellingProducts.length === 0 ? (
@@ -682,13 +682,14 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
                     <TableHead>Lý Do</TableHead>
                     <TableHead>Ngày Loại Bỏ</TableHead>
                     <TableHead>Nhân Viên</TableHead>
+ <TableHead className="text-center">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDisposedProducts.map((entry, index) => (
                     <TableRow key={entry.id}>
                       <TableCell>{index + 1}</TableCell>
-                       <TableCell>
+                      <TableCell>
                         <Image 
                             src={entry.image || `https://placehold.co/40x40.png`} 
                             alt={entry.productName} 
@@ -705,6 +706,13 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
                       <TableCell className="text-xs max-w-xs truncate" title={entry.reason}>{entry.reason || "Không có"}</TableCell>
                       <TableCell>{new Date(entry.disposalDate).toLocaleDateString('vi-VN')}</TableCell>
                       <TableCell>{entry.employeeName}</TableCell>
+ <TableCell className="text-center">
+ <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => {
+ // TODO: Add delete logic here
+ }}>
+ <Trash2 className="h-4 w-4" />
+ </Button>
+ </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

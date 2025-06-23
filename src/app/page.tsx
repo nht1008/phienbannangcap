@@ -928,7 +928,21 @@ export default function FleurManagerPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
+      try {
+        localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
+      } catch (error: any) {
+        // Check for QuotaExceededError (standard) or other quota-related messages
+        if (error.name === 'QuotaExceededError' || (error.message && error.message.toLowerCase().includes('quota'))) {
+          toast({
+            title: "Lỗi lưu giỏ hàng",
+            description: "Dung lượng lưu trữ của trình duyệt đã đầy. Giỏ hàng có thể không được lưu nếu bạn tải lại trang.",
+            variant: "destructive",
+            duration: 5000
+          });
+        } else {
+          console.error("Không thể lưu giỏ hàng vào bộ nhớ cục bộ:", error);
+        }
+      }
     }
   }, [cart]);
 

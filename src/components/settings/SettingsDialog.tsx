@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import type { ShopInfo } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud } from 'lucide-react';
+import { uploadImageAndGetURL } from '@/lib/firebase';
 
 export type OverallFontSize = 'sm' | 'md' | 'lg';
 export type NumericDisplaySize = 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl';
@@ -31,6 +32,12 @@ const defaultShopInfo: ShopInfo = {
   bankAccountName: '',
   bankAccountNumber: '',
   bankName: '',
+  showShopLogoOnInvoice: true,
+  showShopAddressOnInvoice: true,
+  showShopPhoneOnInvoice: true,
+  showShopBankDetailsOnInvoice: true,
+  showEmployeeNameOnInvoice: true,
+  invoiceThankYouMessage: "Cảm ơn quý khách đã mua hàng!",
 };
 
 interface SettingsDialogProps {
@@ -64,6 +71,7 @@ export function SettingsDialog({
   const [currentOverallSize, setCurrentOverallSize] = useState<OverallFontSize>(overallFontSize);
   const [currentNumericSize, setCurrentNumericSize] = useState<NumericDisplaySize>(numericDisplaySize);
   const [editableShopInfo, setEditableShopInfo] = useState<ShopInfo>(shopInfo || defaultShopInfo);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isSavingShopInfo, setIsSavingShopInfo] = useState(false);
   const { toast } = useToast();
 
@@ -77,6 +85,7 @@ export function SettingsDialog({
   
   useEffect(() => {
     setEditableShopInfo(shopInfo || defaultShopInfo);
+    setLogoFile(null); // Reset logo file when shop info changes
   }, [shopInfo]);
 
 
@@ -103,20 +112,10 @@ export function SettingsDialog({
         e.target.value = ""; // Clear the input
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditableShopInfo(prev => ({ ...prev, logoUrl: reader.result as string }));
-      };
-      reader.onerror = () => {
-        toast({
-          title: "Lỗi đọc file",
-          description: "Không thể đọc file ảnh đã chọn.",
-          variant: "destructive",
-        });
-      }
-      reader.readAsDataURL(file);
+      setLogoFile(file);
+      setEditableShopInfo(prev => ({ ...prev, logoUrl: URL.createObjectURL(file) }));
     } else {
-      // If no file is selected (e.g., user cancels dialog), reset to default or previous if any
+       setLogoFile(null);
        setEditableShopInfo(prev => ({ ...prev, logoUrl: shopInfo?.logoUrl || defaultShopInfo.logoUrl }));
     }
   };
@@ -129,10 +128,15 @@ export function SettingsDialog({
     }
     setIsSavingShopInfo(true);
     try {
-      await onSaveShopInfo(editableShopInfo);
+      let infoToSave = { ...editableShopInfo };
+      if (logoFile) {
+        const newLogoUrl = await uploadImageAndGetURL(logoFile, 'logos');
+        infoToSave.logoUrl = newLogoUrl;
+      }
+      await onSaveShopInfo(infoToSave);
       // Success toast is handled by page.tsx after successful save
-    } catch (error) {
-      // Error toast is handled by page.tsx
+    } catch (error: any) {
+      toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" });
     } finally {
       setIsSavingShopInfo(false);
     }

@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Product, ProductFormData } from '@/types'; // Using ProductFormData
 import { UploadCloud } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { uploadImageAndGetURL } from '@/lib/firebase';
 
 interface ProductFormDialogProps {
   isOpen: boolean;
@@ -49,12 +50,14 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const [formState, setFormState] = useState<ProductFormData>(defaultFormState);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const placeholderImage = `https://placehold.co/100x100.png`;
     if (isOpen) {
+      setImageFile(null); // Reset file on open
       if (isEditMode && initialData) {
         const populatedFormState: ProductFormData = {
           name: initialData.name,
@@ -100,16 +103,12 @@ export function ProductFormDialog({
         e.target.value = "";
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUri = reader.result as string;
-        setFormState(prev => ({ ...prev, image: dataUri }));
-        setImagePreview(dataUri);
-      };
-      reader.readAsDataURL(file);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     } else {
       const placeholder = `https://placehold.co/100x100.png`;
       setFormState(prev => ({ ...prev, image: placeholder }));
+      setImageFile(null);
       setImagePreview(placeholder);
     }
   };
@@ -136,12 +135,17 @@ export function ProductFormDialog({
 
     setIsSubmitting(true);
     try {
+      let finalImageUrl = formState.image || `https://placehold.co/100x100.png`;
+      if (imageFile) {
+        finalImageUrl = await uploadImageAndGetURL(imageFile, 'product_images');
+      }
+
       const productData: Omit<Product, 'id'> = {
         name: formState.name,
         quantity: quantityNum,
         price: priceNum * 1000,
         costPrice: costPriceNum * 1000,
-        image: formState.image || `https://placehold.co/100x100.png`,
+        image: finalImageUrl,
         color: formState.color,
         quality: formState.quality,
         size: formState.size,
@@ -149,6 +153,9 @@ export function ProductFormDialog({
         maxDiscountPerUnitVND: maxDiscountNum * 1000,
       };
       await onSubmit(productData, isEditMode, initialData?.id);
+    } catch(error) {
+      console.error("Error submitting product form:", error);
+      toast({ title: "Lỗi", description: "Đã có lỗi xảy ra khi lưu sản phẩm.", variant: "destructive"});
     } finally {
       setIsSubmitting(false);
     }

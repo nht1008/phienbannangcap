@@ -95,7 +95,7 @@ export function ProductFormDialog({
     setFormState(prev => ({ ...prev, [fieldName]: value }));
   };
 
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -106,10 +106,8 @@ export function ProductFormDialog({
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     } else {
-      const placeholder = `https://placehold.co/100x100.png`;
-      setFormState(prev => ({ ...prev, image: placeholder }));
       setImageFile(null);
-      setImagePreview(placeholder);
+      setImagePreview(formState.image || `https://placehold.co/100x100.png`);
     }
   };
 

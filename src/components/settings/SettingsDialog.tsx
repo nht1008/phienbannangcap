@@ -20,6 +20,7 @@ import type { ShopInfo } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud } from 'lucide-react';
 import { uploadImageAndGetURL } from '@/lib/firebase';
+import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 export type OverallFontSize = 'sm' | 'md' | 'lg';
 export type NumericDisplaySize = 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl';
@@ -72,6 +73,7 @@ export function SettingsDialog({
   const [currentNumericSize, setCurrentNumericSize] = useState<NumericDisplaySize>(numericDisplaySize);
   const [editableShopInfo, setEditableShopInfo] = useState<ShopInfo>(shopInfo || defaultShopInfo);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSavingShopInfo, setIsSavingShopInfo] = useState(false);
   const { toast } = useToast();
 
@@ -84,9 +86,11 @@ export function SettingsDialog({
   }, [numericDisplaySize]);
   
   useEffect(() => {
-    setEditableShopInfo(shopInfo || defaultShopInfo);
-    setLogoFile(null); // Reset logo file when shop info changes
-  }, [shopInfo]);
+    const info = shopInfo || defaultShopInfo;
+    setEditableShopInfo(info);
+    setLogoPreview(info.logoUrl);
+    setLogoFile(null);
+  }, [shopInfo, isOpen]);
 
 
   const handleApplySettings = () => {
@@ -113,10 +117,10 @@ export function SettingsDialog({
         return;
       }
       setLogoFile(file);
-      setEditableShopInfo(prev => ({ ...prev, logoUrl: URL.createObjectURL(file) }));
+      setLogoPreview(URL.createObjectURL(file));
     } else {
        setLogoFile(null);
-       setEditableShopInfo(prev => ({ ...prev, logoUrl: shopInfo?.logoUrl || defaultShopInfo.logoUrl }));
+       setLogoPreview(editableShopInfo.logoUrl);
     }
   };
 
@@ -134,7 +138,7 @@ export function SettingsDialog({
         infoToSave.logoUrl = newLogoUrl;
       }
       await onSaveShopInfo(infoToSave);
-      // Success toast is handled by page.tsx after successful save
+      setLogoFile(null);
     } catch (error: any) {
       console.error("Error updating shop info:", error);
       let errorMessage = "Không thể cập nhật thông tin cửa hàng.";
@@ -243,9 +247,9 @@ export function SettingsDialog({
                             onChange={handleLogoFileChange}
                             className="bg-card flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                         />
-                        {editableShopInfo.logoUrl ? (
+                        {logoPreview ? (
                             <Image
-                                src={editableShopInfo.logoUrl}
+                                src={logoPreview}
                                 alt="Xem trước logo"
                                 width={60}
                                 height={60}
@@ -282,7 +286,7 @@ export function SettingsDialog({
                     </div>
 
                   <Button type="submit" className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white" disabled={isSavingShopInfo}>
-                    {isSavingShopInfo ? 'Đang lưu...' : 'Lưu thông tin cửa hàng'}
+                    {isSavingShopInfo ? <><LoadingSpinner className="mr-2" /> Đang lưu...</> : 'Lưu thông tin cửa hàng'}
                   </Button>
                 </form>
                 )}

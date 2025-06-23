@@ -288,7 +288,7 @@ interface FleurManagerLayoutContentProps {
   onSelectProductGroupForOrder: (productGroup: Product[]) => void;
 }
 
-function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
+const FleurManagerLayoutContent = React.memo((props: FleurManagerLayoutContentProps) => {
   const {
     currentUser, activeTab, setActiveTab, inventory, customersData, ordersData, invoicesData, debtsData, employeesData, disposalLogEntries,
     shopInfo, isLoadingShopInfo, cart, customerCart, productNameOptions, colorOptions, productQualityOptions, sizeOptions,
@@ -710,7 +710,8 @@ function FleurManagerLayoutContent(props: FleurManagerLayoutContentProps) {
       />
       </div>
   );
-}
+});
+FleurManagerLayoutContent.displayName = 'FleurManagerLayoutContent';
 
 
 export default function FleurManagerPage() {
@@ -720,7 +721,12 @@ export default function FleurManagerPage() {
 
   const [isSettingName, setIsSettingName] = useState(false);
   const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
-  const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
+  const [activeTab, setActiveTab] = useState<TabName>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('fleur-manager-active-tab') as TabName) || 'Bán hàng';
+    }
+    return 'Bán hàng';
+  });
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [ordersData, setOrdersData] = useState<Order[]>([]);
@@ -728,7 +734,18 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [disposalLogEntries, setDisposalLogEntries] = useState<DisposalLogEntry[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (typeof window !== 'undefined') {
+        const savedCart = localStorage.getItem('fleur-manager-cart');
+        try {
+            return savedCart ? JSON.parse(savedCart) : [];
+        } catch (error) {
+            console.error("Failed to parse cart from localStorage", error);
+            return [];
+        }
+    }
+    return [];
+  });
   const [customerCart, setCustomerCart] = useState<CartItem[]>([]);
   const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
   
@@ -804,24 +821,24 @@ export default function FleurManagerPage() {
     image: `https://placehold.co/100x100.png`,
   }), [productNameOptions, colorOptions, productQualityOptions, sizeOptions, unitOptions]);
 
-  const handleOpenAddProductDialog = () => {
+  const handleOpenAddProductDialog = useCallback(() => {
     setCurrentEditingProduct(null);
     setIsProductFormEditMode(false);
     setIsProductFormOpen(true);
-  };
+  }, []);
 
-  const handleOpenEditProductDialog = (product: Product) => {
+  const handleOpenEditProductDialog = useCallback((product: Product) => {
     setCurrentEditingProduct(product);
     setIsProductFormEditMode(true);
     setIsProductFormOpen(true);
-  };
+  }, []);
 
-  const handleCloseProductFormDialog = () => {
+  const handleCloseProductFormDialog = useCallback(() => {
     setIsProductFormOpen(false);
     setCurrentEditingProduct(null);
-  };
+  }, []);
 
-  const handleProductFormSubmit = async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string) => {
+  const handleProductFormSubmit = useCallback(async (productData: Omit<Product, 'id'>, isEdit: boolean, productId?: string) => {
     try {
       const isDuplicate = inventory.some(p =>
         (isEdit ? p.id !== productId : true) &&
@@ -854,18 +871,18 @@ export default function FleurManagerPage() {
       console.error("Error saving product:", error);
       toast({ title: "Lỗi", description: "Không thể lưu sản phẩm. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [inventory, toast, handleCloseProductFormDialog]);
 
-  const handleDeleteProductFromAnywhere = async (productId: string) => {
+  const handleDeleteProductFromAnywhere = useCallback(async (productId: string) => {
     if (!hasFullAccessRights) {
       toast({ title: "Không có quyền", description: "Bạn không có quyền xóa sản phẩm.", variant: "destructive" });
       return;
     }
     setProductToDeleteId(productId);
     setIsConfirmingProductDelete(true);
-  };
+  }, [hasFullAccessRights, toast]);
 
-  const confirmDeleteProduct = async () => {
+  const confirmDeleteProduct = useCallback(async () => {
     if (productToDeleteId) {
       try {
         await remove(ref(db, `inventory/${productToDeleteId}`));
@@ -878,7 +895,7 @@ export default function FleurManagerPage() {
         setProductToDeleteId(null);
       }
     }
-  };
+  }, [productToDeleteId, toast]);
 
   const handleUpdateProductMaxDiscount = useCallback(async (productId: string, newMaxDiscountVND: number) => {
     if (!hasFullAccessRights) {
@@ -894,6 +911,31 @@ export default function FleurManagerPage() {
     }
   }, [hasFullAccessRights, toast]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fleur-manager-active-tab', activeTab);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        try {
+            localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                console.warn("localStorage quota exceeded. Cart will not be persisted if page is reloaded.");
+                toast({
+                    title: "Bộ nhớ đệm đầy",
+                    description: "Giỏ hàng của bạn quá lớn để lưu trữ. Nếu bạn tải lại trang, giỏ hàng có thể bị mất.",
+                    variant: "destructive",
+                    duration: 10000
+                });
+            } else {
+                console.error("Failed to save cart to localStorage", error);
+            }
+        }
+    }
+  }, [cart, toast]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1455,8 +1497,8 @@ export default function FleurManagerPage() {
   const handleUpdateDebtStatus = useCallback(async (debtId: string, newStatus: 'Chưa thanh toán' | 'Đã thanh toán', employeeId: string, employeeName: string, isUndoOperation: boolean = false) => { try { const debtRef = ref(db, `debts/${debtId}`); const snapshot = await get(debtRef); if (!snapshot.exists()) { toast({ title: "Lỗi", description: "Không tìm thấy công nợ.", variant: "destructive" }); return; } const originalDebt = snapshot.val() as Debt; const originalStatus = originalDebt.status; const updates: { [key: string]: any } = {}; updates[`debts/${debtId}/status`] = newStatus; if (!isUndoOperation) { updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ'; } else { updates[`debts/${debtId}/lastUpdatedEmployeeId`] = employeeId; updates[`debts/${debtId}/lastUpdatedEmployeeName`] = employeeName || 'Không rõ'; } if (originalDebt.invoiceId) { const invoiceRef = ref(db, `invoices/${originalDebt.invoiceId}`); const invoiceSnapshot = await get(invoiceRef); if (invoiceSnapshot.exists()) { const currentInvoice = invoiceSnapshot.val() as Invoice; if (newStatus === 'Đã thanh toán' && !isUndoOperation) { updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = 0; updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total; } else if (newStatus === 'Chưa thanh toán' && isUndoOperation) { updates[`invoices/${originalDebt.invoiceId}/debtAmount`] = originalDebt.amount; updates[`invoices/${originalDebt.invoiceId}/amountPaid`] = currentInvoice.total - originalDebt.amount; } } else { console.warn(`Invoice ${originalDebt.invoiceId} not found when updating debt ${debtId}`); } } await update(ref(db), updates); if (!isUndoOperation) { toast({ title: "Thành công", description: "Trạng thái công nợ đã được cập nhật.", variant: "default", }); } else { toast({ title: "Hoàn tác thành công", description: `Trạng thái công nợ đã được đổi lại thành "${originalStatus}".`, variant: "default", }); } } catch (error) { console.error("Error updating debt status:", error); toast({ title: "Lỗi", description: "Không thể cập nhật trạng thái công nợ.", variant: "destructive" }); } }, [toast]);
   const handleAddProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!name.trim()) { toast({ title: "Lỗi", description: "Tên tùy chọn không được để trống.", variant: "destructive" }); return; } try { const sanitizedName = name.trim().replace(/[.#$[\]]/g, '_'); if (sanitizedName !== name.trim()) { toast({ title: "Cảnh báo", description: "Tên tùy chọn đã được chuẩn hóa để loại bỏ ký tự không hợp lệ.", variant: "default" }); } if (!sanitizedName) { toast({ title: "Lỗi", description: "Tên tùy chọn sau khi chuẩn hóa không hợp lệ.", variant: "destructive" }); return; } await set(ref(db, `productOptions/${type}/${sanitizedName}`), true); toast({ title: "Thành công", description: `Tùy chọn ${sanitizedName} đã được thêm.`, variant: "default" }); } catch (error) { console.error(`Error adding product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể thêm tùy chọn ${type}.`, variant: "destructive" }); } }, [toast]);
   const handleDeleteProductOption = useCallback(async (type: ProductOptionType, name: string) => { if (!hasFullAccessRights) { toast({ title: "Không có quyền", description: "Bạn không có quyền xóa tùy chọn sản phẩm.", variant: "destructive" }); return; } try { await remove(ref(db, `productOptions/${type}/${name}`)); toast({ title: "Thành công", description: `Tùy chọn ${name} đã được xóa.`, variant: "default" }); } catch (error) { console.error(`Error deleting product ${type} option:`, error); toast({ title: "Lỗi", description: `Không thể xóa tùy chọn ${type}.`, variant: "destructive" }); } }, [toast, hasFullAccessRights]);
-  const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
-  const handleSignOut = async () => {
+  const handleSaveShopInfo = useCallback(async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } }, [toast, hasFullAccessRights]);
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut();
       router.push('/login');
@@ -1465,10 +1507,10 @@ export default function FleurManagerPage() {
       console.error("Error signing out:", error);
       toast({ title: "Lỗi đăng xuất", description: "Không thể đăng xuất. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
-  const handleNameSet = async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } };
+  }, [signOut, router, toast]);
+  const handleNameSet = useCallback(async (inputName: string) => { if (!currentUser) return; const isSuperAdminEmail = currentUser.email === ADMIN_EMAIL; const employeeName = isSuperAdminEmail ? ADMIN_NAME : inputName; try { await updateUserProfileName(employeeName); if (isSuperAdminEmail) { const employeeRef = ref(db, `employees/${currentUser.uid}`); const currentEmployeeSnap = await get(employeeRef); if (!currentEmployeeSnap.exists() || currentEmployeeSnap.val().position !== 'ADMIN') { await set(employeeRef, { name: ADMIN_NAME, email: ADMIN_EMAIL, position: 'ADMIN' }); } } setIsSettingName(false); } catch (error) { console.error("Error in onNameSet:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin.", variant: "destructive" }); } }, [currentUser, updateUserProfileName, toast]);
 
-  const handleDeleteDebt = (debtId: string) => {
+  const handleDeleteDebt = useCallback((debtId: string) => {
     const debt = debtsData.find(d => d.id === debtId);
     if (debt) {
       setDebtToDelete(debt);
@@ -1476,9 +1518,9 @@ export default function FleurManagerPage() {
     } else {
       toast({ title: "Lỗi", description: "Không tìm thấy công nợ để xóa.", variant: "destructive" });
     }
-  };
+  }, [debtsData, toast]);
 
-  const handleConfirmDeleteDebt = async () => {
+  const handleConfirmDeleteDebt = useCallback(async () => {
     if (!debtToDelete) return;
      if (!isCurrentUserAdmin) {
       toast({ title: "Không có quyền", description: "Bạn không có quyền xóa công nợ.", variant: "destructive" });
@@ -1506,7 +1548,7 @@ export default function FleurManagerPage() {
       setIsConfirmingDebtDelete(false);
       setDebtToDelete(null);
     }
-  };
+  }, [debtToDelete, isCurrentUserAdmin, toast]);
 
   const handleUpdateOrderStatus = useCallback(async (orderId: string, newStatus: OrderStatus, currentEmployeeId: string, currentEmployeeName: string) => {
     try {
@@ -1595,7 +1637,7 @@ export default function FleurManagerPage() {
     }
   }, [toast, ordersData]);
 
-  const handleToggleEmployeeRole = async (employeeId: string, currentPosition: EmployeePosition) => {
+  const handleToggleEmployeeRole = useCallback(async (employeeId: string, currentPosition: EmployeePosition) => {
     if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
@@ -1627,9 +1669,9 @@ export default function FleurManagerPage() {
       console.error("Error toggling employee role:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật vai trò nhân viên.", variant: "destructive" });
     }
-  };
+  }, [currentUser, employeesData, toast]);
 
-  const handleUpdateEmployeeInfo = async (employeeId: string, data: { name: string; phone?: string; zaloName?: string; }) => {
+  const handleUpdateEmployeeInfo = useCallback(async (employeeId: string, data: { name: string; phone?: string; zaloName?: string; }) => {
     if (!isCurrentUserAdmin) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
@@ -1656,9 +1698,9 @@ export default function FleurManagerPage() {
       console.error("Error updating employee info:", error);
       toast({ title: "Lỗi", description: "Không thể cập nhật thông tin nhân viên.", variant: "destructive" });
     }
-  };
+  }, [isCurrentUserAdmin, toast, employeesData, currentUser, updateUserProfileName]);
 
-  const handleDeleteEmployee = async (employeeId: string) => {
+  const handleDeleteEmployee = useCallback(async (employeeId: string) => {
     if (!isCurrentUserAdmin) {
       toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" });
       return;
@@ -1680,7 +1722,7 @@ export default function FleurManagerPage() {
       console.error("Error deleting employee:", error);
       toast({ title: "Lỗi", description: "Không thể xóa nhân viên. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [isCurrentUserAdmin, toast, employeesData]);
 
   const handleDisposeProductItems = useCallback(async (
     productId: string,
@@ -1793,7 +1835,7 @@ export default function FleurManagerPage() {
       setCustomerCart(prev => prev.filter(item => item.id !== itemId));
   }, []);
 
-  const handleConfirmOrderFromCart = async () => {
+  const handleConfirmOrderFromCart = useCallback(async () => {
     if (customerCart.length === 0) {
         toast({ title: "Lỗi", description: "Giỏ hàng của bạn đang trống.", variant: "destructive" });
         return;
@@ -1859,18 +1901,18 @@ export default function FleurManagerPage() {
         console.error("Error placing order:", error);
         toast({ title: "Lỗi", description: "Không thể đặt hàng. Vui lòng thử lại.", variant: "destructive" });
     }
-  };
+  }, [customerCart, inventory, currentUser, isCurrentUserCustomer, customersData, toast]);
 
-  const handleOpenNoteEditor = (itemId: string) => {
+  const handleOpenNoteEditor = useCallback((itemId: string) => {
     const item = customerCart.find(i => i.id === itemId);
     if (item) {
         setEditingNoteItemId(itemId);
         setItemNoteContent(item.notes || '');
         setIsNoteEditorOpen(true);
     }
-  };
+  }, [customerCart]);
 
-  const handleSaveItemNote = () => {
+  const handleSaveItemNote = useCallback(() => {
     if (!editingNoteItemId) return;
     setCustomerCart(prevCart => 
         prevCart.map(item => 
@@ -1880,7 +1922,7 @@ export default function FleurManagerPage() {
     setIsNoteEditorOpen(false);
     setEditingNoteItemId(null);
     setItemNoteContent('');
-  };
+  }, [editingNoteItemId, itemNoteContent]);
 
   const handleAddToStorefront = useCallback(async (productId: string) => {
     try {
@@ -1914,10 +1956,10 @@ export default function FleurManagerPage() {
     }
   }, [activeTab, currentUserEmployeeData, toast]);
 
-  const handleOpenOrderDialog = (productGroup: Product[]) => {
+  const handleOpenOrderDialog = useCallback((productGroup: Product[]) => {
     setSelectedProductGroupForOrder(productGroup);
     setIsOrderDialogOpen(true);
-  };
+  }, []);
 
   // --- Conditional Rendering Logic ---
   if (authLoading) return <LoadingScreen message="Đang tải ứng dụng..." />;
@@ -2077,6 +2119,9 @@ export default function FleurManagerPage() {
 
     
 
+
+
+    
 
 
     

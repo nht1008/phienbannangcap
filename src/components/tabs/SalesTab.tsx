@@ -866,7 +866,7 @@ export function SalesTab({
               onClick={handleConfirmCheckout}
               className="w-full bg-green-500 text-white hover:bg-green-600"
               disabled={
-                finalTotalAfterAllDiscounts < 0 ||
+                finalTotalAfterAllDiscounts <= 0 ||
                 (customerNameForInvoice.trim().toLowerCase() === 'khách lẻ' && finalTotalAfterAllDiscounts > actualAmountPaidVND && currentPaymentMethod !== 'Chuyển khoản') || 
                 (currentPaymentMethod === 'Chuyển khoản' && finalTotalAfterAllDiscounts > actualAmountPaidVND) ||
                 !areAllItemDiscountsValid

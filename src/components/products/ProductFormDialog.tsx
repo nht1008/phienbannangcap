@@ -153,9 +153,17 @@ export function ProductFormDialog({
         maxDiscountPerUnitVND: maxDiscountNum * 1000,
       };
       await onSubmit(productData, isEditMode, initialData?.id);
-    } catch(error) {
+    } catch(error: any) {
       console.error("Error submitting product form:", error);
-      toast({ title: "Lỗi", description: "Đã có lỗi xảy ra khi lưu sản phẩm.", variant: "destructive"});
+      let errorMessage = "Đã có lỗi xảy ra khi lưu sản phẩm.";
+      if (error.code === 'storage/unauthorized') {
+        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền tải ảnh lên. Vui lòng kiểm tra lại quy tắc bảo mật của Firebase Storage.";
+      } else if (error.code === 'storage/unknown') {
+        errorMessage = "Lỗi không xác định từ Firebase Storage. Có thể do lỗi kết nối mạng hoặc cấu hình CORS.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast({ title: "Lỗi", description: errorMessage, variant: "destructive", duration: 7000});
     } finally {
       setIsSubmitting(false);
     }

@@ -136,7 +136,16 @@ export function SettingsDialog({
       await onSaveShopInfo(infoToSave);
       // Success toast is handled by page.tsx after successful save
     } catch (error: any) {
-      toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" });
+      console.error("Error updating shop info:", error);
+      let errorMessage = "Không thể cập nhật thông tin cửa hàng.";
+      if (error.code === 'storage/unauthorized') {
+        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền tải ảnh lên. Vui lòng kiểm tra lại quy tắc bảo mật của Firebase Storage.";
+      } else if (error.code === 'storage/unknown') {
+        errorMessage = "Lỗi không xác định từ Firebase Storage. Có thể do lỗi kết nối mạng hoặc cấu hình CORS.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast({ title: "Lỗi", description: errorMessage, variant: "destructive", duration: 7000 });
     } finally {
       setIsSavingShopInfo(false);
     }

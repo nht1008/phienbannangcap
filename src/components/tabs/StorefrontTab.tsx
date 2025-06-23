@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Store, XCircle, Eye } from 'lucide-react';
+import { Store, XCircle, Eye, Pencil } from 'lucide-react';
 
 interface ProductGroup {
   name: string;
@@ -107,6 +107,9 @@ export function StorefrontTab({
                 )}
                  {hasFullAccessRights && (
                     <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
+                        <Button variant="outline" size="icon" className="h-8 w-8 bg-background/80 hover:bg-accent" onClick={(e) => {e.stopPropagation(); onOpenEditProductDialog(group.variants[0]);}} title="Chỉnh sửa sản phẩm">
+                            <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button variant="destructive" size="icon" className="h-8 w-8 bg-destructive/80 hover:bg-destructive" onClick={(e) => {e.stopPropagation(); group.variants.forEach(v => onRemoveFromStorefront(v.id))}} title="Gỡ khỏi gian hàng">
                             <XCircle className="h-4 w-4" />
                         </Button>

@@ -64,6 +64,20 @@ interface AggregatedRevenueData {
   giagoc: number;
 }
 
+interface ProductPerformance {
+  id: string;
+  key: string;
+  name: string;
+  color: string;
+  quality?: string;
+  size: string;
+  unit: string;
+  image: string;
+  currentStock: number;
+  soldInPeriod: number;
+  revenueInPeriod: number;
+  profitInPeriod: number;
+}
 
 export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: filterProp, onFilterChange, numericDisplaySize }: RevenueTabProps) {
   const [selectedInvoiceDetails, setSelectedInvoiceDetails] = useState<Invoice | null>(null);
@@ -592,7 +606,7 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold">Top Sản Phẩm Bán Chạy Nhất</CardTitle>
+          <CardTitle className="text-2xl font-semibold">top sản phẩm</CardTitle>
           <CardDescription>Theo số lượng bán trong khoảng thời gian đã lọc. (Tối đa 10 sản phẩm)</CardDescription>
         </CardHeader>
         <CardContent>
@@ -702,4 +716,3 @@ export function RevenueTab({ invoices, inventory, disposalLogEntries, filter: fi
     </div>
   );
 }
-    

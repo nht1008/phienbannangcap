@@ -133,7 +133,7 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
 
   return (
     <>
-      {width && height && <Confetti width={width} height={height} recycle={true} numberOfPieces={200} />}
+      {width && height && leaderboardData.length > 0 && <Confetti width={width} height={height} recycle={true} numberOfPieces={50} />}
       <div className="p-4 md:p-6">
         <Card className="overflow-hidden">
           <CardHeader className="bg-muted/30">
@@ -177,11 +177,11 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                         >
                           <TableCell className="text-center">
                             <div className={cn("flex items-center justify-center gap-2", isTopThree && "text-2xl")}>
-                              <Trophy className={cn(
-                                "h-6 w-6 group-hover:animate-subtlePulse", 
-                                customer.rank === 1 && "text-yellow-600 h-8 w-8 animate-subtlePulse",
-                                customer.rank === 2 && "text-gray-600 h-8 w-8 animate-subtlePulse",
-                                customer.rank === 3 && "text-orange-700 h-8 w-8 animate-subtlePulse",
+                               <Trophy className={cn(
+                                "h-6 w-6 transition-transform duration-300 group-hover:scale-125",
+                                customer.rank === 1 && "text-yellow-500 h-8 w-8 animate-trophyPulse",
+                                customer.rank === 2 && "text-gray-400 h-8 w-8 animate-trophyPulse",
+                                customer.rank === 3 && "text-orange-600 h-8 w-8 animate-trophyPulse",
                               )} />
                               <span>{customer.rank}</span>
                             </div>
@@ -190,7 +190,10 @@ export function LeaderboardTab({ customers, invoices }: LeaderboardTabProps) {
                             {customer.name}
                           </TableCell>
                           <TableCell>
-                            <Badge className={cn("text-xs font-bold", getVipTierStyling(customer.vipTier))}>
+                             <Badge className={cn(
+                                "text-xs font-bold transition-all duration-300 ease-in-out group-hover:scale-110 group-hover:shadow-xl", 
+                                getVipTierStyling(customer.vipTier)
+                              )}>
                               {customer.vipTier}
                             </Badge>
                           </TableCell>

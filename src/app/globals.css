@@ -203,6 +203,21 @@ html[data-overall-font-size="lg"] {
   animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
 }
 
+@keyframes trophyPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px hsl(var(--primary) / 0.5));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px hsl(var(--primary)));
+  }
+}
+
+.animate-trophyPulse {
+  animation: trophyPulse 2s ease-in-out infinite;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
     display: none;

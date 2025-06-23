@@ -720,17 +720,7 @@ export default function FleurManagerPage() {
 
   const [isSettingName, setIsSettingName] = useState(false);
   const [userAccessRequest, setUserAccessRequest] = useState<UserAccessRequest | null>(null);
-
-  const [activeTab, setActiveTab] = useState<TabName>(() => {
-    if (typeof window === 'undefined') return 'Bán hàng';
-    try {
-      const savedTab = localStorage.getItem('fleur-manager-active-tab') as TabName | null;
-      const validTabs: TabName[] = ['Bán hàng', 'Gian hàng', 'Kho hàng', 'Đơn hàng', 'Nhập hàng', 'Hóa đơn', 'Công nợ', 'Doanh thu', 'Khách hàng', 'Nhân viên', 'Bảng xếp hạng', 'Lịch sử mua hàng'];
-      return savedTab && validTabs.includes(savedTab) ? savedTab : 'Bán hàng';
-    } catch {
-      return 'Bán hàng';
-    }
-  });
+  const [activeTab, setActiveTab] = useState<TabName>('Bán hàng');
   const [inventory, setInventory] = useState<Product[]>([]);
   const [customersData, setCustomersData] = useState<Customer[]>([]);
   const [ordersData, setOrdersData] = useState<Order[]>([]);
@@ -738,15 +728,7 @@ export default function FleurManagerPage() {
   const [debtsData, setDebtsData] = useState<Debt[]>([]);
   const [employeesData, setEmployeesData] = useState<Employee[]>([]);
   const [disposalLogEntries, setDisposalLogEntries] = useState<DisposalLogEntry[]>([]);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const savedCart = localStorage.getItem('fleur-manager-cart');
-      return savedCart ? JSON.parse(savedCart) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [customerCart, setCustomerCart] = useState<CartItem[]>([]);
   const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
   
@@ -925,32 +907,6 @@ export default function FleurManagerPage() {
       localStorage.setItem('fleur-manager-numeric-size', numericDisplaySize);
     }
   }, [numericDisplaySize]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('fleur-manager-cart', JSON.stringify(cart));
-      } catch (error: any) {
-        // Check for QuotaExceededError (standard) or other quota-related messages
-        if (error.name === 'QuotaExceededError' || (error.message && error.message.toLowerCase().includes('quota'))) {
-          toast({
-            title: "Lỗi lưu giỏ hàng",
-            description: "Dung lượng lưu trữ của trình duyệt đã đầy. Giỏ hàng có thể không được lưu nếu bạn tải lại trang.",
-            variant: "destructive",
-            duration: 5000
-          });
-        } else {
-          console.error("Không thể lưu giỏ hàng vào bộ nhớ cục bộ:", error);
-        }
-      }
-    }
-  }, [cart]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('fleur-manager-active-tab', activeTab);
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -1502,10 +1458,6 @@ export default function FleurManagerPage() {
   const handleSaveShopInfo = async (newInfo: ShopInfo) => { if (!hasFullAccessRights) { toast({ title: "Lỗi", description: "Bạn không có quyền thực hiện hành động này.", variant: "destructive" }); throw new Error("Permission denied"); } try { await set(ref(db, 'shopInfo'), newInfo); toast({ title: "Thành công", description: "Thông tin cửa hàng đã được cập nhật." }); } catch (error: any) { console.error("Error updating shop info:", error); toast({ title: "Lỗi", description: "Không thể cập nhật thông tin cửa hàng: " + error.message, variant: "destructive" }); throw error; } };
   const handleSignOut = async () => {
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('fleur-manager-cart');
-        localStorage.removeItem('fleur-manager-active-tab');
-      }
       await signOut();
       router.push('/login');
       toast({ title: "Đã đăng xuất", description: "Bạn đã đăng xuất thành công.", variant: "default" });
